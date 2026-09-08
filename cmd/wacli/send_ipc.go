@@ -62,6 +62,8 @@ type sendDelegateRequest struct {
 	PresenceState        string   `json:"presence_state,omitempty"`
 	PresenceMedia        string   `json:"presence_media,omitempty"`
 	Read                 *bool    `json:"read,omitempty"`
+	ChatStateAction      string   `json:"chat_state_action,omitempty"`
+	MuteDurationMS       int64    `json:"mute_duration_ms,omitempty"`
 	PostSendWaitMS       int64    `json:"post_send_wait_ms,omitempty"`
 	TimeoutMS            int64    `json:"timeout_ms,omitempty"`
 	DeadlineUnixMS       int64    `json:"deadline_unix_ms,omitempty"`
@@ -212,6 +214,13 @@ func handleSendDelegateConn(ctx context.Context, conn net.Conn, execute sendDele
 		return
 	}
 	requestCtx := ctx
+	if req.Kind == "chat_state" {
+		// Chat-state patches are not wire sends: keep them off the send
+		// serializer and pacer so a pre-write app-state sync cannot stall
+		// delegated sends queued behind it.
+		handleDelegatedChatState(ctx, conn, a, req)
+		return
+	}
 	if pacer.enabled() {
 		deadline := time.Now().Add(millisDuration(req.TimeoutMS, 5*time.Minute))
 		if req.DeadlineUnixMS > 0 {
@@ -306,6 +315,8 @@ func executeDelegatedSend(parent context.Context, a *app.App, req sendDelegateRe
 		return executeDelegatedEdit(ctx, a, req)
 	case "mark_read":
 		return executeDelegatedMarkRead(ctx, a, req)
+	case "chat_state":
+		return executeDelegatedChatState(ctx, a, req)
 	default:
 		return sendDelegateResponse{}, fmt.Errorf("unsupported send kind %q", req.Kind)
 	}
@@ -355,6 +366,61 @@ func executeDelegatedPresence(ctx context.Context, a *app.App, req sendDelegateR
 		return sendDelegateResponse{}, err
 	}
 	return sendDelegateResponse{OK: true, Sent: true, To: toJID.String()}, nil
+}
+
+const chatStateDelegateDefaultTimeout = 20 * time.Second
+
+func handleDelegatedChatState(parent context.Context, conn net.Conn, a *app.App, req sendDelegateRequest) {
+	deadline := time.Now().Add(millisDuration(req.TimeoutMS, chatStateDelegateDefaultTimeout))
+	if req.DeadlineUnixMS > 0 {
+		if callerDeadline := time.UnixMilli(req.DeadlineUnixMS); callerDeadline.Before(deadline) {
+			deadline = callerDeadline
+		}
+	}
+	ctx, cancel := context.WithDeadline(parent, deadline)
+	defer cancel()
+	_ = conn.SetDeadline(deadline.Add(sendDelegateResponseGrace))
+
+	resp := runChatStateDelegateWithDeadline(ctx, func() sendDelegateResponse {
+		resp, err := executeDelegatedSend(ctx, a, req)
+		if err != nil {
+			return sendDelegateResponse{OK: false, Error: err.Error()}
+		}
+		return resp
+	})
+	_ = json.NewEncoder(conn).Encode(resp)
+}
+
+// runChatStateDelegateWithDeadline answers when work finishes or ctx ends,
+// whichever comes first. The pre-write app-state sync blocks on a whatsmeow
+// mutex that does not observe ctx, so work is left to finish on its own once
+// the response is written.
+func runChatStateDelegateWithDeadline(ctx context.Context, work func() sendDelegateResponse) sendDelegateResponse {
+	respCh := make(chan sendDelegateResponse, 1)
+	go func() {
+		respCh <- work()
+	}()
+	select {
+	case resp := <-respCh:
+		return resp
+	case <-ctx.Done():
+		return sendDelegateResponse{OK: false, Error: fmt.Errorf("chat state request exceeded its deadline: %w", ctx.Err()).Error()}
+	}
+}
+
+func executeDelegatedChatState(ctx context.Context, a *app.App, req sendDelegateRequest) (sendDelegateResponse, error) {
+	run, err := chatStateRunner(req.ChatStateAction, millisDuration(req.MuteDurationMS, 0))
+	if err != nil {
+		return sendDelegateResponse{}, err
+	}
+	jid, err := resolveRecipient(a, req.To, recipientOptions{pick: req.Pick, asJSON: true})
+	if err != nil {
+		return sendDelegateResponse{}, err
+	}
+	if err := run(ctx, a, jid); err != nil {
+		return sendDelegateResponse{}, err
+	}
+	return sendDelegateResponse{OK: true, To: jid.String()}, nil
 }
 
 func executeDelegatedEdit(ctx context.Context, a *app.App, req sendDelegateRequest) (sendDelegateResponse, error) {

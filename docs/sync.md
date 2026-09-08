@@ -37,8 +37,8 @@ wacli sync [--once] [--follow] [--idle-exit 30s] [--max-reconnect 5m] [--stale-t
 - After `sync --follow` finishes startup and opens its local delegate socket, these commands for the same store are delegated to it so they do not fail on the store lock:
   - `send text`, `send file`, `send sticker`, `send voice`, `send react`, `send location`, `send poll`, and `send select`.
   - `poll vote`, `presence typing`, `presence paused`, and `messages edit`.
-  - `chats mark-read` and `chats mark-unread`.
-- `send status` and the other chat-state commands (`archive`/`unarchive`, `pin`/`unpin`, `mute`/`unmute`) are not delegated and still require the direct store lock.
+  - `chats mark-read`, `chats mark-unread`, `chats archive`, `chats unarchive`, `chats pin`, `chats unpin`, `chats mute`, and `chats unmute`. Delegated chat-state changes never queue behind delegated sends; the caller's `--timeout` (20s when unset) bounds only the wait for the answer, and the operation itself keeps running to completion in the daemon.
+- `send status` is not delegated and still requires the direct store lock.
 - After connecting, sync fetches WhatsApp chat app-state deltas (`regular_high` and `regular_low`) so starred, delete-for-me, mute, archive, pin, and mark-read changes made while `wacli` was offline are caught up instead of relying only on live push notifications.
 - Sync imports messages sent from your other linked devices into the destination chat with `from_me=true`, so local history covers both incoming and outgoing conversation sides.
 - Sync decrypts encrypted message edits and updates the original local row only when the authenticated sender, chat, and target message match. Malformed, redirected, or unsupported edits are rejected without changing local history or emitting a message webhook.

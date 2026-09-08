@@ -28,9 +28,7 @@ func newChatsArchiveCmd(flags *rootFlags, archive bool) *cobra.Command {
 		Use:   use,
 		Short: short,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runChatState(flags, opts, use, nil, func(ctx context.Context, a chatStateApp, jid types.JID) error {
-				return a.ArchiveChat(ctx, jid, archive)
-			})
+			return runChatState(flags, opts, use, 0)
 		},
 	}
 	addChatStateFlags(cmd, &opts)
@@ -47,9 +45,7 @@ func newChatsPinCmd(flags *rootFlags, pin bool) *cobra.Command {
 		Use:   use,
 		Short: short,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runChatState(flags, opts, use, nil, func(ctx context.Context, a chatStateApp, jid types.JID) error {
-				return a.PinChat(ctx, jid, pin)
-			})
+			return runChatState(flags, opts, use, 0)
 		},
 	}
 	addChatStateFlags(cmd, &opts)
@@ -63,9 +59,7 @@ func newChatsMuteCmd(flags *rootFlags) *cobra.Command {
 		Use:   "mute",
 		Short: "Mute a chat",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runChatState(flags, opts, "mute", nil, func(ctx context.Context, a chatStateApp, jid types.JID) error {
-				return a.MuteChat(ctx, jid, true, duration)
-			})
+			return runChatState(flags, opts, "mute", duration)
 		},
 	}
 	addChatStateFlags(cmd, &opts)
@@ -79,9 +73,7 @@ func newChatsUnmuteCmd(flags *rootFlags) *cobra.Command {
 		Use:   "unmute",
 		Short: "Unmute a chat",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runChatState(flags, opts, "unmute", nil, func(ctx context.Context, a chatStateApp, jid types.JID) error {
-				return a.MuteChat(ctx, jid, false, 0)
-			})
+			return runChatState(flags, opts, "unmute", 0)
 		},
 	}
 	addChatStateFlags(cmd, &opts)
@@ -98,9 +90,7 @@ func newChatsMarkReadCmd(flags *rootFlags, read bool) *cobra.Command {
 		Use:   use,
 		Short: short,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runChatState(flags, opts, use, &read, func(ctx context.Context, a chatStateApp, jid types.JID) error {
-				return a.MarkChatRead(ctx, jid, read)
-			})
+			return runChatState(flags, opts, use, 0)
 		},
 	}
 	addChatStateFlags(cmd, &opts)
@@ -114,11 +104,47 @@ type chatStateApp interface {
 	MarkChatRead(context.Context, types.JID, bool) error
 }
 
-func runChatState(flags *rootFlags, opts chatStateOptions, action string, delegateRead *bool, run func(context.Context, chatStateApp, types.JID) error) error {
+type chatStateRun func(context.Context, chatStateApp, types.JID) error
+
+func chatStateRunner(action string, muteDuration time.Duration) (chatStateRun, error) {
+	switch action {
+	case "archive", "unarchive":
+		archive := action == "archive"
+		return func(ctx context.Context, a chatStateApp, jid types.JID) error {
+			return a.ArchiveChat(ctx, jid, archive)
+		}, nil
+	case "pin", "unpin":
+		pin := action == "pin"
+		return func(ctx context.Context, a chatStateApp, jid types.JID) error {
+			return a.PinChat(ctx, jid, pin)
+		}, nil
+	case "mute":
+		return func(ctx context.Context, a chatStateApp, jid types.JID) error {
+			return a.MuteChat(ctx, jid, true, muteDuration)
+		}, nil
+	case "unmute":
+		return func(ctx context.Context, a chatStateApp, jid types.JID) error {
+			return a.MuteChat(ctx, jid, false, 0)
+		}, nil
+	case "mark-read", "mark-unread":
+		read := action == "mark-read"
+		return func(ctx context.Context, a chatStateApp, jid types.JID) error {
+			return a.MarkChatRead(ctx, jid, read)
+		}, nil
+	default:
+		return nil, fmt.Errorf("unsupported chat state action %q", action)
+	}
+}
+
+func runChatState(flags *rootFlags, opts chatStateOptions, action string, muteDuration time.Duration) error {
 	if strings.TrimSpace(opts.chat) == "" {
 		return fmt.Errorf("--chat is required")
 	}
 	if err := flags.requireWritable(); err != nil {
+		return err
+	}
+	run, err := chatStateRunner(action, muteDuration)
+	if err != nil {
 		return err
 	}
 
@@ -127,27 +153,18 @@ func runChatState(flags *rootFlags, opts chatStateOptions, action string, delega
 
 	a, lk, err := newApp(ctx, flags, true, false)
 	if err != nil {
-		if delegateRead != nil {
-			resp, delegated, delegateErr := tryDelegateSend(ctx, flags, err, sendDelegateRequest{
-				Kind: "mark_read",
-				To:   opts.chat,
-				Pick: opts.pick,
-				Read: delegateRead,
-			})
-			if delegated {
-				if delegateErr != nil {
-					return delegateErr
-				}
-				if flags.asJSON {
-					return out.WriteJSON(os.Stdout, map[string]any{
-						"ok":     true,
-						"action": action,
-						"chat":   resp.Chat,
-					})
-				}
-				fmt.Fprintf(os.Stdout, "%s: %s\n", action, resp.Chat)
-				return nil
+		resp, delegated, delegateErr := tryDelegateSend(ctx, flags, err, sendDelegateRequest{
+			Kind:            "chat_state",
+			ChatStateAction: action,
+			To:              opts.chat,
+			Pick:            opts.pick,
+			MuteDurationMS:  durationMillis(muteDuration),
+		})
+		if delegated {
+			if delegateErr != nil {
+				return delegateErr
 			}
+			return writeChatStateOutput(flags, action, resp.To)
 		}
 		return err
 	}
@@ -177,15 +194,18 @@ func runChatState(flags *rootFlags, opts chatStateOptions, action string, delega
 	if err := run(ctx, a, jid); err != nil {
 		return err
 	}
+	return writeChatStateOutput(flags, action, jid.String())
+}
 
+func writeChatStateOutput(flags *rootFlags, action, chat string) error {
 	if flags.asJSON {
 		return out.WriteJSON(os.Stdout, map[string]any{
 			"ok":     true,
 			"action": action,
-			"chat":   jid.String(),
+			"chat":   chat,
 		})
 	}
-	fmt.Fprintf(os.Stdout, "%s: %s\n", action, jid.String())
+	fmt.Fprintf(os.Stdout, "%s: %s\n", action, chat)
 	return nil
 }
 

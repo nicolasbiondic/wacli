@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Chats: delegate `archive`, `unarchive`, `pin`, `unpin`, `mute`, and `unmute` through a running `sync --follow` process instead of failing on the store lock, served outside the send serializer; the caller's `--timeout` bounds only the wait for the answer, never the operation.
+
 ## 0.18.3 - 2026-09-21
 
 **Highlights:** webhooks omit media keys, backfill follows verified phone/LID identities, and sync recovery survives interruptions.
