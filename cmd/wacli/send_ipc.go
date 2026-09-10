@@ -370,6 +370,24 @@ func executeDelegatedPresence(ctx context.Context, a *app.App, req sendDelegateR
 
 const chatStateDelegateDefaultTimeout = 20 * time.Second
 
+// chatStateOpMaxRuntime caps a delegated chat-state operation on the DAEMON's
+// clock. The caller's --timeout bounds only how long the caller WAITS for the
+// answer; the operation itself must never inherit that deadline, because
+// whatsmeow persists every app-state mutation with the operation's context
+// and a cancellation mid-apply leaves the collection's LTHash chain corrupt
+// forever (tenant 905, 2026-09-08 12:47: a 180s caller deadline truncated a
+// ~30k-mutation replay; `regular_low` never verified again). Ten minutes is
+// generous for the worst case — semaphore wait plus a full recovery replay
+// (appStateRecoveryMaxWait is five of those minutes).
+const chatStateOpMaxRuntime = 10 * time.Minute
+
+// chatStateOpContext is the context a delegated chat-state operation runs
+// under: the daemon's lifetime, capped at chatStateOpMaxRuntime — never the
+// caller's deadline. Kept as its own seam so the detachment is testable.
+func chatStateOpContext(parent context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(parent, chatStateOpMaxRuntime)
+}
+
 func handleDelegatedChatState(parent context.Context, conn net.Conn, a *app.App, req sendDelegateRequest) {
 	deadline := time.Now().Add(millisDuration(req.TimeoutMS, chatStateDelegateDefaultTimeout))
 	if req.DeadlineUnixMS > 0 {
@@ -377,12 +395,26 @@ func handleDelegatedChatState(parent context.Context, conn net.Conn, a *app.App,
 			deadline = callerDeadline
 		}
 	}
-	ctx, cancel := context.WithDeadline(parent, deadline)
-	defer cancel()
 	_ = conn.SetDeadline(deadline.Add(sendDelegateResponseGrace))
 
-	resp := runChatStateDelegateWithDeadline(ctx, func() sendDelegateResponse {
-		resp, err := executeDelegatedSend(ctx, a, req)
+	// Two clocks, deliberately separate. waitCtx carries the caller's
+	// deadline and bounds ONLY the select below. opCtx belongs to the
+	// daemon and is cancelled by the worker goroutine itself when the
+	// operation finishes — never by this handler returning, never by the
+	// caller giving up. (The previous version ran the work under the
+	// deadlined ctx AND cancelled it via defer as soon as the response was
+	// written, so an answered-late request truncated its app-state apply
+	// mid-mutation — the exact corruption this exists to prevent.)
+	waitCtx, cancelWait := context.WithDeadline(parent, deadline)
+	defer cancelWait()
+	opCtx, cancelOp := chatStateOpContext(parent)
+
+	resp := runChatStateDelegateWithDeadline(waitCtx, func() sendDelegateResponse {
+		defer cancelOp()
+		if req.Version != sendDelegateVersion {
+			return sendDelegateResponse{OK: false, Error: fmt.Sprintf("unsupported send delegate version %d", req.Version)}
+		}
+		resp, err := executeDelegatedChatState(opCtx, a, req)
 		if err != nil {
 			return sendDelegateResponse{OK: false, Error: err.Error()}
 		}
@@ -391,11 +423,11 @@ func handleDelegatedChatState(parent context.Context, conn net.Conn, a *app.App,
 	_ = json.NewEncoder(conn).Encode(resp)
 }
 
-// runChatStateDelegateWithDeadline answers when work finishes or ctx ends,
-// whichever comes first. The pre-write app-state sync blocks on a whatsmeow
-// mutex that does not observe ctx, so work is left to finish on its own once
-// the response is written.
-func runChatStateDelegateWithDeadline(ctx context.Context, work func() sendDelegateResponse) sendDelegateResponse {
+// runChatStateDelegateWithDeadline answers when work finishes or waitCtx
+// ends, whichever comes first. Work left running after the answer keeps its
+// own context (see chatStateOpContext) and finishes on its own; its outcome
+// reaches the store even though nobody is listening for the response.
+func runChatStateDelegateWithDeadline(waitCtx context.Context, work func() sendDelegateResponse) sendDelegateResponse {
 	respCh := make(chan sendDelegateResponse, 1)
 	go func() {
 		respCh <- work()
@@ -403,8 +435,8 @@ func runChatStateDelegateWithDeadline(ctx context.Context, work func() sendDeleg
 	select {
 	case resp := <-respCh:
 		return resp
-	case <-ctx.Done():
-		return sendDelegateResponse{OK: false, Error: fmt.Errorf("chat state request exceeded its deadline: %w", ctx.Err()).Error()}
+	case <-waitCtx.Done():
+		return sendDelegateResponse{OK: false, Error: fmt.Errorf("chat state request exceeded its deadline: %w", waitCtx.Err()).Error()}
 	}
 }
 

@@ -217,6 +217,48 @@ func TestDelegatedChatStateDoesNotWaitForSendMutex(t *testing.T) {
 	}
 }
 
+// The caller's deadline bounds only the WAIT: once the response is written,
+// the operation must keep running under its own daemon-side context until it
+// completes. whatsmeow persists every app-state mutation with the operation's
+// context, so cancelling it mid-apply corrupts the collection's LTHash chain
+// permanently — that is how tenant 905's regular_low broke on 2026-09-08.
+// This pins the wiring: op context detached from the caller deadline, alive
+// after the answer, cancelled only when the work itself finishes.
+func TestDelegatedChatStateOperationOutlivesCallerDeadline(t *testing.T) {
+	waitCtx, cancelWait := context.WithTimeout(context.Background(), 30*time.Millisecond)
+	defer cancelWait()
+	opCtx, cancelOp := chatStateOpContext(context.Background())
+
+	release := make(chan struct{})
+	opErrAfterAnswer := make(chan error, 1)
+
+	resp := runChatStateDelegateWithDeadline(waitCtx, func() sendDelegateResponse {
+		defer cancelOp()
+		// Simulate a slow app-state apply: the caller deadline fires while
+		// this is still running.
+		<-release
+		opErrAfterAnswer <- opCtx.Err()
+		return sendDelegateResponse{OK: true, To: "123@s.whatsapp.net"}
+	})
+
+	if resp.OK || !strings.Contains(resp.Error, "exceeded its deadline") {
+		t.Fatalf("resp = %+v, want a deadline-exceeded answer for the caller", resp)
+	}
+
+	// The answer is out; the operation continues. Its context must still be
+	// live — a cancellation here is what truncates whatsmeow's apply.
+	close(release)
+	if err := <-opErrAfterAnswer; err != nil {
+		t.Fatalf("operation context died with the caller deadline: %v", err)
+	}
+	select {
+	case <-opCtx.Done():
+		// cancelOp ran when the work finished — correct.
+	case <-time.After(2 * time.Second):
+		t.Fatal("operation context was never released after the work finished")
+	}
+}
+
 func TestRunChatStateDelegateWithDeadlineBoundsNonCooperativeWork(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
 	defer cancel()
