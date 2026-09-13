@@ -190,7 +190,7 @@ func TestDelegatedChatStateDoesNotWaitForSendMutex(t *testing.T) {
 		if err != nil {
 			return
 		}
-		handleSendDelegateConn(context.Background(), conn, nil, &sendMu, nil, pacer)
+		handleSendDelegateConn(context.Background(), conn, executeDelegatedSendWithoutApp, &sendMu, nil, pacer)
 	}()
 
 	conn, err := net.Dial("unix", sendDelegateSocketPath(storeDir))

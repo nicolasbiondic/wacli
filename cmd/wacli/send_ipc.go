@@ -218,7 +218,7 @@ func handleSendDelegateConn(ctx context.Context, conn net.Conn, execute sendDele
 		// Chat-state patches are not wire sends: keep them off the send
 		// serializer and pacer so a pre-write app-state sync cannot stall
 		// delegated sends queued behind it.
-		handleDelegatedChatState(ctx, conn, a, req)
+		handleDelegatedChatState(ctx, conn, execute, req)
 		return
 	}
 	if pacer.enabled() {
@@ -288,6 +288,12 @@ func handleSendDelegateConn(ctx context.Context, conn net.Conn, execute sendDele
 func executeDelegatedSend(parent context.Context, a *app.App, req sendDelegateRequest) (sendDelegateResponse, error) {
 	if req.Version != sendDelegateVersion {
 		return sendDelegateResponse{}, fmt.Errorf("unsupported send delegate version %d", req.Version)
+	}
+	if req.Kind == "chat_state" {
+		// The caller's timeout bounds only the wait for the answer (see
+		// handleDelegatedChatState); the operation runs under the daemon's
+		// own context so an answered-late app-state apply is never truncated.
+		return executeDelegatedChatState(parent, a, req)
 	}
 	ctx, cancel := context.WithTimeout(parent, millisDuration(req.TimeoutMS, 5*time.Minute))
 	defer cancel()
@@ -388,7 +394,7 @@ func chatStateOpContext(parent context.Context) (context.Context, context.Cancel
 	return context.WithTimeout(parent, chatStateOpMaxRuntime)
 }
 
-func handleDelegatedChatState(parent context.Context, conn net.Conn, a *app.App, req sendDelegateRequest) {
+func handleDelegatedChatState(parent context.Context, conn net.Conn, execute sendDelegateExecutor, req sendDelegateRequest) {
 	deadline := time.Now().Add(millisDuration(req.TimeoutMS, chatStateDelegateDefaultTimeout))
 	if req.DeadlineUnixMS > 0 {
 		if callerDeadline := time.UnixMilli(req.DeadlineUnixMS); callerDeadline.Before(deadline) {
@@ -411,10 +417,7 @@ func handleDelegatedChatState(parent context.Context, conn net.Conn, a *app.App,
 
 	resp := runChatStateDelegateWithDeadline(waitCtx, func() sendDelegateResponse {
 		defer cancelOp()
-		if req.Version != sendDelegateVersion {
-			return sendDelegateResponse{OK: false, Error: fmt.Sprintf("unsupported send delegate version %d", req.Version)}
-		}
-		resp, err := executeDelegatedChatState(opCtx, a, req)
+		resp, err := execute(opCtx, req)
 		if err != nil {
 			return sendDelegateResponse{OK: false, Error: err.Error()}
 		}

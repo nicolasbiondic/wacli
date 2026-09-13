@@ -136,6 +136,35 @@ func chatStateRunner(action string, muteDuration time.Duration) (chatStateRun, e
 	}
 }
 
+// chatStateDelegateRequest picks the delegate protocol for a chat-state verb.
+//
+// `mark-read`/`mark-unread` keep upstream's dedicated `mark_read` kind so this
+// fork does not diverge on a verb upstream already delegates. The remaining
+// verbs (archive/pin/mute and their inverses) are not delegated upstream at
+// all and use `chat_state`, which the daemon serves OUTSIDE the send
+// serializer: their pre-write app-state sync can take minutes on a large
+// collection and must never stall delegated sends queued behind it.
+func chatStateDelegateRequest(action string, opts chatStateOptions, muteDuration time.Duration) sendDelegateRequest {
+	if action == "mark-read" || action == "mark-unread" {
+		read := action == "mark-read"
+
+		return sendDelegateRequest{
+			Kind: "mark_read",
+			To:   opts.chat,
+			Pick: opts.pick,
+			Read: &read,
+		}
+	}
+
+	return sendDelegateRequest{
+		Kind:            "chat_state",
+		ChatStateAction: action,
+		To:              opts.chat,
+		Pick:            opts.pick,
+		MuteDurationMS:  durationMillis(muteDuration),
+	}
+}
+
 func runChatState(flags *rootFlags, opts chatStateOptions, action string, muteDuration time.Duration) error {
 	if strings.TrimSpace(opts.chat) == "" {
 		return fmt.Errorf("--chat is required")
@@ -153,18 +182,16 @@ func runChatState(flags *rootFlags, opts chatStateOptions, action string, muteDu
 
 	a, lk, err := newApp(ctx, flags, true, false)
 	if err != nil {
-		resp, delegated, delegateErr := tryDelegateSend(ctx, flags, err, sendDelegateRequest{
-			Kind:            "chat_state",
-			ChatStateAction: action,
-			To:              opts.chat,
-			Pick:            opts.pick,
-			MuteDurationMS:  durationMillis(muteDuration),
-		})
+		resp, delegated, delegateErr := tryDelegateSend(ctx, flags, err, chatStateDelegateRequest(action, opts, muteDuration))
 		if delegated {
 			if delegateErr != nil {
 				return delegateErr
 			}
-			return writeChatStateOutput(flags, action, resp.To)
+			chat := resp.To
+			if chat == "" {
+				chat = resp.Chat
+			}
+			return writeChatStateOutput(flags, action, chat)
 		}
 		return err
 	}
