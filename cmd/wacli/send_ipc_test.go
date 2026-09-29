@@ -703,3 +703,31 @@ func TestDelegatedChatStateDoesNotWaitForSendQueue(t *testing.T) {
 		})
 	}
 }
+
+func TestDelegatedChatStateIgnoresCallerTimeoutForOperation(t *testing.T) {
+	serverConn, clientConn := net.Pipe()
+	defer clientConn.Close()
+	if err := clientConn.SetDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatalf("set client deadline: %v", err)
+	}
+	var sendMu sync.Mutex
+	executed := make(chan sendDelegateRequest, 1)
+	go handleSendDelegateConn(context.Background(), serverConn, func(_ context.Context, req sendDelegateRequest) (sendDelegateResponse, error) {
+		executed <- req
+		return sendDelegateResponse{OK: true}, nil
+	}, &sendMu, nil, newSendPacer(sendSpacing{}))
+
+	req := chatStateDelegateRequest("archive", 0)
+	req.Version = sendDelegateVersion
+	req.TimeoutMS = 5000
+	if err := json.NewEncoder(clientConn).Encode(req); err != nil {
+		t.Fatalf("encode request: %v", err)
+	}
+	var resp sendDelegateResponse
+	if err := json.NewDecoder(clientConn).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if got := <-executed; got.TimeoutMS != 0 {
+		t.Fatalf("operation timeout_ms = %d, want the daemon default", got.TimeoutMS)
+	}
+}

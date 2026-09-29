@@ -219,6 +219,10 @@ func handleSendDelegateConn(ctx context.Context, conn net.Conn, execute sendDele
 	if req.Kind == chatStateKind {
 		// App-state writes are serialized by the app and can wait minutes on
 		// recovery, so they must not hold the send queue.
+		// The caller enforces its own deadline on the connection. The operation
+		// keeps the daemon's budget so a caller giving up cannot cancel an
+		// app-state write partway through.
+		req.TimeoutMS = 0
 		resp, err := execute(ctx, req)
 		if err != nil {
 			resp = sendDelegateResponse{OK: false, Error: err.Error()}
