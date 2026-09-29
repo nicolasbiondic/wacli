@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Chats: delegate `archive`, `unarchive`, `pin`, `unpin`, `mute`, and `unmute` to a running `sync --follow` process instead of failing on the store lock, outside the serialized send queue.
+
 ## 0.19.0 - 2026-09-24
 
 **Highlights:** opt-in read receipts without app-state recovery, accurate unread counts, and stable chat activity order.

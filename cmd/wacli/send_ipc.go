@@ -63,6 +63,8 @@ type sendDelegateRequest struct {
 	PresenceMedia        string   `json:"presence_media,omitempty"`
 	Read                 *bool    `json:"read,omitempty"`
 	Receipts             bool     `json:"receipts,omitempty"`
+	ChatStateAction      string   `json:"chat_state_action,omitempty"`
+	MuteDurationMS       int64    `json:"mute_duration_ms,omitempty"`
 	PostSendWaitMS       int64    `json:"post_send_wait_ms,omitempty"`
 	TimeoutMS            int64    `json:"timeout_ms,omitempty"`
 	DeadlineUnixMS       int64    `json:"deadline_unix_ms,omitempty"`
@@ -214,6 +216,16 @@ func handleSendDelegateConn(ctx context.Context, conn net.Conn, execute sendDele
 		_ = json.NewEncoder(conn).Encode(sendDelegateResponse{OK: false, Error: err.Error()})
 		return
 	}
+	if req.Kind == chatStateKind {
+		// App-state writes are serialized by the app and can wait minutes on
+		// recovery, so they must not hold the send queue.
+		resp, err := execute(ctx, req)
+		if err != nil {
+			resp = sendDelegateResponse{OK: false, Error: err.Error()}
+		}
+		_ = json.NewEncoder(conn).Encode(resp)
+		return
+	}
 	requestCtx := ctx
 	if pacer.enabled() {
 		deadline := time.Now().Add(millisDuration(req.TimeoutMS, 5*time.Minute))
@@ -314,6 +326,8 @@ func executeDelegatedSend(parent context.Context, a *app.App, req sendDelegateRe
 		// instead of marking the chat read and dropping the unread count.
 		req.Receipts = true
 		return executeDelegatedMarkRead(ctx, a, req)
+	case chatStateKind:
+		return executeDelegatedChatState(ctx, a, req)
 	default:
 		return sendDelegateResponse{}, fmt.Errorf("unsupported send kind %q", req.Kind)
 	}
@@ -355,6 +369,37 @@ func executeDelegatedMarkRead(ctx context.Context, a delegatedMarkReadApp, req s
 		action = "mark-unread"
 	}
 	return sendDelegateResponse{OK: true, Chat: toJID.String(), Action: action, Receipts: receipts, ReceiptType: receiptType}, nil
+}
+
+type delegatedChatStateApp interface {
+	recipientResolverApp
+	ArchiveChat(context.Context, types.JID, bool) error
+	PinChat(context.Context, types.JID, bool) error
+	MuteChat(context.Context, types.JID, bool, time.Duration) error
+}
+
+func executeDelegatedChatState(ctx context.Context, a delegatedChatStateApp, req sendDelegateRequest) (sendDelegateResponse, error) {
+	var run func(types.JID) error
+	switch req.ChatStateAction {
+	case "archive", "unarchive":
+		run = func(jid types.JID) error { return a.ArchiveChat(ctx, jid, req.ChatStateAction == "archive") }
+	case "pin", "unpin":
+		run = func(jid types.JID) error { return a.PinChat(ctx, jid, req.ChatStateAction == "pin") }
+	case "mute":
+		run = func(jid types.JID) error { return a.MuteChat(ctx, jid, true, millisDuration(req.MuteDurationMS, 0)) }
+	case "unmute":
+		run = func(jid types.JID) error { return a.MuteChat(ctx, jid, false, 0) }
+	default:
+		return sendDelegateResponse{}, fmt.Errorf("unsupported chat state action %q", req.ChatStateAction)
+	}
+	toJID, err := resolveRecipient(a, req.To, recipientOptions{pick: req.Pick, asJSON: true})
+	if err != nil {
+		return sendDelegateResponse{}, err
+	}
+	if err := run(toJID); err != nil {
+		return sendDelegateResponse{}, err
+	}
+	return sendDelegateResponse{OK: true, Chat: toJID.String(), Action: req.ChatStateAction}, nil
 }
 
 func executeDelegatedPresence(ctx context.Context, a *app.App, req sendDelegateRequest) (sendDelegateResponse, error) {

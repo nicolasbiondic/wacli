@@ -24,7 +24,7 @@ wacli sync [--once] [--follow] [--idle-exit 30s] [--max-reconnect 5m] [--stale-t
 - `--max-messages N` stops before storing more than `N` total messages locally.
 - `--max-db-size SIZE` stops when `wacli.db` plus SQLite sidecars reaches `SIZE` (`500MB`, `2GB`, etc.).
 - `--download-media` runs a bounded media downloader for sync events. Clean one-shot and bootstrap runs finish queued downloads before exiting; cancellation, errors, and storage-limit exits stop immediately.
-- `--send-spacing DURATION|MIN-MAX` paces serialized operations delegated to a running follow process. A single duration such as `2s` sets a fixed minimum gap; a range such as `500ms-5s` chooses a fresh random gap for each operation. It is disabled by default, so unset behavior remains unchanged. The caller's command timeout includes time queued behind earlier operations, pacing, and the operation itself; a request that times out before dispatch is not dispatched. Delegated `chats mark-read` and `chats mark-unread` share this queue and timeout budget.
+- `--send-spacing DURATION|MIN-MAX` paces serialized operations delegated to a running follow process. A single duration such as `2s` sets a fixed minimum gap; a range such as `500ms-5s` chooses a fresh random gap for each operation. It is disabled by default, so unset behavior remains unchanged. The caller's command timeout includes time queued behind earlier operations, pacing, and the operation itself; a request that times out before dispatch is not dispatched. Delegated `chats mark-read` and `chats mark-unread` share this queue and timeout budget; delegated archive, pin, and mute changes run outside the queue and are not paced.
 - `--refresh-contacts` imports contacts from the session store.
 - `--refresh-groups` fetches joined groups live and updates local group metadata and participant snapshots.
 - `--refresh-channels` fetches subscribed WhatsApp Channels live and updates local chat rows.
@@ -37,8 +37,8 @@ wacli sync [--once] [--follow] [--idle-exit 30s] [--max-reconnect 5m] [--stale-t
 - After `sync --follow` finishes startup and opens its local delegate socket, these commands for the same store are delegated to it so they do not fail on the store lock:
   - `send text`, `send file`, `send sticker`, `send voice`, `send react`, `send location`, `send poll`, and `send select`.
   - `poll vote`, `presence typing`, `presence paused`, and `messages edit`.
-  - `chats mark-read` and `chats mark-unread`.
-- `send status` and the other chat-state commands (`archive`/`unarchive`, `pin`/`unpin`, `mute`/`unmute`) are not delegated and still require the direct store lock.
+  - `chats mark-read`, `chats mark-unread`, `chats archive`, `chats unarchive`, `chats pin`, `chats unpin`, `chats mute`, and `chats unmute`.
+- `send status` is not delegated and still requires the direct store lock.
 - After connecting, sync fetches WhatsApp chat app-state deltas (`regular_high` and `regular_low`) so starred, delete-for-me, mute, archive, pin, and mark-read changes made while `wacli` was offline are caught up instead of relying only on live push notifications.
 - Sync imports messages sent from your other linked devices into the destination chat with `from_me=true`, so local history covers both incoming and outgoing conversation sides.
 - Sync decrypts encrypted message edits and updates the original local row only when the authenticated sender, chat, and target message match. Malformed, redirected, or unsupported edits are rejected without changing local history or emitting a message webhook.
