@@ -66,6 +66,8 @@ type sendDelegateRequest struct {
 	PresenceMedia        string   `json:"presence_media,omitempty"`
 	Read                 *bool    `json:"read,omitempty"`
 	Receipts             bool     `json:"receipts,omitempty"`
+	ChatStateAction      string   `json:"chat_state_action,omitempty"`
+	MuteDurationMS       int64    `json:"mute_duration_ms,omitempty"`
 	PostSendWaitMS       int64    `json:"post_send_wait_ms,omitempty"`
 	TimeoutMS            int64    `json:"timeout_ms,omitempty"`
 	DeadlineUnixMS       int64    `json:"deadline_unix_ms,omitempty"`
@@ -246,6 +248,18 @@ func handleSendDelegateConn(ctx context.Context, conn net.Conn, execute sendDele
 	// transport alive through its budget and the final response write.
 	_ = conn.SetDeadline(deadline.Add(sendDelegateResponseGrace))
 
+	if req.Kind == chatStateKind {
+		// App-state writes are serialized by the app and can wait minutes on
+		// recovery, so they must not hold the send queue.
+		if requestCtx.Err() != nil {
+			_ = json.NewEncoder(conn).Encode(sendDelegateResponse{OK: false, Error: "request deadline passed before dispatch; it was not sent"})
+			return
+		}
+		resp, err := execute(requestCtx, req)
+		writeDelegateResult(conn, requestCtx, req, resp, err)
+		return
+	}
+
 	refuse := func() {
 		msg := "request timed out in the send queue before dispatch; it was not sent"
 		if pacer.enabled() {
@@ -290,6 +304,10 @@ func handleSendDelegateConn(ctx context.Context, conn net.Conn, execute sendDele
 		// Starting the gap here prevents a slow operation from consuming it.
 		pacer.record()
 	}
+	writeDelegateResult(conn, requestCtx, req, resp, err)
+}
+
+func writeDelegateResult(conn net.Conn, requestCtx context.Context, req sendDelegateRequest, resp sendDelegateResponse, err error) {
 	if err != nil {
 		if requestCtx.Err() != nil || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 			err = fmt.Errorf("delegated %s failed after dispatch and may still have gone through; check before retrying: %w", req.Kind, err)
@@ -334,6 +352,8 @@ func executeDelegatedSend(parent context.Context, a *app.App, req sendDelegateRe
 		// instead of marking the chat read and dropping the unread count.
 		req.Receipts = true
 		return executeDelegatedMarkRead(ctx, a, req)
+	case chatStateKind:
+		return executeDelegatedChatState(ctx, a, req)
 	default:
 		return sendDelegateResponse{}, fmt.Errorf("unsupported send kind %q", req.Kind)
 	}
@@ -375,6 +395,37 @@ func executeDelegatedMarkRead(ctx context.Context, a delegatedMarkReadApp, req s
 		action = "mark-unread"
 	}
 	return sendDelegateResponse{OK: true, Chat: toJID.String(), Action: action, Receipts: receipts, ReceiptType: receiptType}, nil
+}
+
+type delegatedChatStateApp interface {
+	recipientResolverApp
+	ArchiveChat(context.Context, types.JID, bool) error
+	PinChat(context.Context, types.JID, bool) error
+	MuteChat(context.Context, types.JID, bool, time.Duration) error
+}
+
+func executeDelegatedChatState(ctx context.Context, a delegatedChatStateApp, req sendDelegateRequest) (sendDelegateResponse, error) {
+	var run func(types.JID) error
+	switch req.ChatStateAction {
+	case "archive", "unarchive":
+		run = func(jid types.JID) error { return a.ArchiveChat(ctx, jid, req.ChatStateAction == "archive") }
+	case "pin", "unpin":
+		run = func(jid types.JID) error { return a.PinChat(ctx, jid, req.ChatStateAction == "pin") }
+	case "mute":
+		run = func(jid types.JID) error { return a.MuteChat(ctx, jid, true, millisDuration(req.MuteDurationMS, 0)) }
+	case "unmute":
+		run = func(jid types.JID) error { return a.MuteChat(ctx, jid, false, 0) }
+	default:
+		return sendDelegateResponse{}, fmt.Errorf("unsupported chat state action %q", req.ChatStateAction)
+	}
+	toJID, err := resolveRecipient(a, req.To, recipientOptions{pick: req.Pick, asJSON: true})
+	if err != nil {
+		return sendDelegateResponse{}, err
+	}
+	if err := run(toJID); err != nil {
+		return sendDelegateResponse{}, err
+	}
+	return sendDelegateResponse{OK: true, Chat: toJID.String(), Action: req.ChatStateAction}, nil
 }
 
 func executeDelegatedPresence(ctx context.Context, a *app.App, req sendDelegateRequest) (sendDelegateResponse, error) {
