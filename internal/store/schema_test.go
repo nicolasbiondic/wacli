@@ -43,6 +43,8 @@ func TestOpenCreatesExpectedSchema(t *testing.T) {
 		"payload_purged_at",
 		"edited",
 		"edited_ts",
+		"buttons",
+		"ad_referral",
 	} {
 		if !cols[want] {
 			t.Fatalf("expected messages column %q to exist", want)
@@ -266,6 +268,50 @@ func TestOpenRepairsRecordedMediaUnavailableMigrationMissingColumn(t *testing.T)
 	}
 	if !hasColumn {
 		t.Fatalf("expected media_unavailable_at repair")
+	}
+}
+
+func TestOpenAddsAdReferralColumnToLegacyMessages(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "wacli.db")
+	raw, err := sql.Open("sqlite3", path)
+	if err != nil {
+		t.Fatalf("sql.Open: %v", err)
+	}
+	legacySchema := strings.Replace(coreSchemaSQL, "    ad_referral TEXT,\n", "", 1)
+	if _, err := raw.Exec(legacySchema + `
+		CREATE TABLE schema_migrations (
+			version INTEGER PRIMARY KEY,
+			name TEXT NOT NULL,
+			applied_at INTEGER NOT NULL
+		);
+	`); err != nil {
+		_ = raw.Close()
+		t.Fatalf("create legacy schema: %v", err)
+	}
+	for _, migration := range schemaMigrations {
+		if migration.version >= 29 {
+			continue
+		}
+		if _, err := raw.Exec(`INSERT INTO schema_migrations(version, name, applied_at) VALUES(?, ?, 1)`, migration.version, migration.name); err != nil {
+			_ = raw.Close()
+			t.Fatalf("record migration %d: %v", migration.version, err)
+		}
+	}
+	if err := raw.Close(); err != nil {
+		t.Fatalf("raw close: %v", err)
+	}
+
+	db, err := Open(path)
+	if err != nil {
+		t.Fatalf("Open migrated DB: %v", err)
+	}
+	defer db.Close()
+	hasColumn, err := db.tableHasColumn("messages", "ad_referral")
+	if err != nil {
+		t.Fatalf("tableHasColumn: %v", err)
+	}
+	if !hasColumn {
+		t.Fatalf("expected messages.ad_referral after migration")
 	}
 }
 
