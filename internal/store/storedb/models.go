@@ -146,6 +146,14 @@ type MessagePayloadPurge struct {
 	DeletionReason string
 }
 
+type MessageReceipt struct {
+	ChatJid      string
+	MsgID        string
+	RecipientJid string
+	Status       string
+	Ts           int64
+}
+
 type MessagesFt struct {
 	Rowid        int64
 	Text         sql.NullString

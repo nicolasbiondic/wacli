@@ -120,6 +120,7 @@ func (a *App) addSyncEventHandler(ctx context.Context, opts SyncOptions, message
 		case *events.Receipt:
 			lastEvent.Store(nowUTC().UnixNano())
 			a.handleReceiptPersistenceEvent(ctx, v)
+			a.handleOutgoingReceiptEvent(ctx, v)
 			if opts.WebhookEvents.Enabled(SyncWebhookEventReceipt) {
 				if job, ok := newSyncWebhookReceiptEvent(v); ok {
 					enqueueWebhook(job)
@@ -132,6 +133,17 @@ func (a *App) addSyncEventHandler(ctx context.Context, opts SyncOptions, message
 				if job, ok := newSyncWebhookChatPresenceEvent(v); ok {
 					enqueueWebhook(job)
 				}
+			}
+			if a.eventsEnabled() {
+				if data, ok := a.chatPresenceEventData(ctx, v); ok {
+					a.emitEvent("chat_presence", data)
+				}
+			}
+		case *events.Presence:
+			// Only users this device subscribed to (presence subscribe) send
+			// these. Like typing, they must not keep an idle-exit sync alive.
+			if a.eventsEnabled() {
+				a.emitEvent("presence", a.presenceEventData(ctx, v))
 			}
 		case *events.GroupInfo:
 			// The group changed: its next message asks for its info again.
@@ -179,6 +191,9 @@ func (a *App) addSyncEventHandler(ctx context.Context, opts SyncOptions, message
 			ps.mu.Lock()
 			if !ps.cleanupStarted && opts.PresenceMode.SendsAvailablePresence() {
 				a.sendPresenceBounded(types.PresenceAvailable)
+				// Presence subscriptions end with the connection that made
+				// them. Started under ps.mu, so the cleanup stops every one.
+				a.renewPresenceWatches(ctx)
 			}
 			ps.mu.Unlock()
 		case *events.KeepAliveTimeout:

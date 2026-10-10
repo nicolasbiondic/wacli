@@ -289,7 +289,7 @@ func TestOpenAddsAdReferralColumnToLegacyMessages(t *testing.T) {
 		t.Fatalf("create legacy schema: %v", err)
 	}
 	for _, migration := range schemaMigrations {
-		if migration.version >= 29 {
+		if migration.version >= 30 {
 			continue
 		}
 		if _, err := raw.Exec(`INSERT INTO schema_migrations(version, name, applied_at) VALUES(?, ?, 1)`, migration.version, migration.name); err != nil {
