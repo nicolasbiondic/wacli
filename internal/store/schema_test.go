@@ -317,14 +317,13 @@ func TestOpenAddsAdReferralColumnToLegacyMessages(t *testing.T) {
 	}
 }
 
-// TestOpenUpgradesPopulatedV0200Store builds a store at the exact schema
-// level that shipped in v0.20.0 (testdata/schema_v0.20.0.sql plus migration
-// records 1..28), populates representative rows, then opens it with current
-// code and verifies the upgrade keeps every row, applies the new migrations
-// in order, leaves ad_referral NULL on old rows, and preserves purge
-// semantics.
-func TestOpenUpgradesPopulatedV0200Store(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "wacli.db")
+// buildPopulatedV0200Store writes a store at the exact schema level that
+// shipped in v0.20.0 (testdata/schema_v0.20.0.sql plus migration records
+// 1..28) and populates representative rows: a plain message, a starred
+// message with buttons, a location, a hidden-identity (LID) alias row, and a
+// tombstoned message with its purge-ledger record.
+func buildPopulatedV0200Store(t *testing.T, path string) {
+	t.Helper()
 	legacySchema, err := os.ReadFile(filepath.Join("testdata", "schema_v0.20.0.sql"))
 	if err != nil {
 		t.Fatalf("read v0.20.0 schema fixture: %v", err)
@@ -360,6 +359,7 @@ func TestOpenUpgradesPopulatedV0200Store(t *testing.T) {
 		{`INSERT INTO chats(jid, kind, name, last_message_ts) VALUES('999123456789@lid', 'dm', 'Hidden Alice', 1700000400)`, nil},
 		{`INSERT INTO messages(chat_jid, msg_id, sender_jid, ts, from_me, text) VALUES('15551234567@s.whatsapp.net', 'plain1', '15551234567@s.whatsapp.net', 1700000100, 0, 'hello from v0.20.0')`, nil},
 		{`INSERT INTO messages(chat_jid, msg_id, sender_jid, ts, from_me, text, buttons) VALUES('15551234567@s.whatsapp.net', 'tmpl1', '15551234567@s.whatsapp.net', 1700000200, 0, 'Check our deals', ?)`, []any{`[{"type":"url","display_text":"Buy flights","url":"https://example.com/flights"}]`}},
+		{`INSERT INTO starred(chat_jid, msg_id, starred_at) VALUES('15551234567@s.whatsapp.net', 'tmpl1', 1700000500)`, nil},
 		{`INSERT INTO messages(chat_jid, msg_id, sender_jid, ts, from_me, text) VALUES('15551234567@s.whatsapp.net', 'loc1', '15551234567@s.whatsapp.net', 1700000250, 0, 'see you here')`, nil},
 		{`INSERT INTO message_locations(chat_jid, msg_id, latitude, longitude, name, is_live) VALUES('15551234567@s.whatsapp.net', 'loc1', 52.52, 13.405, 'Office', 0)`, nil},
 		{`INSERT INTO messages(chat_jid, msg_id, sender_jid, ts, from_me, text) VALUES('999123456789@lid', 'lid1', '999123456789@lid', 1700000400, 0, 'hidden identity payload')`, nil},
@@ -375,6 +375,15 @@ func TestOpenUpgradesPopulatedV0200Store(t *testing.T) {
 	if err := raw.Close(); err != nil {
 		t.Fatalf("raw close: %v", err)
 	}
+}
+
+// TestOpenUpgradesPopulatedV0200Store opens a populated v0.20.0 store with
+// current code and verifies the upgrade keeps every row, applies the new
+// migrations in order, leaves ad_referral NULL on old rows, and preserves
+// purge semantics.
+func TestOpenUpgradesPopulatedV0200Store(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "wacli.db")
+	buildPopulatedV0200Store(t, path)
 
 	db, err := Open(path)
 	if err != nil {
@@ -450,6 +459,70 @@ func TestOpenUpgradesPopulatedV0200Store(t *testing.T) {
 	if purged.PayloadPurgedAt == nil || purged.Text != "" || purged.AdReferral != nil {
 		t.Fatalf("purged1 after upgrade = %+v", purged)
 	}
+}
+
+// TestReadOnlyOpenServesV0200StoreWithoutAdReferralColumn opens a populated
+// v0.20.0 store read-only — no migrations run, so the ad_referral column does
+// not exist — and verifies every message reader works and reports an absent
+// referral: list (also the export projection), search, starred, show, and
+// context before/after.
+func TestReadOnlyOpenServesV0200StoreWithoutAdReferralColumn(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "wacli.db")
+	buildPopulatedV0200Store(t, path)
+
+	db, err := OpenReadOnly(path)
+	if err != nil {
+		t.Fatalf("OpenReadOnly v0.20.0 store: %v", err)
+	}
+	defer db.Close()
+
+	requireNoReferral := func(label string, msgs []Message) {
+		t.Helper()
+		if len(msgs) == 0 {
+			t.Fatalf("%s returned no messages", label)
+		}
+		for _, m := range msgs {
+			if m.AdReferral != nil {
+				t.Fatalf("%s returned a referral on a store without the column: %+v", label, m.AdReferral)
+			}
+		}
+	}
+
+	listed, err := db.ListMessages(ListMessagesParams{Limit: 100})
+	if err != nil {
+		t.Fatalf("ListMessages on read-only v0.20.0 store: %v", err)
+	}
+	requireNoReferral("list", listed)
+
+	found, err := db.SearchMessages(SearchMessagesParams{Query: "hello", Limit: 10})
+	if err != nil {
+		t.Fatalf("SearchMessages on read-only v0.20.0 store: %v", err)
+	}
+	requireNoReferral("search", found)
+
+	starred, err := db.ListStarredMessages(ListStarredMessagesParams{Limit: 10})
+	if err != nil {
+		t.Fatalf("ListStarredMessages on read-only v0.20.0 store: %v", err)
+	}
+	requireNoReferral("starred", starred)
+
+	shown, err := db.GetMessage("15551234567@s.whatsapp.net", "plain1")
+	if err != nil {
+		t.Fatalf("GetMessage on read-only v0.20.0 store: %v", err)
+	}
+	if shown.Text != "hello from v0.20.0" {
+		t.Fatalf("GetMessage text = %q", shown.Text)
+	}
+	requireNoReferral("show", []Message{shown})
+
+	around, err := db.MessageContext("15551234567@s.whatsapp.net", "tmpl1", 2, 2)
+	if err != nil {
+		t.Fatalf("MessageContext on read-only v0.20.0 store: %v", err)
+	}
+	if len(around) < 3 {
+		t.Fatalf("MessageContext returned %d messages, want target plus neighbors", len(around))
+	}
+	requireNoReferral("context", around)
 }
 
 func TestOpenMigratesLegacyUnreadCounts(t *testing.T) {

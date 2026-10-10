@@ -48,7 +48,17 @@ type UpsertMessageParams struct {
 }
 
 func (d *DB) messageSelectColumns(snippet string) string {
-	return fmt.Sprintf(`m.rowid, m.chat_jid, COALESCE(c.name,''), m.msg_id, COALESCE(m.sender_jid,''), COALESCE(m.sender_name,''), m.ts, m.from_me, COALESCE(m.text,''), COALESCE(m.display_text,''), COALESCE(m.quoted_msg_id,''), COALESCE(m.quoted_sender_jid,''), m.is_forwarded, m.forwarding_score, COALESCE(m.reaction_to_id,''), COALESCE(m.reaction_emoji,''), COALESCE(m.media_type,''), COALESCE(m.media_caption,''), COALESCE(m.filename,''), COALESCE(m.mime_type,''), COALESCE(m.direct_path,''), COALESCE(m.local_path,''), COALESCE(m.downloaded_at,0), CASE WHEN s.msg_id IS NULL THEN 0 ELSE 1 END, COALESCE(s.starred_at,0), m.revoked, m.deleted_for_me, COALESCE(m.deleted_at,0), COALESCE(m.deletion_reason,''), COALESCE(m.payload_purged_at,0), m.edited, COALESCE(m.buttons,''), COALESCE(m.ad_referral,''), %s, %s`, d.receiptColumns(), snippetSQL(snippet))
+	return fmt.Sprintf(`m.rowid, m.chat_jid, COALESCE(c.name,''), m.msg_id, COALESCE(m.sender_jid,''), COALESCE(m.sender_name,''), m.ts, m.from_me, COALESCE(m.text,''), COALESCE(m.display_text,''), COALESCE(m.quoted_msg_id,''), COALESCE(m.quoted_sender_jid,''), m.is_forwarded, m.forwarding_score, COALESCE(m.reaction_to_id,''), COALESCE(m.reaction_emoji,''), COALESCE(m.media_type,''), COALESCE(m.media_caption,''), COALESCE(m.filename,''), COALESCE(m.mime_type,''), COALESCE(m.direct_path,''), COALESCE(m.local_path,''), COALESCE(m.downloaded_at,0), CASE WHEN s.msg_id IS NULL THEN 0 ELSE 1 END, COALESCE(s.starred_at,0), m.revoked, m.deleted_for_me, COALESCE(m.deleted_at,0), COALESCE(m.deletion_reason,''), COALESCE(m.payload_purged_at,0), m.edited, COALESCE(m.buttons,''), %s, %s, %s`, d.adReferralColumn(), d.receiptColumns(), snippetSQL(snippet))
+}
+
+// adReferralColumn projects the stored referral. A store from before the
+// column — possible only on a read-only open, which cannot migrate it in —
+// answers the empty string, the same value an absent referral stores.
+func (d *DB) adReferralColumn() string {
+	if !d.adReferralEnabled {
+		return `''`
+	}
+	return `COALESCE(m.ad_referral,'')`
 }
 
 // receiptColumns counts, per message, how many recipients have it and how many
@@ -493,7 +503,11 @@ func (d *DB) GetMessage(chatJID, msgID string) (Message, error) {
 	if err != nil {
 		return Message{}, err
 	}
-	return messageFromGetRow(row), nil
+	out := []Message{messageFromGetRow(row)}
+	if err := d.attachAdReferrals(out); err != nil {
+		return Message{}, err
+	}
+	return out[0], nil
 }
 
 func (d *DB) CountMessages() (int64, error) {
@@ -594,7 +608,38 @@ func (d *DB) MessageContext(chatJID, msgID string, before, after int) ([]Message
 	out = append(out, beforeMessages...)
 	out = append(out, target)
 	out = append(out, afterMessages...)
+	if err := d.attachAdReferrals(out); err != nil {
+		return nil, err
+	}
 	return out, nil
+}
+
+// attachAdReferrals loads ad_referral for messages read through the static
+// show/context queries, which cannot reference the column on a store that
+// predates it. A writable open migrates the column in, so only older
+// read-only stores take the disabled branch and report no referral.
+func (d *DB) attachAdReferrals(msgs []Message) error {
+	if !d.adReferralEnabled {
+		return nil
+	}
+	for i := range msgs {
+		if msgs[i].AdReferral != nil {
+			continue
+		}
+		var raw sql.NullString
+		err := d.sql.QueryRow(
+			`SELECT ad_referral FROM messages WHERE chat_jid = ? AND msg_id = ?`,
+			msgs[i].ChatJID, msgs[i].MsgID,
+		).Scan(&raw)
+		if err != nil {
+			if isNoRows(err) {
+				continue
+			}
+			return err
+		}
+		msgs[i].AdReferral = adReferralFromJSON(raw.String)
+	}
+	return nil
 }
 
 func (d *DB) scanMessages(query string, args ...any) ([]Message, error) {
@@ -654,7 +699,7 @@ func messageFromGetRow(row storedb.GetMessageRow) Message {
 		row.ForwardingScore, row.ReactionToID, row.ReactionEmoji, row.MediaType,
 		row.MediaCaption, row.Filename, row.MimeType, row.DirectPath, row.LocalPath,
 		row.DownloadedAt, row.Column24, row.StarredAt, row.Revoked, row.DeletedForMe,
-		row.DeletedAt, row.DeletionReason, row.PayloadPurgedAt, row.Edited, row.Buttons, row.AdReferral, row.Column34,
+		row.DeletedAt, row.DeletionReason, row.PayloadPurgedAt, row.Edited, row.Buttons, "", row.Column33,
 	)
 }
 
@@ -665,7 +710,7 @@ func messageFromBeforeRow(row storedb.MessageContextBeforeRow) Message {
 		row.ForwardingScore, row.ReactionToID, row.ReactionEmoji, row.MediaType,
 		row.MediaCaption, row.Filename, row.MimeType, row.DirectPath, row.LocalPath,
 		row.DownloadedAt, row.Column24, row.StarredAt, row.Revoked, row.DeletedForMe,
-		row.DeletedAt, row.DeletionReason, row.PayloadPurgedAt, row.Edited, row.Buttons, row.AdReferral, row.Column34,
+		row.DeletedAt, row.DeletionReason, row.PayloadPurgedAt, row.Edited, row.Buttons, "", row.Column33,
 	)
 }
 
@@ -676,7 +721,7 @@ func messageFromAfterRow(row storedb.MessageContextAfterRow) Message {
 		row.ForwardingScore, row.ReactionToID, row.ReactionEmoji, row.MediaType,
 		row.MediaCaption, row.Filename, row.MimeType, row.DirectPath, row.LocalPath,
 		row.DownloadedAt, row.Column24, row.StarredAt, row.Revoked, row.DeletedForMe,
-		row.DeletedAt, row.DeletionReason, row.PayloadPurgedAt, row.Edited, row.Buttons, row.AdReferral, row.Column34,
+		row.DeletedAt, row.DeletionReason, row.PayloadPurgedAt, row.Edited, row.Buttons, "", row.Column33,
 	)
 }
 
