@@ -3,7 +3,9 @@ package store
 import (
 	"database/sql"
 	"errors"
+	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -312,6 +314,141 @@ func TestOpenAddsAdReferralColumnToLegacyMessages(t *testing.T) {
 	}
 	if !hasColumn {
 		t.Fatalf("expected messages.ad_referral after migration")
+	}
+}
+
+// TestOpenUpgradesPopulatedV0200Store builds a store at the exact schema
+// level that shipped in v0.20.0 (testdata/schema_v0.20.0.sql plus migration
+// records 1..28), populates representative rows, then opens it with current
+// code and verifies the upgrade keeps every row, applies the new migrations
+// in order, leaves ad_referral NULL on old rows, and preserves purge
+// semantics.
+func TestOpenUpgradesPopulatedV0200Store(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "wacli.db")
+	legacySchema, err := os.ReadFile(filepath.Join("testdata", "schema_v0.20.0.sql"))
+	if err != nil {
+		t.Fatalf("read v0.20.0 schema fixture: %v", err)
+	}
+	raw, err := sql.Open("sqlite3", path)
+	if err != nil {
+		t.Fatalf("sql.Open: %v", err)
+	}
+	if _, err := raw.Exec(string(legacySchema) + `
+		CREATE TABLE schema_migrations (
+			version INTEGER PRIMARY KEY,
+			name TEXT NOT NULL,
+			applied_at INTEGER NOT NULL
+		);
+	`); err != nil {
+		_ = raw.Close()
+		t.Fatalf("create v0.20.0 schema: %v", err)
+	}
+	for _, migration := range schemaMigrations {
+		if migration.version > 28 { // 28 is the last migration shipped in v0.20.0
+			continue
+		}
+		if _, err := raw.Exec(`INSERT INTO schema_migrations(version, name, applied_at) VALUES(?, ?, 1)`, migration.version, migration.name); err != nil {
+			_ = raw.Close()
+			t.Fatalf("record migration %d: %v", migration.version, err)
+		}
+	}
+	stmts := []struct {
+		sql  string
+		args []any
+	}{
+		{`INSERT INTO chats(jid, kind, name, last_message_ts) VALUES('15551234567@s.whatsapp.net', 'dm', 'Alice', 1700000300)`, nil},
+		{`INSERT INTO chats(jid, kind, name, last_message_ts) VALUES('999123456789@lid', 'dm', 'Hidden Alice', 1700000400)`, nil},
+		{`INSERT INTO messages(chat_jid, msg_id, sender_jid, ts, from_me, text) VALUES('15551234567@s.whatsapp.net', 'plain1', '15551234567@s.whatsapp.net', 1700000100, 0, 'hello from v0.20.0')`, nil},
+		{`INSERT INTO messages(chat_jid, msg_id, sender_jid, ts, from_me, text, buttons) VALUES('15551234567@s.whatsapp.net', 'tmpl1', '15551234567@s.whatsapp.net', 1700000200, 0, 'Check our deals', ?)`, []any{`[{"type":"url","display_text":"Buy flights","url":"https://example.com/flights"}]`}},
+		{`INSERT INTO messages(chat_jid, msg_id, sender_jid, ts, from_me, text) VALUES('15551234567@s.whatsapp.net', 'loc1', '15551234567@s.whatsapp.net', 1700000250, 0, 'see you here')`, nil},
+		{`INSERT INTO message_locations(chat_jid, msg_id, latitude, longitude, name, is_live) VALUES('15551234567@s.whatsapp.net', 'loc1', 52.52, 13.405, 'Office', 0)`, nil},
+		{`INSERT INTO messages(chat_jid, msg_id, sender_jid, ts, from_me, text) VALUES('999123456789@lid', 'lid1', '999123456789@lid', 1700000400, 0, 'hidden identity payload')`, nil},
+		{`INSERT INTO messages(chat_jid, msg_id, sender_jid, ts, from_me, revoked, deleted_at, deletion_reason, payload_purged_at) VALUES('15551234567@s.whatsapp.net', 'purged1', '15551234567@s.whatsapp.net', 1700000300, 0, 1, 1700000310, 'whatsapp-revoke', 1700000320)`, nil},
+		{`INSERT INTO message_payload_purges(chat_jid, msg_id, purged_at, deleted_at, deletion_reason) VALUES('15551234567@s.whatsapp.net', 'purged1', 1700000320, 1700000310, 'whatsapp-revoke')`, nil},
+	}
+	for _, s := range stmts {
+		if _, err := raw.Exec(s.sql, s.args...); err != nil {
+			_ = raw.Close()
+			t.Fatalf("populate v0.20.0 store (%s): %v", s.sql, err)
+		}
+	}
+	if err := raw.Close(); err != nil {
+		t.Fatalf("raw close: %v", err)
+	}
+
+	db, err := Open(path)
+	if err != nil {
+		t.Fatalf("Open v0.20.0 store with current code: %v", err)
+	}
+	defer db.Close()
+
+	// New migrations applied in order, nothing skipped.
+	var versions []int
+	rows, err := db.sql.Query(`SELECT version FROM schema_migrations ORDER BY rowid`)
+	if err != nil {
+		t.Fatalf("read schema_migrations: %v", err)
+	}
+	for rows.Next() {
+		var v int
+		if err := rows.Scan(&v); err != nil {
+			t.Fatalf("scan version: %v", err)
+		}
+		versions = append(versions, v)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.IsSorted(versions) || len(versions) != len(schemaMigrations) || versions[len(versions)-1] != 30 {
+		t.Fatalf("schema_migrations after upgrade = %v", versions)
+	}
+
+	// Every row survived the upgrade.
+	for query, want := range map[string]int{
+		`SELECT count(*) FROM chats`:                                  2,
+		`SELECT count(*) FROM messages`:                               5,
+		`SELECT count(*) FROM message_locations`:                      1,
+		`SELECT count(*) FROM message_payload_purges`:                 1,
+		`SELECT count(*) FROM messages WHERE chat_jid GLOB '*@lid'`:   1,
+		`SELECT count(*) FROM messages WHERE ad_referral IS NOT NULL`: 0,
+	} {
+		var got int
+		if err := db.sql.QueryRow(query).Scan(&got); err != nil {
+			t.Fatalf("%s: %v", query, err)
+		}
+		if got != want {
+			t.Fatalf("%s = %d, want %d", query, got, want)
+		}
+	}
+
+	msg, err := db.GetMessage("15551234567@s.whatsapp.net", "plain1")
+	if err != nil {
+		t.Fatalf("GetMessage plain1: %v", err)
+	}
+	if msg.Text != "hello from v0.20.0" || msg.AdReferral != nil {
+		t.Fatalf("plain1 after upgrade = %+v", msg)
+	}
+	tmpl, err := db.GetMessage("15551234567@s.whatsapp.net", "tmpl1")
+	if err != nil {
+		t.Fatalf("GetMessage tmpl1: %v", err)
+	}
+	if len(tmpl.Buttons) != 1 || tmpl.Buttons[0].DisplayText != "Buy flights" {
+		t.Fatalf("tmpl1 buttons after upgrade = %+v", tmpl.Buttons)
+	}
+	lidMsg, err := db.GetMessage("999123456789@lid", "lid1")
+	if err != nil {
+		t.Fatalf("GetMessage lid1: %v", err)
+	}
+	if lidMsg.Text != "hidden identity payload" {
+		t.Fatalf("lid1 after upgrade = %+v", lidMsg)
+	}
+
+	// Purge semantics unchanged: the tombstone stays and the payload stays gone.
+	purged, err := db.GetMessage("15551234567@s.whatsapp.net", "purged1")
+	if err != nil {
+		t.Fatalf("GetMessage purged1: %v", err)
+	}
+	if purged.PayloadPurgedAt == nil || purged.Text != "" || purged.AdReferral != nil {
+		t.Fatalf("purged1 after upgrade = %+v", purged)
 	}
 }
 

@@ -1420,18 +1420,44 @@ func TestParseHistoryMessageKeepsExternalAdReferral(t *testing.T) {
 	}
 }
 
-func TestAdReferralFieldTruncatesLongValues(t *testing.T) {
+func TestParseLiveMessageTruncatesOversizedAdReferralFields(t *testing.T) {
 	// The leading "x" puts the byte limit in the middle of a two-byte rune.
 	long := "x" + strings.Repeat("á", adReferralFieldLimit)
-	got := adReferralField(long)
-	if len(got) == 0 || len(got) > adReferralFieldLimit {
-		t.Fatalf("len = %d, want 1..%d", len(got), adReferralFieldLimit)
+	evt := &events.Message{
+		Info: types.MessageInfo{
+			MessageSource: types.MessageSource{
+				Chat:   types.NewJID("15551112222", types.DefaultUserServer),
+				Sender: types.NewJID("15551112222", types.DefaultUserServer),
+			},
+			ID:        "ctwa-long",
+			Timestamp: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		},
+		Message: &waProto.Message{
+			ExtendedTextMessage: &waProto.ExtendedTextMessage{
+				Text: proto.String("Hello! I want more information"),
+				ContextInfo: &waProto.ContextInfo{
+					ExternalAdReply: &waE2E.ContextInfo_ExternalAdReplyInfo{
+						Title: proto.String(long),
+						Body:  proto.String(long),
+					},
+				},
+			},
+		},
 	}
-	if !utf8.ValidString(got) {
-		t.Fatalf("truncation split a rune: %q", got)
+	pm := ParseLiveMessage(evt)
+	if pm.AdReferral == nil {
+		t.Fatalf("expected AdReferral, got nil")
 	}
-	if !strings.HasPrefix(long, got) {
-		t.Fatalf("truncated value is not a prefix of the input")
+	for name, got := range map[string]string{"title": pm.AdReferral.Title, "body": pm.AdReferral.Body} {
+		if len(got) == 0 || len(got) > adReferralFieldLimit {
+			t.Fatalf("%s len = %d, want 1..%d", name, len(got), adReferralFieldLimit)
+		}
+		if !utf8.ValidString(got) {
+			t.Fatalf("%s truncation split a rune: %q", name, got)
+		}
+		if !strings.HasPrefix(long, got) {
+			t.Fatalf("%s truncated value is not a prefix of the input", name)
+		}
 	}
 }
 
