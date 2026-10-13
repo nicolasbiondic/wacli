@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Messages: keep Click-to-WhatsApp ad referrals (ad ID, source, headline, click ID) and expose them as `ad_referral` in message JSON.
+
 ## 0.25.0 - 2026-10-23
 
 **Highlights:** opt-in file uploads up to 2048 MiB, durable poll vote retractions, and reliable uncached media downloads.
