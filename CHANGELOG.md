@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Messages: keep Click-to-WhatsApp ad referrals (ad ID, source, headline, media type, click ID) and expose them as `ad_referral` in message JSON, sync webhook payloads, and a `messages show` line. Each text field is capped at 1024 bytes and thumbnails are not stored. Thanks @nicolasbiondic (#473).
+
 ## 0.22.0 - 2026-10-16
 
 **Highlights:** bounded message search context and cursor reads, a content-free incremental journal, safer sends and chat recovery, and five networking security fixes.
