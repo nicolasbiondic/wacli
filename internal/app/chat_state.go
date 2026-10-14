@@ -266,20 +266,57 @@ func (a *App) replayRequiredAppState(ctx context.Context, collection appstate.WA
 // setAppStateFullSyncResult records whether the latest full sync of the
 // collection verified. On LID-migrated accounts a full sync can never verify
 // its snapshot (the primary rewrote PN rows to LID in place), so the flag
-// stays set until a full sync verifies again.
+// stays set until a full sync verifies again. The flag is mirrored durably in
+// wacli.db so the next process knows the collection is broken before it
+// starts another full replay.
 func (a *App) setAppStateFullSyncResult(collection appstate.WAPatchName, broken bool) {
 	a.appStateDegradedMu.Lock()
-	defer a.appStateDegradedMu.Unlock()
+	a.loadAppStateFullSyncResultsLocked()
 	if a.appStateFullSyncBroken == nil {
 		a.appStateFullSyncBroken = make(map[string]bool)
 	}
+	changed := a.appStateFullSyncBroken[string(collection)] != broken
 	a.appStateFullSyncBroken[string(collection)] = broken
+	a.appStateDegradedMu.Unlock()
+	if !changed {
+		return
+	}
+	// Best-effort persistence: this process is still protected by the
+	// in-memory flag, and the next failed full sync re-arms it.
+	if err := a.db.SetAppStateFullSyncBroken(string(collection), broken); err != nil {
+		a.warnAppStateRecovery(string(collection), fmt.Errorf("persist full sync verification flag: %w", err))
+	}
 }
 
 func (a *App) isAppStateFullSyncBroken(collection appstate.WAPatchName) bool {
 	a.appStateDegradedMu.Lock()
 	defer a.appStateDegradedMu.Unlock()
+	a.loadAppStateFullSyncResultsLocked()
 	return a.appStateFullSyncBroken[string(collection)]
+}
+
+// loadAppStateFullSyncResultsLocked hydrates the in-memory flags from
+// wacli.db once per process. On a load failure the process simply behaves
+// like before (full replay first) until a failed full sync re-arms the flag,
+// so the error is not fatal.
+func (a *App) loadAppStateFullSyncResultsLocked() {
+	if a.appStateFullSyncLoaded {
+		return
+	}
+	a.appStateFullSyncLoaded = true
+	collections, err := a.db.AppStateFullSyncBrokenCollections()
+	if err != nil {
+		a.emitWarning("app_state_full_sync_flags_load_failed",
+			fmt.Sprintf("warning: failed to load app state full sync verification flags: %v", err),
+			map[string]any{"error": err.Error()})
+		return
+	}
+	if a.appStateFullSyncBroken == nil {
+		a.appStateFullSyncBroken = make(map[string]bool, len(collections))
+	}
+	for _, collection := range collections {
+		a.appStateFullSyncBroken[collection] = true
+	}
 }
 
 // degradedAppStateReplay handles pre-write replay debt on collections whose
@@ -287,8 +324,9 @@ func (a *App) isAppStateFullSyncBroken(collection appstate.WAPatchName) bool {
 // primary there is pointless-by-default: the phone is often asleep, and a
 // backgrounded phone answers with an older version that whatsmeow rightly
 // ignores. Instead, with local state present, an incremental fetch from the
-// local version is enough to confirm the server accepted our patches; the
-// markers of this attempt are then cleared and the write proceeds. One
+// local version is enough to confirm the server accepted our patches; only
+// this attempt's own write-ahead marker is cleared and the write proceeds,
+// while older durable debt survives until a verified replay covers it. One
 // background recovery request per collection per 6h still nudges the primary;
 // the late-recovery continuation adopts its answer if one ever arrives.
 //
@@ -341,7 +379,7 @@ func (a *App) degradedAppStateReplay(ctx context.Context, collection appstate.WA
 		reason = "full sync is known not to verify on this account"
 	}
 	a.emitWarning("app_state_degraded_replay",
-		fmt.Sprintf("app state %s: %s; cleared replay debt with an incremental sync instead of a full replay", collection, reason),
+		fmt.Sprintf("app state %s: %s; proceeding after an incremental sync and keeping the durable replay debt", collection, reason),
 		map[string]any{"name": string(collection), "generation": markerGeneration, "full_sync_broken": fullSyncBroken})
 	if fullSyncBroken {
 		// Only a broken full sync can be repaired by the primary. A
@@ -349,7 +387,16 @@ func (a *App) degradedAppStateReplay(ctx context.Context, collection appstate.WA
 		// it, so do not wake the phone.
 		a.requestBackgroundAppStateRecovery(ctx, collection, markerGeneration)
 	}
-	return true, a.clearCompletedAppStateRecovery(collection, markerGeneration)
+	// Clear only this attempt's own write-ahead marker. Older intents can
+	// stand for mutations whatsmeow's cursor already consumed but wacli.db
+	// never persisted; an empty incremental delta is not a replay of those,
+	// so that debt stays durable until a verified full replay or a primary
+	// recovery snapshot covers it (both clear through their own, newer
+	// generation).
+	if err := a.db.ClearAppStateRecoveryIntent(string(collection), markerGeneration); err != nil {
+		return true, fmt.Errorf("clear degraded replay marker for %s: %w", collection, err)
+	}
+	return true, nil
 }
 
 // requestBackgroundAppStateRecovery sends one recovery request to the primary
@@ -423,11 +470,22 @@ type appStateRecoveryCapture struct {
 	mu         sync.Mutex
 	captured   []any
 	finished   bool
-	completed  chan []any
+	completed  chan appStateRecoveryCompletion
+}
+
+// appStateRecoveryCompletion carries the captured snapshot events together
+// with the persistence ticket reserved at the dispatch boundary. Reserving
+// inside the sentinel's event handler fixes the snapshot's position in the
+// shared persistence order before whatsmeow can hand a newer live event to
+// the persistence handler, so a late snapshot can never be replayed after a
+// newer live mutation that overtook a sleeping continuation goroutine.
+type appStateRecoveryCompletion struct {
+	events []any
+	ticket uint64
 }
 
 func (a *App) newAppStateRecoveryCapture(collection appstate.WAPatchName) *appStateRecoveryCapture {
-	c := &appStateRecoveryCapture{app: a, collection: collection, completed: make(chan []any, 1)}
+	c := &appStateRecoveryCapture{app: a, collection: collection, completed: make(chan appStateRecoveryCompletion, 1)}
 	// whatsmeow dispatches recovery mutations synchronously and emits this
 	// collection's AppStateSyncComplete last, so the sentinel closes the drain.
 	c.handlerID = a.wa.AddEventHandler(c.handle)
@@ -443,7 +501,13 @@ func (c *appStateRecoveryCapture) handle(evt any) {
 	if syncComplete, ok := evt.(*events.AppStateSyncComplete); ok {
 		if syncComplete != nil && syncComplete.Recovery && syncComplete.Name == c.collection {
 			c.finished = true
-			c.completed <- append([]any(nil), c.captured...)
+			// Reserve the snapshot's ordered write position here, at the
+			// dispatch boundary. reserve only increments a counter under a
+			// mutex, so whatsmeow's dispatch never blocks on persistence.
+			c.completed <- appStateRecoveryCompletion{
+				events: append([]any(nil), c.captured...),
+				ticket: c.app.appStatePersist.reserve(),
+			}
 		}
 		return
 	}
@@ -453,12 +517,18 @@ func (c *appStateRecoveryCapture) handle(evt any) {
 }
 
 // stop finishes the capture and removes its event handler. Safe to call more
-// than once.
+// than once. A completion nobody consumed still owns a persistence ticket
+// reserved at the dispatch boundary; release it so later writes keep draining.
 func (c *appStateRecoveryCapture) stop() {
 	c.mu.Lock()
 	c.finished = true
 	c.mu.Unlock()
 	c.app.wa.RemoveEventHandler(c.handlerID)
+	select {
+	case completion := <-c.completed:
+		c.app.appStatePersist.complete(completion.ticket, func() {})
+	default:
+	}
 }
 
 // waitForPrimaryAppStateRecovery requests a recovery snapshot from the primary
@@ -476,9 +546,13 @@ func (a *App) waitForPrimaryAppStateRecovery(ctx context.Context, collection app
 		onRequested(requestID)
 	}
 	select {
-	case eventsToPersist := <-capture.completed:
+	case completion := <-capture.completed:
 		capture.stop()
-		return eventsToPersist, nil, nil
+		// The timely waiter persists under the ticket its caller reserved
+		// before the request was sent; release the dispatch-boundary ticket
+		// without work so the queue keeps draining.
+		a.appStatePersist.complete(completion.ticket, func() {})
+		return completion.events, nil, nil
 	case <-ctx.Done():
 		return nil, capture, fmt.Errorf("wait for WhatsApp app state recovery for %s: %w", collection, ctx.Err())
 	}
@@ -529,9 +603,9 @@ func (a *App) adoptLateAppStateRecovery(collection appstate.WAPatchName, generat
 func (a *App) runLateAppStateRecovery(collection appstate.WAPatchName, cont *lateAppStateRecovery, stop <-chan struct{}) {
 	timer := time.NewTimer(lateAppStateRecoveryMaxWait)
 	defer timer.Stop()
-	var eventsToPersist []any
+	var completion appStateRecoveryCompletion
 	select {
-	case eventsToPersist = <-cont.capture.completed:
+	case completion = <-cont.capture.completed:
 	case <-cont.superseded:
 		// The superseding attempt already removed this entry from the registry.
 		cont.capture.stop()
@@ -544,14 +618,15 @@ func (a *App) runLateAppStateRecovery(collection appstate.WAPatchName, cont *lat
 		return
 	}
 	a.finishLateAppStateRecovery(collection, cont)
-	// Same ordered persistence as the timely path, from a goroutine that holds
-	// neither chatStateSync nor whatsmeow's dispatch.
+	// Same ordered persistence as the timely path. The write position was
+	// reserved when the sentinel was dispatched, so a newer live event that
+	// arrived after the snapshot persists after it, even though this goroutine
+	// runs outside whatsmeow's dispatch and holds no chatStateSync.
 	persistCtx := context.Background()
-	ticket := a.appStatePersist.reserve()
 	tracker := &appStatePersistenceTracker{}
 	result := make(chan error, 1)
-	frontier := a.appStatePersist.complete(ticket, func() {
-		result <- a.persistFetchedAppStateEvents(persistCtx, eventsToPersist, tracker)
+	frontier := a.appStatePersist.complete(completion.ticket, func() {
+		result <- a.persistFetchedAppStateEvents(persistCtx, completion.events, tracker)
 	})
 	if err := a.appStatePersist.waitThrough(persistCtx, frontier); err != nil {
 		a.warnAppStateRecovery(string(collection), err)
@@ -705,23 +780,17 @@ func (a *App) completeLocalAppStateWrite(ctx context.Context, pending *pendingLo
 	if err := a.appStatePersist.waitThrough(persistCtx, frontier); err != nil {
 		return err
 	}
-	// Another whatsmeow fetch can advance the cursor and dispatch later. Keep
-	// replay debt durable until the next pre-write full replay — except on
-	// collections with local state whose full sync is known not to verify, or
-	// that are LID-migrated (see appStateWritesWithoutReplay): there the
-	// durable debt would force every later write through a full replay, so a
-	// fully persisted write clears its own marker instead.
-	persistErr := <-result
-	if persistErr == nil {
-		if degraded, _ := a.appStateWritesWithoutReplay(persistCtx, pending.collection); degraded {
-			if hasLocal, localErr := a.wa.HasLocalAppState(persistCtx, string(pending.collection)); localErr == nil && hasLocal {
-				if clearErr := a.db.ClearAppStateRecoveryIntent(string(pending.collection), pending.generation); clearErr != nil {
-					a.warnAppStateRecovery(string(pending.collection), fmt.Errorf("clear completed write marker: %w", clearErr))
-				}
-			}
-		}
-	}
-	return persistErr
+	// Keep this write's intent durable even though persistErr == nil:
+	// whatsmeow's SendAppState advances the collection cursor and dispatches
+	// the post-send fetched mutations in a goroutine after returning, so a nil
+	// persistErr only proves the explicit local update and already-admitted
+	// tasks completed — not that the SDK's complete post-send batch reached
+	// wacli.db. Deleting the intent here would leave no marker if the process
+	// exits before that goroutine runs, and future incremental deltas would
+	// skip the batch forever. On degraded collections (broken full sync or
+	// LID-migrated) the pre-write path keeps later writes fast despite the
+	// kept debt; a verified full replay or primary recovery snapshot clears it.
+	return <-result
 }
 
 func (a *App) persistFetchedAppStateEvents(ctx context.Context, eventsToPersist []any, tracker *appStatePersistenceTracker) error {
