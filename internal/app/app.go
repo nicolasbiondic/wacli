@@ -144,6 +144,7 @@ type App struct {
 	// full sync is known not to verify, and the time of the last background
 	// recovery request per collection. Guarded by appStateDegradedMu.
 	appStateDegradedMu        sync.Mutex
+	appStateFullSyncLoaded    bool
 	appStateFullSyncBroken    map[string]bool
 	appStateRecoveryRequested map[string]time.Time
 	heartbeatLast             atomic.Int64
