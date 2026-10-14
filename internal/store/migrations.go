@@ -46,7 +46,13 @@ var schemaMigrations = []migration{
 	{version: 30, name: "retrieval identity, revision and sync state", up: migrateRetrieval},
 	{version: 31, name: "content-free message change journal", up: migrateChanges},
 	{version: 32, name: "message receipt retrieval revisions", up: migrateReceiptRetrieval},
-	{version: 33, name: "messages ad_referral column", up: migrateMessagesAdReferralColumn},
+	// vendas: upstream PR #480 proposes the ad_referral migration as version
+	// 33, but it is not merged yet. Record it under a high local number so
+	// that whatever version upstream finally assigns stays unapplied on our
+	// stores and runs there as a no-op: the body is fully idempotent (column
+	// guard, trigger rebuild only when the comparison is missing). The runner
+	// applies by version-set membership, so the numbering gap is harmless.
+	{version: 9033, name: "vendas: messages ad_referral (#480)", up: migrateMessagesAdReferralColumn},
 }
 
 func migratePlaceholderChatActivity(d *DB) error {

@@ -8,7 +8,7 @@ import (
 
 // downgradeToBeforeAdReferral rewrites a store the way v0.21.0 left it: no
 // ad_referral column, a change trigger that does not compare it, and no record
-// of migration 33.
+// of the ad_referral migration (upstream's proposed 33 or our local 9033).
 func downgradeToBeforeAdReferral(t *testing.T, db *DB) {
 	t.Helper()
 	for _, name := range []string{"retrieval_messages_insert", "retrieval_messages_update", "retrieval_messages_delete"} {
@@ -29,8 +29,8 @@ func downgradeToBeforeAdReferral(t *testing.T, db *DB) {
 	if err := tx.Commit(); err != nil {
 		t.Fatalf("commit: %v", err)
 	}
-	if _, err := db.sql.Exec(`DELETE FROM schema_migrations WHERE version = 33`); err != nil {
-		t.Fatalf("forget migration 33: %v", err)
+	if _, err := db.sql.Exec(`DELETE FROM schema_migrations WHERE version IN (33, 9033)`); err != nil {
+		t.Fatalf("forget ad_referral migration: %v", err)
 	}
 }
 
