@@ -97,6 +97,21 @@ func (g *appStateKeyGuard) GetAppStateSyncKey(ctx context.Context, id []byte) (*
 	return nil, nil
 }
 
+// GetAllAppStateSyncKeyIDs passes through the wrapped store's optional key
+// listing. The patched whatsmeow needs it to find a chat's phone-number entry
+// under the key it was written with, so a chat action can be written with the
+// LID index and remove that entry (appstate/lidwrite.go). Without this method
+// the guard hides the optional interface and every patch is sent unchanged.
+func (g *appStateKeyGuard) GetAllAppStateSyncKeyIDs(ctx context.Context) ([][]byte, error) {
+	lister, ok := g.AppStateSyncKeyStore.(interface {
+		GetAllAppStateSyncKeyIDs(context.Context) ([][]byte, error)
+	})
+	if !ok {
+		return nil, nil
+	}
+	return lister.GetAllAppStateSyncKeyIDs(ctx)
+}
+
 // guardAppStateKeys wraps the device's key store once. Pairing replaces every
 // session store on the device, so this runs again after PairSuccess.
 func guardAppStateKeys(device *store.Device, state AppStateKeyStateStore, onEmpty func(keyID []byte)) {
