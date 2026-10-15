@@ -13,6 +13,7 @@ import (
 
 	"go.mau.fi/whatsmeow/proto/waAdv"
 	"go.mau.fi/whatsmeow/proto/waE2E"
+	"go.mau.fi/whatsmeow/store"
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
@@ -171,4 +172,43 @@ func newTestKeyStateStore(t *testing.T) *appStore.DB {
 	}
 	t.Cleanup(func() { _ = db.Close() })
 	return db
+}
+
+// The guard must not hide the key listing the patched whatsmeow relies on to
+// write chat actions with LID indexes; production silently sent unchanged
+// patches when it did.
+func TestAppStateKeyGuardListsKeyIDs(t *testing.T) {
+	c, err := New(Options{StorePath: filepath.Join(t.TempDir(), "session.db"), KeyStateStore: newTestKeyStateStore(t)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	c.client.Store.ID = &types.JID{User: "15550000000", Device: 7, Server: types.DefaultUserServer}
+	c.client.Store.Account = testAccount()
+	if err := c.client.Store.Save(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	c.client.DangerousInternals().DispatchEvent(&events.PairSuccess{ID: *c.client.Store.ID})
+	if _, ok := c.client.Store.AppStateKeys.(*appStateKeyGuard); !ok {
+		t.Fatalf("key store = %T, want guard", c.client.Store.AppStateKeys)
+	}
+	lister, ok := c.client.Store.AppStateKeys.(interface {
+		GetAllAppStateSyncKeyIDs(context.Context) ([][]byte, error)
+	})
+	if !ok {
+		t.Fatalf("guarded key store %T does not expose GetAllAppStateSyncKeyIDs", c.client.Store.AppStateKeys)
+	}
+	keyID := []byte{0, 0, 0, 0, 0xf3, 0xa6}
+	if err := c.client.Store.AppStateKeys.PutAppStateSyncKey(context.Background(), keyID, store.AppStateSyncKey{
+		Data: bytes.Repeat([]byte{7}, 32), Fingerprint: []byte{1}, Timestamp: 1,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	ids, err := lister.GetAllAppStateSyncKeyIDs(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ids) != 1 || !bytes.Equal(ids[0], keyID) {
+		t.Fatalf("listed key IDs = %x, want [%x]", ids, keyID)
+	}
 }

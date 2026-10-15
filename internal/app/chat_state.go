@@ -260,11 +260,18 @@ func (a *App) replayRequiredAppState(ctx context.Context, collection appstate.WA
 			return a.clearCompletedAppStateRecovery(collection, markerGeneration)
 		}
 		// An ErrMismatchingLTHash here just armed (and persisted) the "full
-		// sync does not verify" flag, but with stock whatsmeow the failed full
+		// sync does not verify" flag. With stock whatsmeow the failed full
 		// sync already deleted the saved collection version, so the degraded
 		// incremental path cannot engage until a primary recovery snapshot
-		// restores local state. Later writes check the persisted flag before
-		// starting another destructive full sync.
+		// restores local state. The vendas whatsmeow restores the local state
+		// after a failed full sync (non-destructive full sync), so try the
+		// degraded replay now instead of waiting minutes for the phone; when
+		// there is no local state it simply falls through.
+		if errors.Is(fetchErr, appstate.ErrMismatchingLTHash) {
+			if handled, degradedErr := a.degradedAppStateReplay(ctx, collection, markerGeneration, tracker); handled {
+				return degradedErr
+			}
+		}
 		if errors.Is(fetchErr, appstate.ErrMismatchingLTHash) || errors.Is(fetchErr, wa.ErrEmptyAppStateKeyShare) {
 			return a.recoverMismatchingAppState(ctx, collection, markerGeneration, tracker, nil)
 		}
@@ -348,6 +355,26 @@ func (a *App) loadAppStateFullSyncResultsLocked() {
 	}
 }
 
+// appStateWritesWithoutReplay reports whether chat-state writes on this
+// collection skip the durable full-replay debt, and why. It holds when the
+// last full sync is known not to verify (fullSyncBroken), or when the local
+// state is LID-migrated: there WhatsApp Web never resyncs before writing, and
+// a full replay would download and re-apply the whole collection (tens of
+// thousands of entries on a busy account) before every write.
+func (a *App) appStateWritesWithoutReplay(ctx context.Context, collection appstate.WAPatchName) (degraded, fullSyncBroken bool) {
+	if a.isAppStateFullSyncBroken(collection) {
+		return true, true
+	}
+	if a.wa == nil {
+		return false, false
+	}
+	migrated, err := a.wa.IsAppStateLIDMigrated(ctx, string(collection))
+	if err != nil || !migrated {
+		return false, false
+	}
+	return true, false
+}
+
 // degradedAppStateReplay handles pre-write replay debt on collections whose
 // full sync is known not to verify. Replaying there repeats the very full sync
 // that already failed — destroying the local collection version with stock
@@ -363,10 +390,14 @@ func (a *App) loadAppStateFullSyncResultsLocked() {
 // nudges the primary, since only it can repair the broken full sync.
 //
 // Returns handled=false (fall back to today's full replay + phone wait) when
-// the flag is not set, there is no local state, or the incremental fetch
-// fails.
+// the collection is not degraded, there is no local state, or the
+// incremental fetch fails.
+//
+// vendas: the same path also applies to LID-migrated collections whose full
+// sync verifies (see appStateWritesWithoutReplay).
 func (a *App) degradedAppStateReplay(ctx context.Context, collection appstate.WAPatchName, markerGeneration int64, tracker *appStatePersistenceTracker) (handled bool, err error) {
-	if !a.isAppStateFullSyncBroken(collection) {
+	degraded, fullSyncBroken := a.appStateWritesWithoutReplay(ctx, collection)
+	if !degraded {
 		return false, nil
 	}
 	hasLocal, err := a.wa.HasLocalAppState(ctx, string(collection))
@@ -385,10 +416,19 @@ func (a *App) degradedAppStateReplay(ctx context.Context, collection appstate.WA
 		// LTHash mismatch (or any other failure): today's behavior.
 		return false, nil
 	}
+	reason := "LID-migrated collection"
+	if fullSyncBroken {
+		reason = "full sync is known not to verify on this account"
+	}
 	a.emitWarning("app_state_degraded_replay",
-		fmt.Sprintf("app state %s: full sync is known not to verify on this account; proceeding after an incremental sync and keeping the durable replay debt", collection),
-		map[string]any{"name": string(collection), "generation": markerGeneration})
-	a.requestBackgroundAppStateRecovery(ctx, collection, markerGeneration)
+		fmt.Sprintf("app state %s: %s; proceeding after an incremental sync and keeping the durable replay debt", collection, reason),
+		map[string]any{"name": string(collection), "generation": markerGeneration, "full_sync_broken": fullSyncBroken})
+	if fullSyncBroken {
+		// Only a broken full sync can be repaired by the primary. A
+		// LID-migrated collection whose full sync verifies needs nothing from
+		// it, so do not wake the phone.
+		a.requestBackgroundAppStateRecovery(ctx, collection, markerGeneration)
+	}
 	// Clear only this attempt's own write-ahead marker; see the function
 	// comment for why older intents must survive an empty incremental delta.
 	if err := a.db.ClearAppStateRecoveryIntent(string(collection), markerGeneration); err != nil {
@@ -401,6 +441,11 @@ func (a *App) degradedAppStateReplay(ctx context.Context, collection appstate.WA
 // without waiting for the answer, rate-limited per collection. whatsmeow
 // adopts a late answer on its own when the snapshot is newer than the local
 // state, and the dispatched events are persisted by the regular handlers.
+//
+// vendas: the answer is also captured by the late-recovery continuation so
+// that it clears this attempt's markers and the older ones; otherwise the
+// durable debt kept by the degraded path would only shrink on a verified
+// full replay, which never happens on these accounts.
 func (a *App) requestBackgroundAppStateRecovery(ctx context.Context, collection appstate.WAPatchName, markerGeneration int64) {
 	name := string(collection)
 	now := time.Now()
@@ -415,14 +460,17 @@ func (a *App) requestBackgroundAppStateRecovery(ctx context.Context, collection 
 	a.appStateRecoveryRequested[name] = now
 	a.appStateDegradedMu.Unlock()
 
+	capture := a.newAppStateRecoveryCapture(collection)
 	requestID, err := a.wa.RequestAppStateRecovery(ctx, name)
 	if err != nil {
+		capture.stop()
 		a.warnAppStateRecovery(name, fmt.Errorf("background recovery request: %w", err))
 		return
 	}
 	a.emitWarning("app_state_recovery_requested_background",
 		fmt.Sprintf("app state %s: requested recovery snapshot from the primary in the background (id %s)", name, requestID),
 		map[string]any{"name": name, "id": string(requestID), "generation": markerGeneration})
+	a.adoptLateAppStateRecovery(collection, markerGeneration, capture)
 }
 
 func (a *App) recoverMismatchingAppState(ctx context.Context, collection appstate.WAPatchName, markerGeneration int64, tracker *appStatePersistenceTracker, onRequested func(types.MessageID)) error {

@@ -37,6 +37,20 @@ func (c *Client) HasLocalAppState(ctx context.Context, name string) (bool, error
 	return version > 0, nil
 }
 
+// IsAppStateLIDMigrated reports whether the local state of the collection
+// holds LID-indexed chat entries (the primary migrated the account's chats
+// to LIDs). On such collections chat-state writes are synced the way
+// WhatsApp Web does it, without full replays before writes.
+func (c *Client) IsAppStateLIDMigrated(ctx context.Context, name string) (bool, error) {
+	c.mu.Lock()
+	cli := c.client
+	c.mu.Unlock()
+	if cli == nil {
+		return false, fmt.Errorf("not connected")
+	}
+	return cli.IsAppStateCollectionLIDMigrated(ctx, appstate.WAPatchName(name)), nil
+}
+
 func (c *Client) sendAppStateWithBoundary(ctx context.Context, patch appstate.PatchInfo, beforeApply func()) ([]any, error) {
 	// Reserve wacli persistence before whatsmeow can advance app state. The
 	// durable recovery intent remains after return because canonical sends

@@ -373,3 +373,144 @@ func TestFullSyncBrokenFlagPersistsAcrossRestart(t *testing.T) {
 		t.Fatalf("recovery requests = %d, want 1 background request", got)
 	}
 }
+
+// vendas: with the patched whatsmeow a failed full sync restores the local
+// collection (non-destructive full sync), so the first replay after a restart
+// that arms the flag can take the degraded path right away instead of waiting
+// minutes for the phone.
+func TestFirstReplayAfterRestartArmsFlagAndSkipsPhoneWait(t *testing.T) {
+	chat := types.JID{User: "15550000025", Server: types.DefaultUserServer}
+	a, f := degradedTestApp(t, chat)
+	name := appstate.WAPatchRegularLow
+	var recoveryRequests, fullSyncs atomic.Int32
+	f.fetchEvents = func(_ context.Context, _ string, fullSync, _ bool) ([]any, error) {
+		if fullSync {
+			fullSyncs.Add(1)
+			return nil, appstate.ErrMismatchingLTHash
+		}
+		return nil, nil
+	}
+	f.requestAppStateRecovery = func(context.Context, string) (types.MessageID, error) {
+		recoveryRequests.Add(1)
+		return types.MessageID("bg-req"), nil
+	}
+	f.hasLocalAppState = true
+	f.nonDestructiveFullSync = true
+	if a.isAppStateFullSyncBroken(name) {
+		t.Fatal("flag must start unarmed in a fresh process")
+	}
+	// Replay debt left by a write before the restart.
+	if _, err := a.db.MarkAppStateRecoveryGeneration(string(name)); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	start := time.Now()
+	if err := a.ArchiveChat(ctx, chat, true); err != nil {
+		t.Fatalf("first write after restart: %v", err)
+	}
+	if elapsed := time.Since(start); elapsed > 3*time.Second {
+		t.Fatalf("first write after restart took %v; it must not wait for the phone", elapsed)
+	}
+	if got := fullSyncs.Load(); got != 1 {
+		t.Fatalf("full syncs = %d, want exactly 1 (the one that arms the flag)", got)
+	}
+	if !a.isAppStateFullSyncBroken(name) {
+		t.Fatal("the failed full sync must arm the flag")
+	}
+	if got := recoveryRequests.Load(); got != 1 {
+		t.Fatalf("recovery requests = %d, want 1 background request", got)
+	}
+	// The pre-restart debt and the write's own send intent stay durable: an
+	// incremental fetch proves the cursor, not that every older mutation
+	// reached wacli.db.
+	if required, err := a.db.AppStateRecoveryRequired(string(name)); err != nil || !required {
+		t.Fatalf("replay debt after the write = %v, %v; want kept", required, err)
+	}
+}
+
+// vendas (h): on a LID-migrated collection whose full sync verifies, writes
+// never replay the whole collection first and never wake the phone, the way
+// WhatsApp Web writes.
+func TestLIDMigratedCollectionWritesWithoutReplay(t *testing.T) {
+	chat := types.JID{User: "15550000030", Server: types.DefaultUserServer}
+	a, f := degradedTestApp(t, chat)
+	name := appstate.WAPatchRegularLow
+	var fullSyncs, recoveryRequests atomic.Int32
+	f.fetchEvents = func(_ context.Context, _ string, fullSync, _ bool) ([]any, error) {
+		if fullSync {
+			fullSyncs.Add(1)
+		}
+		return nil, nil
+	}
+	f.requestAppStateRecovery = func(context.Context, string) (types.MessageID, error) {
+		recoveryRequests.Add(1)
+		return types.MessageID("req"), nil
+	}
+	f.hasLocalAppState = true
+	f.appStateLIDMigrated = true
+
+	for i, archive := range []bool{true, false, true} {
+		if err := a.ArchiveChat(t.Context(), chat, archive); err != nil {
+			t.Fatalf("write %d on a LID-migrated collection: %v", i, err)
+		}
+	}
+	if got := fullSyncs.Load(); got != 0 {
+		t.Fatalf("full syncs = %d, want 0 (WhatsApp Web never resyncs before writing)", got)
+	}
+	if got := recoveryRequests.Load(); got != 0 {
+		t.Fatalf("recovery requests = %d, want 0 (the phone is not needed)", got)
+	}
+	// Each write keeps its durable send intent: the SDK's post-send mutation
+	// batch dispatches asynchronously and is not provably persisted.
+	if required, err := a.db.AppStateRecoveryRequired(string(name)); err != nil || !required {
+		t.Fatalf("send intents after LID-migrated writes = %v, %v; want kept", required, err)
+	}
+}
+
+// vendas (h): existing replay debt on a LID-migrated collection is settled
+// with an incremental sync, without a full replay and without waking the
+// phone; debt it did not replay survives.
+func TestLIDMigratedReplayDebtUsesIncrementalSync(t *testing.T) {
+	chat := types.JID{User: "15550000031", Server: types.DefaultUserServer}
+	a, f := degradedTestApp(t, chat)
+	name := appstate.WAPatchRegularLow
+	var fullSyncs, incrementalSyncs, recoveryRequests atomic.Int32
+	f.fetchEvents = func(_ context.Context, _ string, fullSync, _ bool) ([]any, error) {
+		if fullSync {
+			fullSyncs.Add(1)
+		} else {
+			incrementalSyncs.Add(1)
+		}
+		return nil, nil
+	}
+	f.requestAppStateRecovery = func(context.Context, string) (types.MessageID, error) {
+		recoveryRequests.Add(1)
+		return types.MessageID("req"), nil
+	}
+	f.hasLocalAppState = true
+	f.appStateLIDMigrated = true
+	staleGen, err := a.db.MarkAppStateRecoveryGeneration(string(name))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := a.ArchiveChat(t.Context(), chat, true); err != nil {
+		t.Fatalf("ArchiveChat with replay debt: %v", err)
+	}
+	if got := fullSyncs.Load(); got != 0 {
+		t.Fatalf("full syncs = %d, want 0", got)
+	}
+	if got := incrementalSyncs.Load(); got == 0 {
+		t.Fatal("the replay debt was not settled with an incremental sync")
+	}
+	if got := recoveryRequests.Load(); got != 0 {
+		t.Fatalf("recovery requests = %d, want 0", got)
+	}
+	// The stale debt is not provably replayed by an incremental fetch: it
+	// survives for a later verified replay.
+	if !recoveryIntentExists(t, a, string(name), staleGen) {
+		t.Fatal("LID-migrated degraded write cleared stale replay debt it did not replay")
+	}
+}

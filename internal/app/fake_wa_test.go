@@ -90,6 +90,10 @@ type fakeWA struct {
 	appStateRecoveries          []string
 	appStateFetches             []fakeAppStateFetch
 	hasLocalAppState            bool
+	// vendas: the patched whatsmeow restores the local collection after a
+	// failed full sync, so a mismatch does not erase local state.
+	nonDestructiveFullSync bool
+	appStateLIDMigrated    bool
 
 	presenceCalls   []types.Presence
 	sendPresenceErr error
@@ -825,8 +829,16 @@ func (f *fakeWA) noteFullSyncResult(fullSync bool, err error) {
 		return
 	}
 	f.mu.Lock()
-	f.hasLocalAppState = err == nil
+	if err == nil || !f.nonDestructiveFullSync {
+		f.hasLocalAppState = err == nil
+	}
 	f.mu.Unlock()
+}
+
+func (f *fakeWA) IsAppStateLIDMigrated(ctx context.Context, name string) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.appStateLIDMigrated, nil
 }
 
 func (f *fakeWA) RequestAppStateRecovery(ctx context.Context, name string) (types.MessageID, error) {
