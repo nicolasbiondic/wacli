@@ -158,6 +158,23 @@ func (d *DB) ResolveList(value string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// Lists hides tombstones. Check them separately, retaining ID precedence
+	// and allowing an active definition to reuse a deleted definition's name.
+	exists, err := d.tableExists("lists")
+	if err != nil {
+		return "", err
+	}
+	if exists {
+		var deleted bool
+		err := d.sql.QueryRow(`SELECT deleted FROM lists WHERE id=? OR name=?
+			ORDER BY (id=?) DESC,deleted ASC LIMIT 1`, value, value, value).Scan(&deleted)
+		if err != nil && err != sql.ErrNoRows {
+			return "", err
+		}
+		if deleted {
+			return "", fmt.Errorf("list %q was deleted on the phone", value)
+		}
+	}
 	var matches []List
 	for _, l := range result.Lists {
 		if l.ID == value {
