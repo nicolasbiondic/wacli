@@ -79,21 +79,7 @@ func (d *DB) ApplyChatArchive(jid string, archived bool, timestamp time.Time) er
 	return tx.Commit()
 }
 
-// Recheck inside the message transaction: a concurrent delivery or tombstone
-// may have been stored since the live handler inspected the message.
-func newArchiveIncoming(tx *sql.Tx, jid, id string) (bool, error) {
-	var fresh bool
-	err := tx.QueryRow(`SELECT CASE WHEN EXISTS(SELECT 1 FROM message_payload_purges WHERE chat_jid=? AND msg_id=?) THEN 0 ELSE COALESCE((
- SELECT COALESCE(display_text,'')='(message)' AND TRIM(COALESCE(text,''))=''
- AND from_me=0 AND edited=0 AND revoked=0 AND deleted_for_me=0
- AND deleted_at IS NULL AND payload_purged_at IS NULL
- AND COALESCE(reaction_to_id,'')='' AND COALESCE(reaction_emoji,'')=''
- AND COALESCE(media_type,'')='' AND COALESCE(buttons,'')=''
- FROM messages WHERE chat_jid=? AND msg_id=?),1) END`, jid, id, jid, id).Scan(&fresh)
-	return fresh, err
-}
-
-func recordChatArchiveIncoming(tx *sql.Tx, jid string, timestamp time.Time) error {
+func recordChatArchiveIncoming(tx *sql.Tx, jid, id string, timestamp time.Time) error {
 	if timestamp.IsZero() {
 		return nil
 	}
@@ -104,7 +90,14 @@ func recordChatArchiveIncoming(tx *sql.Tx, jid string, timestamp time.Time) erro
 	if _, err := tx.Exec(`UPDATE chats SET archive_incoming_ms=MAX(archive_incoming_ms,?,
  CASE WHEN archive_action_ms/1000=?/1000 THEN archive_action_ms+1 ELSE 0 END,
  COALESCE((SELECT CASE WHEN timestamp_ms/1000=?/1000 THEN timestamp_ms+1 ELSE 0 END
- FROM chat_archive_setting WHERE id=1),0)) WHERE jid=?`, ms, ms, ms, jid); err != nil {
+ FROM chat_archive_setting WHERE id=1),0)) WHERE jid=?
+ AND NOT EXISTS(SELECT 1 FROM message_payload_purges WHERE chat_jid=? AND msg_id=?)
+ AND COALESCE((SELECT COALESCE(display_text,'')='(message)' AND TRIM(COALESCE(text,''))=''
+ AND from_me=0 AND edited=0 AND revoked=0 AND deleted_for_me=0
+ AND deleted_at IS NULL AND payload_purged_at IS NULL
+ AND COALESCE(reaction_to_id,'')='' AND COALESCE(reaction_emoji,'')=''
+ AND COALESCE(media_type,'')='' AND COALESCE(buttons,'')=''
+ FROM messages WHERE chat_jid=? AND msg_id=?),1)`, ms, ms, ms, jid, jid, id, jid, id); err != nil {
 		return err
 	}
 	return reconcileChatArchive(tx, jid)

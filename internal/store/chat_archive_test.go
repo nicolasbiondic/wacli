@@ -3,10 +3,40 @@ package store
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
+
+func TestArchiveIncomingConcurrentWriters(t *testing.T) {
+	db := openTestDB(t)
+	jid := "15550000001@s.whatsapp.net"
+	base := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+	if err := db.UpsertChat(jid, "dm", "Synthetic", base); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.SetChatArchiveSetting(true, base.Add(-time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	var workers sync.WaitGroup
+	for worker := range 8 {
+		workers.Go(func() {
+			for item := range 8 {
+				id := fmt.Sprintf("incoming-%d-%d", worker, item)
+				if err := db.UpsertMessage(UpsertMessageParams{ChatJID: jid, MsgID: id, Timestamp: base, Text: "synthetic", ArchiveIncoming: true}); err != nil {
+					t.Errorf("concurrent incoming: %v", err)
+					return
+				}
+			}
+		})
+	}
+	workers.Wait()
+	if got := countRows(t, db.sql, "SELECT COUNT(*) FROM messages WHERE chat_jid=?", jid); got != 64 {
+		t.Fatalf("stored concurrent messages=%d, want 64", got)
+	}
+}
 
 func TestArchiveIncomingIsAtomicAndOrdersSameSecond(t *testing.T) {
 	db := openTestDB(t)
@@ -32,6 +62,18 @@ func TestArchiveIncomingIsAtomicAndOrdersSameSecond(t *testing.T) {
 		t.Fatalf("message escaped rolled-back boundary: %v", err)
 	}
 	if _, err := db.sql.Exec(`DROP TRIGGER fail_archive_incoming`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.sql.Exec(`CREATE TRIGGER fail_incoming_message BEFORE INSERT ON messages BEGIN SELECT RAISE(FAIL,'injected message failure'); END`); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.UpsertMessage(p); err == nil {
+		t.Fatal("expected message persistence failure")
+	}
+	if chat, err := db.GetChat(jid); err != nil || !chat.Archived {
+		t.Fatalf("boundary escaped rolled-back message: %+v, %v", chat, err)
+	}
+	if _, err := db.sql.Exec(`DROP TRIGGER fail_incoming_message`); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.UpsertMessage(p); err != nil {

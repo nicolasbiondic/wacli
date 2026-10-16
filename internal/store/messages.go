@@ -144,17 +144,13 @@ func (d *DB) UpsertMessage(p UpsertMessageParams) error {
 		return err
 	}
 	defer tx.Rollback()
-	fresh, err := newArchiveIncoming(tx, p.ChatJID, p.MsgID)
-	if err != nil {
+	// Decide and write under the writer lock before reading message state.
+	// A deferred read-then-write transaction can fail with SQLITE_BUSY_SNAPSHOT.
+	if err := recordChatArchiveIncoming(tx, p.ChatJID, p.MsgID, p.Timestamp); err != nil {
 		return err
 	}
 	if err := d.q.WithTx(tx).UpsertMessage(storeCtx(), params); err != nil {
 		return err
-	}
-	if fresh {
-		if err := recordChatArchiveIncoming(tx, p.ChatJID, p.Timestamp); err != nil {
-			return err
-		}
 	}
 	return tx.Commit()
 }
