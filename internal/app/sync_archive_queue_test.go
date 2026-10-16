@@ -109,3 +109,30 @@ func TestAutoUnarchiveQueuedDisableDoesNotUseOldEnabledSetting(t *testing.T) {
 		t.Fatalf("disabled preference unarchived chat: %+v, %v", got, err)
 	}
 }
+
+func TestAutoUnarchiveEqualTimestampDisableRemainsPending(t *testing.T) {
+	a := newTestApp(t)
+	a.wa = newFakeWA()
+	ctx := context.Background()
+	chat := types.NewJID("15550000014", types.DefaultUserServer)
+	base := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+	if err := a.db.ApplyChatArchive(chat.String(), true, base); err != nil {
+		t.Fatal(err)
+	}
+	first := &events.UnarchiveChatsSetting{Timestamp: base.Add(600 * time.Millisecond), Action: &waSyncAction.UnarchiveChatsSetting{UnarchiveChats: proto.Bool(true)}}
+	last := &events.UnarchiveChatsSetting{Timestamp: first.Timestamp, Action: &waSyncAction.UnarchiveChatsSetting{UnarchiveChats: proto.Bool(false)}}
+	a.observeArchiveEvent(ctx, first, false)
+	a.observeArchiveEvent(ctx, last, false)
+	if err := a.persistAppStateEvent(ctx, first, nil); err != nil {
+		t.Fatal(err)
+	}
+	var stored atomic.Int64
+	a.handleLiveSyncMessage(ctx, SyncOptions{}, &events.Message{Info: types.MessageInfo{MessageSource: types.MessageSource{Chat: chat, Sender: chat}, ID: "new", Timestamp: base}, Message: &waE2E.Message{Conversation: proto.String("synthetic")}}, &stored, nil, nil)
+	if err := a.persistAppStateEvent(ctx, last, nil); err != nil {
+		t.Fatal(err)
+	}
+	got, err := a.db.GetChat(chat.String())
+	if err != nil || !got.Archived {
+		t.Fatalf("earlier equal-timestamp enable hid pending disable: %+v, %v", got, err)
+	}
+}

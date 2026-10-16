@@ -35,12 +35,15 @@ func (a *App) observeArchiveEvent(ctx context.Context, evt any, persisted bool) 
 	a.archiveObservationMu.Lock()
 	defer a.archiveObservationMu.Unlock()
 	if setting {
+		v := evt.(*events.UnarchiveChatsSetting)
+		pending := a.archiveSettingObserved
 		if persisted {
-			if a.archiveSettingObserved == ms {
-				a.archiveSettingObserved = 0
+			if pending != nil && (pending == v || pending.Timestamp.Before(v.Timestamp) ||
+				(pending.Timestamp.Equal(v.Timestamp) && pending.Action.GetUnarchiveChats() == v.Action.GetUnarchiveChats())) {
+				a.archiveSettingObserved = nil
 			}
-		} else {
-			a.archiveSettingObserved = max(a.archiveSettingObserved, ms)
+		} else if pending == nil || !v.Timestamp.Before(pending.Timestamp) {
+			a.archiveSettingObserved = v
 		}
 		return
 	}
@@ -56,11 +59,16 @@ func (a *App) observeArchiveEvent(ctx context.Context, evt any, persisted bool) 
 	a.archiveObserved[jid] = max(a.archiveObserved[jid], ms)
 }
 
-func (a *App) observedArchiveBoundary(ctx context.Context, chat types.JID) (int64, int64) {
+func (a *App) observedArchiveBoundary(ctx context.Context, chat types.JID) (int64, int64, bool) {
 	jid := canonicalJIDString(a.canonicalStoreJID(ctx, chat))
 	a.archiveObservationMu.Lock()
 	observed := maps.Clone(a.archiveObserved)
-	setting := a.archiveSettingObserved
+	var setting int64
+	disabled := false
+	if pending := a.archiveSettingObserved; pending != nil {
+		setting = pending.Timestamp.UnixMilli()
+		disabled = !pending.Action.GetUnarchiveChats()
+	}
 	a.archiveObservationMu.Unlock()
 	boundary := setting
 	for raw, ms := range observed {
@@ -68,5 +76,5 @@ func (a *App) observedArchiveBoundary(ctx context.Context, chat types.JID) (int6
 			boundary = max(boundary, ms)
 		}
 	}
-	return boundary, setting
+	return boundary, setting, disabled
 }

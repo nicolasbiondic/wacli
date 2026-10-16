@@ -604,7 +604,7 @@ func (a *App) handleLiveSyncMessage(ctx context.Context, opts SyncOptions, v *ev
 	if historySyncNotificationFromMessage(v) != nil {
 		return
 	}
-	observedArchiveMS, observedSettingMS := a.observedArchiveBoundary(ctx, v.Info.Chat)
+	observedArchiveMS, observedSettingMS, archiveDisabled := a.observedArchiveBoundary(ctx, v.Info.Chat)
 	var ok bool
 	v, ok = a.decryptSecretEdit(ctx, v)
 	if !ok {
@@ -624,7 +624,7 @@ func (a *App) handleLiveSyncMessage(ctx context.Context, opts SyncOptions, v *ev
 		}
 	}
 	incrementUnread := a.shouldIncrementLiveUnread(ctx, pm)
-	storeOptions := messageStoreOptions{archiveIncoming: incrementUnread && !pm.Edited, archiveObservedMS: observedArchiveMS, archiveSettingObservedMS: observedSettingMS}
+	storeOptions := messageStoreOptions{archiveIncoming: incrementUnread && !pm.Edited && !archiveDisabled, archiveObservedMS: observedArchiveMS, archiveSettingObservedMS: observedSettingMS}
 	if err := a.storeParsedMessageForSync(ctx, pm, storeOptions, limits...); err == nil {
 		if incrementUnread {
 			a.incrementLiveUnread(ctx, pm)
