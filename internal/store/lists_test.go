@@ -269,18 +269,21 @@ func TestListsMigrationSurvivesForeignVersionRows(t *testing.T) {
 			}
 			db.Close()
 
-			// Simulate collapsing a local number (e.g. 9034) onto the upstream
+			// Simulate collapsing a different local number onto the registered
 			// one: the migration runs again over populated list rows.
 			db = mustOpen(t, path)
 			if _, err := db.sql.Exec(`DELETE FROM schema_migrations WHERE version=?`, version); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := db.sql.Exec(`INSERT OR IGNORE INTO schema_migrations(version, name, applied_at) VALUES(9034, 'local lists', 1)`); err != nil {
+			if _, err := db.sql.Exec(`INSERT INTO schema_migrations(version, name, applied_at) VALUES(?, 'local lists', 1)`, version+9000); err != nil {
 				t.Fatal(err)
 			}
 			db.Close()
 			db = mustOpen(t, path)
 			defer db.Close()
+			if err := db.sql.QueryRow(`SELECT name FROM schema_migrations WHERE version=?`, version).Scan(&name); err != nil || name != "WhatsApp lists and chat memberships" {
+				t.Fatalf("lists migration was not re-run: %q, %v", name, err)
+			}
 			result, err := db.Lists()
 			if err != nil || len(result.Lists) != 1 || result.Lists[0].Name != "Sales" || !result.FullSyncEventsSeen {
 				t.Fatalf("Lists after re-run = %+v, %v", result, err)
