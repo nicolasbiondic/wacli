@@ -797,6 +797,13 @@ func (a *App) completeLocalAppStateWrite(ctx context.Context, pending *pendingLo
 func (a *App) persistFetchedAppStateEvents(ctx context.Context, eventsToPersist []any, tracker *appStatePersistenceTracker) error {
 	tracker.begin()
 	for _, evt := range eventsToPersist {
+		if _, completion := evt.(*events.AppStateSyncComplete); completion && tracker.failed() {
+			// The snapshot settles only once every mutation it carried is in
+			// the store. After a failed write the replay debt and the archive
+			// recovery stay armed, so the retried snapshot applies the
+			// original action instead of meeting a boundary stamped here.
+			continue
+		}
 		a.persistAppStateEvent(ctx, evt, tracker)
 	}
 	return tracker.end()
@@ -891,8 +898,9 @@ func (a *App) handleChatStateEvent(ctx context.Context, evt any) error {
 // settleChatArchiveRecovery runs at the ordered persistence position of a
 // complete regular_low snapshot: the completion sentinel whatsmeow appends to a
 // verified full replay or a primary recovery, persisted after every mutation
-// that snapshot carried. Whatever is still missing cannot be recovered by
-// another replay, so the store stops requesting one. Live sentinels from
+// that snapshot carried and skipped by persistFetchedAppStateEvents when one
+// of them failed. Whatever is still missing cannot be recovered by another
+// replay, so the store stops requesting one. Live sentinels from
 // whatsmeow's own dispatch are not routed here: their persistence position is
 // not ordered against the captured snapshot they close.
 func (a *App) settleChatArchiveRecovery(evt *events.AppStateSyncComplete) error {

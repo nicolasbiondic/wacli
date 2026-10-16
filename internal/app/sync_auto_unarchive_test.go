@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"database/sql"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -345,4 +347,197 @@ func TestAutoUnarchiveBrokenCollectionSettlesAfterRecoverySnapshot(t *testing.T)
 	if requests != 1 {
 		t.Fatalf("background snapshot requests after settlement=%d, want 1", requests)
 	}
+}
+
+// archiveSettlementState reads what settlement would write: the preference row
+// and the legacy chat's archive boundary.
+func archiveSettlementState(t *testing.T, a *App, jid string) (preferenceRows int, actionMS int64) {
+	t.Helper()
+	raw, err := sql.Open("sqlite3", filepath.Join(a.opts.StoreDir, "wacli.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer raw.Close()
+	if err := raw.QueryRow(`SELECT COUNT(*) FROM chat_archive_setting WHERE id=1`).Scan(&preferenceRows); err != nil {
+		t.Fatal(err)
+	}
+	if err := raw.QueryRow(`SELECT archive_action_ms FROM chats WHERE jid=?`, jid).Scan(&actionMS); err != nil {
+		t.Fatal(err)
+	}
+	return preferenceRows, actionMS
+}
+
+func failArchiveWrites(t *testing.T, a *App) (drop func()) {
+	t.Helper()
+	raw, err := sql.Open("sqlite3", filepath.Join(a.opts.StoreDir, "wacli.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := raw.Exec(`CREATE TRIGGER fail_snapshot_archive BEFORE UPDATE OF archived ON chats
+ BEGIN SELECT RAISE(FAIL, 'injected transient archive persistence failure'); END`); err != nil {
+		t.Fatal(err)
+	}
+	var once sync.Once
+	drop = func() {
+		once.Do(func() {
+			if _, err := raw.Exec(`DROP TRIGGER fail_snapshot_archive`); err != nil {
+				t.Fatal(err)
+			}
+			raw.Close()
+		})
+	}
+	t.Cleanup(drop)
+	return drop
+}
+
+// A snapshot settles only when every mutation it carried reached the store.
+// A legacy archived chat has no boundary; its snapshot unarchive at 12:00
+// fails once with a transient write error while the completion sentinel runs
+// at 12:10. Settling there would stamp a 12:10 boundary that rejects the
+// 12:00 unarchive on the retried replay, leaving the chat archived forever.
+func TestAutoUnarchiveFailedSnapshotMutationDefersSettlement(t *testing.T) {
+	base := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+	settled := base.Add(10 * time.Minute)
+	chat := types.NewJID("15550000006", types.DefaultUserServer)
+	unarchive := &events.Archive{JID: chat, Timestamp: base, FromFullSync: true,
+		Action: &waSyncAction.ArchiveChatAction{Archived: proto.Bool(false)}}
+
+	setup := func(t *testing.T) (*App, *appStateContextWA) {
+		t.Helper()
+		a := newTestApp(t)
+		f := &appStateContextWA{fakeWA: newFakeWA()}
+		a.wa = f
+		if err := a.db.UpsertChat(chat.String(), "dm", "Legacy", base.Add(-time.Hour)); err != nil {
+			t.Fatal(err)
+		}
+		if err := a.db.SetChatArchived(chat.String(), true); err != nil {
+			t.Fatal(err)
+		}
+		previousNowUTC := nowUTC
+		nowUTC = func() time.Time { return settled }
+		t.Cleanup(func() { nowUTC = previousNowUTC })
+		f.fetchAppState = func(context.Context, string, bool, bool) error { return nil }
+		return a, f
+	}
+	assertUnsettled := func(t *testing.T, a *App, stage string) {
+		t.Helper()
+		if required, err := a.db.AppStateRecoveryRequired(string(appstate.WAPatchRegularLow)); err != nil || !required {
+			t.Fatalf("%s: replay debt cleared after a failed snapshot write: %v, %v", stage, required, err)
+		}
+		if required, err := a.db.ChatArchiveRecoveryRequired(); err != nil || !required {
+			t.Fatalf("%s: archive recovery settled after a failed snapshot write: %v, %v", stage, required, err)
+		}
+		rows, actionMS := archiveSettlementState(t, a, chat.String())
+		if rows != 0 || actionMS != 0 {
+			t.Fatalf("%s: failed snapshot settled anyway: preference rows=%d archive_action_ms=%d", stage, rows, actionMS)
+		}
+	}
+	assertApplied := func(t *testing.T, a *App, stage string) {
+		t.Helper()
+		got, err := a.db.GetChat(chat.String())
+		if err != nil || got.Archived {
+			t.Fatalf("%s: retried snapshot did not apply the original unarchive: %+v, %v", stage, got, err)
+		}
+		rows, actionMS := archiveSettlementState(t, a, chat.String())
+		if rows != 1 || actionMS != base.UnixMilli() {
+			t.Fatalf("%s: settlement after the retried snapshot: preference rows=%d archive_action_ms=%d, want 1 and %d", stage, rows, actionMS, base.UnixMilli())
+		}
+		if required, err := a.db.ChatArchiveRecoveryRequired(); err != nil || required {
+			t.Fatalf("%s: archive recovery still required after the retried snapshot: %v, %v", stage, required, err)
+		}
+		if required, err := a.db.AppStateRecoveryRequired(string(appstate.WAPatchRegularLow)); err != nil || required {
+			t.Fatalf("%s: replay debt kept after the retried snapshot: %v, %v", stage, required, err)
+		}
+	}
+
+	t.Run("verified full replay", func(t *testing.T) {
+		a, f := setup(t)
+		ctx := context.Background()
+		drop := failArchiveWrites(t, a)
+		f.requestAppStateRecovery = func(context.Context, string) (types.MessageID, error) {
+			t.Error("local persistence failure must not request a phone snapshot")
+			return "", nil
+		}
+		fullReplays := 0
+		f.fetchEvents = func(_ context.Context, name string, full, _ bool) ([]any, error) {
+			if name != string(appstate.WAPatchRegularLow) || !full {
+				return nil, nil
+			}
+			fullReplays++
+			return []any{unarchive, &events.AppStateSyncComplete{Name: appstate.WAPatchRegularLow, Version: 7}}, nil
+		}
+		var first sync.Map
+		a.syncAppStateDeltas(ctx, &first)
+		if fullReplays != 1 {
+			t.Fatalf("full replays after the failing start=%d, want 1", fullReplays)
+		}
+		assertUnsettled(t, a, "failed replay")
+		if got, err := a.db.GetChat(chat.String()); err != nil || !got.Archived {
+			t.Fatalf("failed write changed the archived state: %+v, %v", got, err)
+		}
+		drop()
+		var second sync.Map
+		a.syncAppStateDeltas(ctx, &second)
+		if fullReplays != 2 {
+			t.Fatalf("full replays after the retry start=%d, want 2", fullReplays)
+		}
+		assertApplied(t, a, "retried replay")
+		var third sync.Map
+		a.syncAppStateDeltas(ctx, &third)
+		if fullReplays != 2 {
+			t.Fatalf("settled store replayed again: full replays=%d, want 2", fullReplays)
+		}
+	})
+
+	t.Run("phone recovery answer", func(t *testing.T) {
+		a, f := setup(t)
+		ctx := context.Background()
+		a.setAppStateFullSyncResult(appstate.WAPatchRegularLow, true)
+		drop := failArchiveWrites(t, a)
+		requests := 0
+		f.requestAppStateRecovery = func(context.Context, string) (types.MessageID, error) { requests++; return "snapshot", nil }
+		f.fetchEvents = func(_ context.Context, name string, full, _ bool) ([]any, error) {
+			if name == string(appstate.WAPatchRegularLow) && full {
+				t.Error("destructive full replay on known-broken collection")
+			}
+			return nil, nil
+		}
+		answer := func() {
+			f.emit(unarchive)
+			f.emit(&events.AppStateSyncComplete{Name: appstate.WAPatchRegularLow, Version: 9, Recovery: true})
+			if err := a.appStatePersist.waitIdle(ctx); err != nil {
+				t.Fatal(err)
+			}
+		}
+		// Each start is a new process: the in-memory request spacing resets.
+		start := func(recoveries *sync.Map) {
+			a.appStateDegradedMu.Lock()
+			a.appStateRecoveryRequested = nil
+			a.appStateDegradedMu.Unlock()
+			a.syncAppStateDeltas(ctx, recoveries)
+		}
+		var first sync.Map
+		start(&first)
+		if requests != 1 {
+			t.Fatalf("snapshot requests after the first start=%d, want 1", requests)
+		}
+		answer()
+		assertUnsettled(t, a, "failed recovery answer")
+		if got, err := a.db.GetChat(chat.String()); err != nil || !got.Archived {
+			t.Fatalf("failed write changed the archived state: %+v, %v", got, err)
+		}
+		drop()
+		var second sync.Map
+		start(&second)
+		if requests != 2 {
+			t.Fatalf("kept debt did not request the snapshot again: requests=%d, want 2", requests)
+		}
+		answer()
+		assertApplied(t, a, "retried recovery answer")
+		var third sync.Map
+		start(&third)
+		if requests != 2 {
+			t.Fatalf("settled store requested a snapshot again: requests=%d, want 2", requests)
+		}
+	})
 }
