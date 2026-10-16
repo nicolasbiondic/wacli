@@ -986,7 +986,7 @@ func (f *fakeWA) SetProfileName(ctx context.Context, name string) error {
 	return nil
 }
 
-func (f *fakeWA) SaveContact(ctx context.Context, target types.JID, fullName, firstName string, phonebook bool) error {
+func (f *fakeWA) SaveContact(ctx context.Context, target, lid types.JID, fullName, firstName string, phonebook bool) error {
 	return nil
 }
 
