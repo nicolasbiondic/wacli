@@ -341,10 +341,12 @@ func TestFailedAppStateReplayPersistsIntentAndRecoversAtStartup(t *testing.T) {
 	if _, err := raw.Exec(`CREATE TRIGGER fail_recovery_archive BEFORE UPDATE OF archived ON chats BEGIN SELECT RAISE(FAIL, 'injected replay persistence failure'); END`); err != nil {
 		t.Fatal(err)
 	}
-	archive := &events.Archive{JID: chat, Action: &waSyncAction.ArchiveChatAction{Archived: proto.Bool(true)}}
+	archiveTime := time.Now().Add(-time.Minute)
+	archive := &events.Archive{JID: chat, Timestamp: archiveTime, Action: &waSyncAction.ArchiveChatAction{Archived: proto.Bool(true)}}
+	setting := &events.UnarchiveChatsSetting{Timestamp: archiveTime.Add(-time.Minute), Action: &waSyncAction.UnarchiveChatsSetting{UnarchiveChats: proto.Bool(false)}}
 	var snapshots int
 	f := &appStateContextWA{fakeWA: newFakeWA()}
-	f.fetchEvents = func(context.Context, string, bool, bool) ([]any, error) { return []any{archive}, nil }
+	f.fetchEvents = func(context.Context, string, bool, bool) ([]any, error) { return []any{setting, archive}, nil }
 	f.requestAppStateRecovery = func(context.Context, string) (types.MessageID, error) {
 		snapshots++
 		return "", errors.New("phone cannot repair local persistence")
@@ -380,7 +382,7 @@ func TestFailedAppStateReplayPersistsIntentAndRecoversAtStartup(t *testing.T) {
 			if required, err := next.db.AppStateRecoveryRequired(name); err != nil || !required {
 				t.Fatalf("startup replay has no intent: %v, %v", required, err)
 			}
-			return []any{archive}, nil
+			return []any{setting, archive}, nil
 		}
 		client.fetchAppState = func(_ context.Context, collection string, full, _ bool) error {
 			if collection == name {

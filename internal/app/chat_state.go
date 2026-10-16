@@ -44,7 +44,7 @@ func (a *App) AddChatStatePersistenceHandler(ctx context.Context) (func(), error
 	handlerID := waClient.AddEventHandler(func(evt any) {
 		switch v := evt.(type) {
 		case *events.AppState, *events.Star, *events.DeleteForMe,
-			*events.Archive, *events.Pin, *events.Mute, *events.MarkChatAsRead:
+			*events.Archive, *events.UnarchiveChatsSetting, *events.Pin, *events.Mute, *events.MarkChatAsRead:
 			a.handleAppStatePersistenceEvent(ctx, evt, nil)
 		case *wa.AppStateKeyUnavailable:
 			a.warnEmptyAppStateKey(v)
@@ -69,7 +69,8 @@ func (a *App) ArchiveChat(ctx context.Context, jid types.JID, archive bool) erro
 	if err != nil {
 		return err
 	}
-	postSendEvents, err := a.wa.ArchiveChat(ctx, jid, archive, nowUTC(), nil, func() { pending.reserve(a) })
+	archiveTime := nowUTC()
+	postSendEvents, err := a.wa.ArchiveChat(ctx, jid, archive, archiveTime, nil, func() { pending.reserve(a) })
 	if err != nil {
 		return errors.Join(err, a.failLocalAppStateWrite(ctx, &pending, postSendEvents))
 	}
@@ -77,7 +78,7 @@ func (a *App) ArchiveChat(ctx context.Context, jid types.JID, archive bool) erro
 		return fmt.Errorf("WhatsApp app state send completed without an apply boundary")
 	}
 	return a.completeLocalAppStateWrite(ctx, &pending, postSendEvents, func() error {
-		return a.db.SetChatArchived(chatJID, archive)
+		return a.db.ApplyChatArchive(chatJID, archive, archiveTime)
 	})
 }
 
@@ -400,7 +401,7 @@ func (a *App) degradedAppStateReplay(ctx context.Context, collection appstate.WA
 // requestBackgroundAppStateRecovery sends one recovery request to the primary
 // without waiting for the answer, rate-limited per collection. whatsmeow
 // adopts a late answer on its own when the snapshot is newer than the local
-// state, and the dispatched events are persisted by the regular handlers.
+// state. The capture persists it in order and clears only covered replay debt.
 func (a *App) requestBackgroundAppStateRecovery(ctx context.Context, collection appstate.WAPatchName, markerGeneration int64) {
 	name := string(collection)
 	now := time.Now()
@@ -415,11 +416,14 @@ func (a *App) requestBackgroundAppStateRecovery(ctx context.Context, collection 
 	a.appStateRecoveryRequested[name] = now
 	a.appStateDegradedMu.Unlock()
 
+	capture := a.newAppStateRecoveryCapture(collection)
 	requestID, err := a.wa.RequestAppStateRecovery(ctx, name)
 	if err != nil {
+		capture.stop()
 		a.warnAppStateRecovery(name, fmt.Errorf("background recovery request: %w", err))
 		return
 	}
+	a.adoptLateAppStateRecovery(collection, markerGeneration, capture)
 	a.emitWarning("app_state_recovery_requested_background",
 		fmt.Sprintf("app state %s: requested recovery snapshot from the primary in the background (id %s)", name, requestID),
 		map[string]any{"name": name, "id": string(requestID), "generation": markerGeneration})
@@ -833,10 +837,15 @@ func (a *App) handleChatStateEvent(ctx context.Context, evt any) error {
 			return nil
 		}
 		chat := a.canonicalStoreJID(ctx, v.JID)
-		if err := a.db.SetChatArchived(canonicalJIDString(chat), v.Action.GetArchived()); err != nil {
+		if err := a.db.ApplyChatArchive(canonicalJIDString(chat), v.Action.GetArchived(), v.Timestamp); err != nil {
 			a.emitChatStateWarning("archive", v.JID, err)
 			return err
 		}
+	case *events.UnarchiveChatsSetting:
+		if v == nil || v.Action == nil || v.Action.UnarchiveChats == nil {
+			return nil
+		}
+		return a.db.SetChatArchiveSetting(v.Action.GetUnarchiveChats(), v.Timestamp)
 	case *events.Pin:
 		if v == nil || v.JID.IsEmpty() || v.Action == nil {
 			return nil

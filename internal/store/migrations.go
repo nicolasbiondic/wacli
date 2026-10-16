@@ -46,7 +46,10 @@ var schemaMigrations = []migration{
 	{version: 30, name: "retrieval identity, revision and sync state", up: migrateRetrieval},
 	{version: 31, name: "content-free message change journal", up: migrateChanges},
 	{version: 32, name: "message receipt retrieval revisions", up: migrateReceiptRetrieval},
-	{version: 33, name: "messages ad_referral column", up: migrateMessagesAdReferralColumn},
+	{version: 33, name: "ordered chat auto-unarchive", up: migrateChatAutoUnarchive},
+	// Version 34 is reserved for lists. Older ad-referral builds used 33;
+	// both schema guards below repair stores whose version rows collide.
+	{version: 35, name: "messages ad_referral column", up: migrateMessagesAdReferralColumn},
 }
 
 func migratePlaceholderChatActivity(d *DB) error {
@@ -507,6 +510,12 @@ func (d *DB) ensureCurrentSchema() error {
 	}
 	if err := migrateUnavailableAppStateKeys(d); err != nil {
 		return fmt.Errorf("ensure unavailable app state keys: %w", err)
+	}
+	if err := migrateChatAutoUnarchive(d); err != nil {
+		return fmt.Errorf("ensure chat auto-unarchive state: %w", err)
+	}
+	if err := migrateMessagesAdReferralColumn(d); err != nil {
+		return fmt.Errorf("ensure current messages ad_referral column: %w", err)
 	}
 	return nil
 }

@@ -130,6 +130,9 @@ type App struct {
 	status                  *syncStatus
 	chatStateSync           chan struct{}
 	appStatePersist         appStatePersistenceSequencer
+	archiveObservationMu    sync.Mutex
+	archiveObserved         map[string]int64
+	archiveSettingObserved  *events.UnarchiveChatsSetting
 	appStateRecoveryWorkers sync.WaitGroup
 	appStateRecoveryMu      sync.Mutex
 	appStateRecoveryClosing bool
