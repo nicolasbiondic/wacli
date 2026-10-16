@@ -25,6 +25,8 @@ wacli chats cleanup [--days N] [--jid JID] [--dry-run] [--confirm]
 ## Notes
 
 - `list` is local and sorted by pinned chats first, then newest known message timestamp.
+- During sync, a new incoming content message unarchives its chat when WhatsApp's **Keep chats archived** setting is off. History imports, duplicate messages, edits, reactions, and outgoing messages do not trigger this. The incoming message must be newer than both the archive action and the account setting; within the same timestamp second, a first live delivery after a known action wins, including actions queued behind startup recovery. The message and boundary are stored atomically, and an older archive replay cannot undo the resulting unarchive.
+- On upgrade, sync recovers the account setting and archive timestamps from `regular_low` before applying automatic unarchives. Unknown settings preserve the archived state. If full replay is known to fail verification, sync requests a phone recovery snapshot and keeps the recovery intent until it arrives; no incremental delta is treated as proof of the missing setting.
 - WhatsApp system events, such as a changed security code or a group notice, arrive as payloads with no content and are stored as `(message)` rows. They do not set that timestamp, so they cannot move a chat up the list; a chat that holds nothing else has no timestamp and sorts last.
 - On the next writable open, activity matching the newest locally stored message is recomputed from stored content. Activity newer than every local message is preserved. If an unstored message advertised by history has the exact same second as a local placeholder, the repair uses local content; syncing that message restores its activity.
 - `--query` filters by chat name or JID.
@@ -92,7 +94,8 @@ existing identity normalization and historical merge, keeping the newest
 membership state across aliases. Unresolved LIDs remain usable until a later
 authenticated startup can resolve them.
 
-The next writable store open adds the list tables without changing existing
+The next writable store open adds the list tables at migration 34, after main's
+migration 33 for ordered chat auto-unarchive, without changing existing
 chats/messages. It also recreates missing list tables when the schema version is
 already recorded, for example by a build that used the same migration number.
 `--read-only` can open an older, unmigrated store; it returns an empty

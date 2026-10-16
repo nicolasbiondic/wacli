@@ -108,6 +108,9 @@ func (d *DB) MigrateLIDToPN(lidJID, pnJID string) error {
 	if err := migrateLIDListsToPN(tx, lidJID, pnJID); err != nil {
 		return err
 	}
+	if err := migrateLIDChatArchive(tx, lidJID, pnJID); err != nil {
+		return err
+	}
 	// Record reconciliation once, in the same transaction as the identity merge.
 	if _, err := tx.Exec(`INSERT INTO message_changes(recorded_at,operation,chat_jid,msg_id,new_chat_jid,reason,message_ts)
  SELECT CAST(strftime('%s','now') AS INTEGER),'identity_move',chat_jid,msg_id,?,'identity_normalization',ts FROM messages WHERE chat_jid=? ORDER BY rowid`, pnJID, lidJID); err != nil {

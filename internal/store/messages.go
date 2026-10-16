@@ -14,36 +14,39 @@ import (
 var ErrMessageNotTombstoned = errors.New("message is not tombstoned")
 
 type UpsertMessageParams struct {
-	ChatJID         string
-	ChatName        string
-	MsgID           string
-	SenderJID       string
-	SenderName      string
-	Timestamp       time.Time
-	FromMe          bool
-	Text            string
-	DisplayText     string
-	QuotedMsgID     string
-	QuotedSenderJID string
-	Buttons         []Button
-	IsForwarded     bool
-	ForwardingScore uint32
-	ReactionToID    string
-	ReactionEmoji   string
-	MediaType       string
-	MediaCaption    string
-	Filename        string
-	MimeType        string
-	DirectPath      string
-	MediaKey        []byte
-	FileSHA256      []byte
-	FileEncSHA256   []byte
-	FileLength      uint64
-	Edited          bool
-	Revoked         bool
-	DeletedForMe    bool
-	DeletedAt       time.Time
-	DeletionReason  string
+	ArchiveIncoming          bool
+	ArchiveObservedMS        int64
+	ArchiveSettingObservedMS int64
+	ChatJID                  string
+	ChatName                 string
+	MsgID                    string
+	SenderJID                string
+	SenderName               string
+	Timestamp                time.Time
+	FromMe                   bool
+	Text                     string
+	DisplayText              string
+	QuotedMsgID              string
+	QuotedSenderJID          string
+	Buttons                  []Button
+	IsForwarded              bool
+	ForwardingScore          uint32
+	ReactionToID             string
+	ReactionEmoji            string
+	MediaType                string
+	MediaCaption             string
+	Filename                 string
+	MimeType                 string
+	DirectPath               string
+	MediaKey                 []byte
+	FileSHA256               []byte
+	FileEncSHA256            []byte
+	FileLength               uint64
+	Edited                   bool
+	Revoked                  bool
+	DeletedForMe             bool
+	DeletedAt                time.Time
+	DeletionReason           string
 }
 
 func (d *DB) messageSelectColumns(snippet string) string {
@@ -98,7 +101,7 @@ func (d *DB) UpsertMessage(p UpsertMessageParams) error {
 	if p.Edited {
 		editedTS = unix(p.Timestamp)
 	}
-	return d.q.UpsertMessage(storeCtx(), storedb.UpsertMessageParams{
+	params := storedb.UpsertMessageParams{
 		ChatJid:    p.ChatJID,
 		ChatName:   nullString(p.ChatName),
 		MsgID:      p.MsgID,
@@ -134,7 +137,24 @@ func (d *DB) UpsertMessage(p UpsertMessageParams) error {
 		Buttons:         buttonsJSON,
 		ChatJid_2:       strings.TrimSpace(p.ChatJID),
 		MsgID_2:         strings.TrimSpace(p.MsgID),
-	})
+	}
+	if !p.ArchiveIncoming {
+		return d.q.UpsertMessage(storeCtx(), params)
+	}
+	tx, err := d.sql.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	// Decide and write under the writer lock before reading message state.
+	// A deferred read-then-write transaction can fail with SQLITE_BUSY_SNAPSHOT.
+	if err := recordChatArchiveIncoming(tx, p.ChatJID, p.MsgID, p.Timestamp, p.ArchiveObservedMS, p.ArchiveSettingObservedMS, false); err != nil {
+		return err
+	}
+	if err := d.q.WithTx(tx).UpsertMessage(storeCtx(), params); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 func (d *DB) MarkMessageRevoked(chatJID, msgID string) error {
