@@ -150,14 +150,27 @@ Plain audio messages have an empty `MediaCaption`. Their `Text` keeps the `[Audi
 
 ## Ad referrals
 
-When someone opens a chat from a Click-to-WhatsApp ad, WhatsApp attaches the ad
-to their first message. Sync and history imports keep it, and JSON output adds
-`ad_referral` to that message with `source_type`, `source_id` (the ad ID),
-`source_url`, `source_app`, `title`, `body`, `media_type`, `ctwa_clid`,
-`conversion_source`, `entry_point_source`, and `entry_point_app`. Empty fields
-are omitted, and messages without ad context have no `ad_referral`. A later copy
-of the message without ad context keeps the stored referral; `messages purge`
-clears it.
+WhatsApp attaches conversion context to some messages, and sync and history
+imports keep it as `ad_referral` in JSON output. It can carry two kinds of
+fields:
+
+- **Ad or post identity**: `source_type` (`ad` or `post`), `source_id` (the
+  ad or post ID), `source_url`, `source_app`, `title`, `body`, `media_type` and
+  `ctwa_clid`. WhatsApp sends these on the message a person sends after tapping
+  a Click-to-WhatsApp ad or post. `ctwa_clid` is unique per tap.
+- **Conversion context**: `conversion_source`, `entry_point_source` and
+  `entry_point_app`. These also appear on later messages in the same chat,
+  including replies sent from the business's own phone or WhatsApp Web, and on
+  chats opened from places that are not ads, such as `click_to_chat_link`,
+  `global_search_new_chat` or `phone_number_hyperlink`.
+
+The presence of `ad_referral` alone therefore does not mean a new paid-ad lead.
+To count taps on an ad, look for `source_id` or `ctwa_clid`, and treat
+`entry_point_source` as the place the chat was opened from.
+
+Empty fields are omitted, and messages without this context have no
+`ad_referral`. A later copy of the message without it keeps the stored
+referral; `messages purge` clears it.
 
 - `media_type` is the ad's own media kind (`image` or `video`), not the message's `media_type`.
 - Each text field is trimmed and capped at 1024 bytes, cut on a valid UTF-8 boundary.
