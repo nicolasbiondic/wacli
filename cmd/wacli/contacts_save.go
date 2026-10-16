@@ -39,12 +39,16 @@ func newContactsSaveCmd(flags *rootFlags) *cobra.Command {
 			}
 			defer cancel()
 			defer closeApp(a, lk)
-			patch, err := wa.BuildSaveContact(target, name, firstName, phonebook)
+			var lid types.JID
+			if resolver, err := contactReadResolver(a); err == nil && resolver != nil {
+				lid = resolver.ResolvePNToLID(ctx, target)
+			}
+			patch, err := wa.BuildSaveContact(target, lid, name, firstName, phonebook)
 			if err != nil {
 				return err
 			}
 			first := patch.Mutations[0].Value.GetContactAction().GetFirstName()
-			if err := a.WA().SaveContact(ctx, target, name, first, phonebook); err != nil {
+			if err := a.WA().SaveContact(ctx, target, lid, name, first, phonebook); err != nil {
 				return fmt.Errorf("save contact: %w", err)
 			}
 			if err := a.DB().UpsertContact(target.String(), target.User, "", name, first, ""); err != nil {
@@ -56,6 +60,7 @@ func newContactsSaveCmd(flags *rootFlags) *cobra.Command {
 					"name":       name,
 					"first_name": first,
 					"phonebook":  phonebook,
+					"lid":        patch.Mutations[0].Value.GetContactAction().GetLidJID(),
 				})
 			}
 			fmt.Fprintf(os.Stderr, "Contact saved: %s (%s)\n", sanitize(name), target.User)
