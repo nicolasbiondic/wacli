@@ -10,8 +10,13 @@ import (
 
 const adReferralFieldLimit = 1024
 
-// AdReferral is the ad attribution WhatsApp attaches to the first message a
-// person sends after tapping a Click-to-WhatsApp ad.
+// AdReferral is the conversion context WhatsApp attaches to a message. The ad
+// or post identity fields (SourceID, CtwaClid and the rest of the external ad
+// reply) come with the message a person sends after tapping a Click-to-WhatsApp
+// ad or post. The conversion fields (ConversionSource, EntryPointSource,
+// EntryPointApp) also appear on later messages, on the business's own replies
+// and on organic entry points, so a non-nil AdReferral alone is not a new ad
+// lead.
 type AdReferral struct {
 	SourceType       string `json:"source_type,omitempty"`
 	SourceID         string `json:"source_id,omitempty"`
