@@ -370,3 +370,31 @@ func TestDelegatedContactsSaveDoesNotWaitForSendQueue(t *testing.T) {
 		t.Fatalf("executed = %+v", got)
 	}
 }
+
+// The documented example quotes a spaced number and must resolve to the whole
+// number. Unquoted, the shell splits it and the command must refuse it rather
+// than save a truncated number.
+func TestContactsSaveDocumentedSpacedNumber(t *testing.T) {
+	jid, _, _, err := contactSaveTarget(contactSaveOptions{phone: "+43 664 12345678", name: "Alice Example"})
+	if err != nil || jid.User != "4366412345678" || jid.Server != types.DefaultUserServer {
+		t.Fatalf("quoted example = %v, %v", jid, err)
+	}
+	for _, tc := range []struct {
+		args     []string
+		accepted bool
+	}{
+		{args: []string{"save", "--phone", "+43 664 12345678", "--name", "Alice Example"}, accepted: true},
+		{args: []string{"save", "--phone", "+43", "664", "12345678", "--name", "Alice Example"}, accepted: false},
+	} {
+		// Read-only and a scratch store keep the command offline: an accepted
+		// invocation stops at the read-only guard.
+		root := newContactsCmd(&rootFlags{storeDir: t.TempDir(), readOnly: true})
+		root.SetArgs(tc.args)
+		root.SetOut(io.Discard)
+		root.SetErr(io.Discard)
+		err := root.Execute()
+		if got := err != nil && strings.Contains(err.Error(), "read-only"); got != tc.accepted {
+			t.Fatalf("%q: error = %v, accepted = %v, want %v", tc.args, err, got, tc.accepted)
+		}
+	}
+}
