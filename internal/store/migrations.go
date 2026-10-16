@@ -47,6 +47,8 @@ var schemaMigrations = []migration{
 	{version: 31, name: "content-free message change journal", up: migrateChanges},
 	{version: 32, name: "message receipt retrieval revisions", up: migrateReceiptRetrieval},
 	{version: 33, name: "ordered chat auto-unarchive", up: migrateChatAutoUnarchive},
+	// Ad referrals use 34. The schema guard also repairs stores whose
+	// version rows collide with older list or referral builds.
 	{version: 35, name: "WhatsApp lists and chat memberships", up: migrateLists},
 }
 
@@ -511,6 +513,9 @@ func (d *DB) ensureCurrentSchema() error {
 	}
 	if err := migrateChatAutoUnarchive(d); err != nil {
 		return fmt.Errorf("ensure chat auto-unarchive state: %w", err)
+	}
+	if err := migrateLists(d); err != nil {
+		return fmt.Errorf("ensure current lists schema: %w", err)
 	}
 	return nil
 }

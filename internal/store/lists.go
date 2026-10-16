@@ -124,9 +124,12 @@ func (d *DB) SetChatList(chat, id string, labeled bool, at time.Time, fullSync b
 // is complete. A full-sync event alone cannot prove a verified empty snapshot.
 func (d *DB) Lists() (ListsResult, error) {
 	result := ListsResult{Lists: []List{}, Completeness: "unknown"}
-	exists, err := d.tableExists("lists")
-	if err != nil || !exists {
-		return result, err
+	// Read-only opens never migrate, so tolerate a missing or half-created schema.
+	for _, table := range []string{"lists", "list_sync_state"} {
+		exists, err := d.tableExists(table)
+		if err != nil || !exists {
+			return result, err
+		}
 	}
 	if err := d.sql.QueryRow(`SELECT full_sync_events_seen FROM list_sync_state WHERE id=1`).Scan(&result.FullSyncEventsSeen); err != nil {
 		return result, err

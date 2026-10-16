@@ -84,7 +84,8 @@ stderr. Inspect `lists list --json` alongside them.
 Sync persists live, startup full-sync, and recovery-snapshot events through the
 existing ordered app-state writer. Membership removals and definition deletions
 are retained as tombstones, and older timestamped replay cannot restore them.
-On an equal timestamp, removal/deletion wins conservatively. Snapshots are
+On an equal timestamp, removal/deletion wins conservatively. A newer undelete
+makes the definition and its retained memberships visible again. Snapshots are
 merged, not treated as authoritative replacement sets: absence from a replay
 does not remove a previously observed row. Known LID/phone mappings use the
 existing identity normalization and historical merge, keeping the newest
@@ -92,7 +93,8 @@ membership state across aliases. Unresolved LIDs remain usable until a later
 authenticated startup can resolve them.
 
 The next writable store open adds the list tables without changing existing
-chats/messages. `--read-only` can open an older, unmigrated store; it returns an
+chats/messages. It also recreates missing list tables when the schema version is
+already recorded, for example by a build that used the same migration number. `--read-only` can open an older, unmigrated store; it returns an
 empty definitions array with unknown completeness, without migrating it.
 `lists list` and `chats list --list` never create, rename, assign, or remove labels
 on WhatsApp. Run `wacli sync` separately to collect changes made on your phone.
