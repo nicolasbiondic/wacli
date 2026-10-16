@@ -39,9 +39,11 @@ func newContactsSaveCmd(flags *rootFlags) *cobra.Command {
 			}
 			defer cancel()
 			defer closeApp(a, lk)
-			var lid types.JID
-			if resolver, err := contactReadResolver(a); err == nil && resolver != nil {
-				lid = resolver.ResolvePNToLID(ctx, target)
+			// Current clients key contacts by LID and show only the number for
+			// a contact saved without it, so refuse rather than half-save.
+			lid := a.WA().ResolvePNToLID(ctx, target)
+			if lid.Server != types.HiddenUserServer || lid.User == "" {
+				return fmt.Errorf("could not find the WhatsApp ID (LID) of %s; nothing was saved (is the number on WhatsApp?)", target.User)
 			}
 			patch, err := wa.BuildSaveContact(target, lid, name, firstName, phonebook)
 			if err != nil {
