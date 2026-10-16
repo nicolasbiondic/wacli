@@ -144,6 +144,28 @@ func (d *DB) UpsertContact(jid, phone, pushName, fullName, firstName, businessNa
 	})
 }
 
+// SetContactActionName stores the names carried by a WhatsApp `contact`
+// app-state action. Unlike UpsertContact, the action is authoritative for
+// full_name and first_name, so an absent name clears the column, matching
+// whatsmeow's PutContactName for the session store. Push, business, and
+// system names are left alone. An action with no names only clears an
+// existing row; it never creates one.
+func (d *DB) SetContactActionName(jid, phone, fullName, firstName string) error {
+	if fullName == "" && firstName == "" {
+		return d.q.ClearContactActionName(storeCtx(), storedb.ClearContactActionNameParams{
+			UpdatedAt: nowUTC().Unix(),
+			Jid:       jid,
+		})
+	}
+	return d.q.SetContactActionName(storeCtx(), storedb.SetContactActionNameParams{
+		Jid:       jid,
+		Phone:     nullString(phone),
+		FullName:  nullString(fullName),
+		FirstName: nullString(firstName),
+		UpdatedAt: nowUTC().Unix(),
+	})
+}
+
 func (d *DB) SetAlias(jids []string, alias string) error {
 	alias = strings.TrimSpace(alias)
 	if alias == "" {

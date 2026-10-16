@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"strings"
 	"testing"
@@ -82,7 +83,7 @@ func TestContactSaveTargetValidation(t *testing.T) {
 func TestExecuteDelegatedContactsSaveReturnsSavedContact(t *testing.T) {
 	target := types.NewJID("15550001111", types.DefaultUserServer)
 	lid := types.NewJID("987654321098765", types.HiddenUserServer)
-	fake := &fakeContactSaveApp{calls: make(chan fakeContactSaveAppCall, 1), saved: app.SavedContact{JID: target, LID: lid, Registered: true, Responded: true}}
+	fake := &fakeContactSaveApp{calls: make(chan fakeContactSaveAppCall, 1), saved: app.SavedContact{JID: target, LID: lid}}
 	resp, err := executeDelegatedContactsSave(context.Background(), fake, sendDelegateRequest{
 		Kind: contactsSaveKind, To: "+1 555 000 1111", Name: " Ada Lovelace ", FirstName: "Ada",
 	})
@@ -97,8 +98,60 @@ func TestExecuteDelegatedContactsSaveReturnsSavedContact(t *testing.T) {
 		t.Fatalf("response = %+v, want ok with contact", resp)
 	}
 	c := resp.Contact
-	if c.Action != "save" || c.JID != target.String() || c.Phone != "15550001111" || c.LID != lid.String() || c.FullName != "Ada Lovelace" || c.FirstName != "Ada" || !c.Registered || !c.Responded {
+	if c.Action != "save" || c.JID != target.String() || c.Phone != "15550001111" || c.LID != lid.String() || c.FullName != "Ada Lovelace" || c.FirstName != "Ada" || c.RequestedJID != "" {
 		t.Fatalf("contact result = %+v", *c)
+	}
+}
+
+// A regional rewrite is reported: the entry is saved under WhatsApp's
+// canonical number and the typed one is kept as requested_jid.
+func TestSaveContactReportsCanonicalRewrite(t *testing.T) {
+	typed := types.NewJID("15550001111", types.DefaultUserServer)
+	canonical := types.NewJID("15550009999", types.DefaultUserServer)
+	fake := &fakeContactSaveApp{calls: make(chan fakeContactSaveAppCall, 1), saved: app.SavedContact{JID: canonical, Requested: typed}}
+	result, err := saveContact(context.Background(), fake, typed, "Ada", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.JID != canonical.String() || result.Phone != canonical.User || result.RequestedJID != typed.String() {
+		t.Fatalf("result = %+v, want canonical number with the typed one as requested_jid", result)
+	}
+}
+
+// The production delegate dispatcher must route the kind; an injected
+// executor would hide an `unsupported send kind` answer from a real daemon.
+func TestExecuteDelegatedSendRoutesContactsSave(t *testing.T) {
+	a, err := app.New(app.Options{StoreDir: t.TempDir()})
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	t.Cleanup(a.Close)
+	for _, tc := range []struct {
+		req  sendDelegateRequest
+		want string
+	}{
+		{req: sendDelegateRequest{Kind: contactsSaveKind, Name: "Ada"}, want: "--phone is required"},
+		{req: sendDelegateRequest{Kind: contactsSaveKind, To: "+15550001111", Name: " "}, want: "--name requires a nonempty name"},
+	} {
+		tc.req.Version = sendDelegateVersion
+		_, err := executeDelegatedSend(context.Background(), a, tc.req)
+		if err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("request %+v: error = %v, want contacts save validation %q", tc.req, err, tc.want)
+		}
+	}
+}
+
+func TestContactsSaveRejectsPositionalArguments(t *testing.T) {
+	for _, use := range []string{"save", "rename"} {
+		// Read-only and a scratch store keep the command offline even if the
+		// argument check regressed and RunE ran.
+		root := newContactsCmd(&rootFlags{storeDir: t.TempDir(), readOnly: true})
+		root.SetArgs([]string{use, "--phone", "+15550001111", "--name", "Ada", "extra"})
+		root.SetOut(io.Discard)
+		root.SetErr(io.Discard)
+		if err := root.Execute(); err == nil || strings.Contains(err.Error(), "read-only") {
+			t.Fatalf("%s with a positional argument: error = %v, want rejection", use, err)
+		}
 	}
 }
 
@@ -153,7 +206,7 @@ func TestContactsSaveDelegatesThroughProductionServerWhenStoreLocked(t *testing.
 
 	target := types.NewJID("15550001111", types.DefaultUserServer)
 	lid := types.NewJID("987654321098765", types.HiddenUserServer)
-	fake := &fakeContactSaveApp{calls: make(chan fakeContactSaveAppCall, 1), saved: app.SavedContact{JID: target, LID: lid, Registered: true, Responded: true}}
+	fake := &fakeContactSaveApp{calls: make(chan fakeContactSaveAppCall, 1), saved: app.SavedContact{JID: target, LID: lid}}
 	stop, err := startSendDelegateServerForStore(context.Background(), storeDir, sendSpacing{}, func(ctx context.Context, req sendDelegateRequest) (sendDelegateResponse, error) {
 		if req.Version != sendDelegateVersion || req.Kind != contactsSaveKind {
 			return sendDelegateResponse{}, fmt.Errorf("unexpected delegated request %d/%q", req.Version, req.Kind)
@@ -183,7 +236,7 @@ func TestContactsSaveDelegatesThroughProductionServerWhenStoreLocked(t *testing.
 	case <-contextWithTestTimeout(t).Done():
 		t.Fatal("timed out waiting for the delegated save")
 	}
-	for _, want := range []string{`"action":"save"`, `"jid":"` + target.String() + `"`, `"phone":"15550001111"`, `"lid":"` + lid.String() + `"`, `"full_name":"Ada Lovelace"`, `"first_name":"Ada"`, `"registered":true`, `"responded":true`} {
+	for _, want := range []string{`"action":"save"`, `"jid":"` + target.String() + `"`, `"phone":"15550001111"`, `"lid":"` + lid.String() + `"`, `"full_name":"Ada Lovelace"`, `"first_name":"Ada"`} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout %q missing %s", stdout, want)
 		}
@@ -216,8 +269,8 @@ func TestContactsSaveRenameAliasDelegatesSameRequest(t *testing.T) {
 	if call.fullName != "New Name" {
 		t.Fatalf("delegated call = %+v", call)
 	}
-	if !strings.Contains(stdout, `saved: 15550001111@s.whatsapp.net as "New Name"`) || !strings.Contains(stdout, "registration unknown") {
-		t.Fatalf("stdout = %q, want text result with unknown registration note", stdout)
+	if !strings.Contains(stdout, "saved: 15550001111@s.whatsapp.net as \"New Name\"\n") || strings.Contains(stdout, "WhatsApp's number for") {
+		t.Fatalf("stdout = %q, want text result", stdout)
 	}
 }
 
