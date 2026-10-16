@@ -601,9 +601,6 @@ func (a *App) handleStarEvent(ctx context.Context, evt *events.Star) error {
 }
 
 func (a *App) handleLiveSyncMessage(ctx context.Context, opts SyncOptions, v *events.Message, messagesStored *atomic.Int64, enqueueMedia func(string, string), enqueueWebhook func(wa.ParsedMessage), limits ...*syncStorageLimits) {
-	if v == nil {
-		return
-	}
 	if historySyncNotificationFromMessage(v) != nil {
 		return
 	}
