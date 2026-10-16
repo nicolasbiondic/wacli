@@ -46,6 +46,7 @@ var schemaMigrations = []migration{
 	{version: 30, name: "retrieval identity, revision and sync state", up: migrateRetrieval},
 	{version: 31, name: "content-free message change journal", up: migrateChanges},
 	{version: 32, name: "message receipt retrieval revisions", up: migrateReceiptRetrieval},
+	{version: 33, name: "WhatsApp lists and chat memberships", up: migrateLists},
 }
 
 func migratePlaceholderChatActivity(d *DB) error {
