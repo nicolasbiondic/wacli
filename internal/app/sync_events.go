@@ -110,7 +110,8 @@ func (a *App) addSyncEventHandler(ctx context.Context, opts SyncOptions, message
 			lastEvent.Store(nowUTC().UnixNano())
 			a.handleLiveCallEvent(ctx, v)
 		case *events.AppState, *events.Star, *events.DeleteForMe,
-			*events.Archive, *events.Pin, *events.Mute, *events.MarkChatAsRead, *events.Contact:
+			*events.Archive, *events.Pin, *events.Mute, *events.MarkChatAsRead,
+			*events.LabelEdit, *events.LabelAssociationChat, *events.Contact:
 			lastEvent.Store(nowUTC().UnixNano())
 			if limits != nil {
 				limits.appStatePending.Add(1)
@@ -404,6 +405,8 @@ func (a *App) persistAppStateEvent(ctx context.Context, evt any, tracker *appSta
 		err = a.handleDeleteForMeEvent(ctx, v)
 	case *events.Archive, *events.Pin, *events.Mute, *events.MarkChatAsRead:
 		err = a.handleChatStateEvent(ctx, v)
+	case *events.LabelEdit, *events.LabelAssociationChat:
+		err = a.handleListEvent(ctx, v)
 	case *events.Contact:
 		err = a.handleContactEvent(ctx, v)
 	}
@@ -415,6 +418,8 @@ func (a *App) persistAppStateEvent(ctx context.Context, evt any, tracker *appSta
 
 func appStateCollectionsForEvent(evt any) []appstate.WAPatchName {
 	switch v := evt.(type) {
+	case *events.LabelEdit, *events.LabelAssociationChat:
+		return []appstate.WAPatchName{appstate.WAPatchRegular}
 	case *events.Archive, *events.Pin, *events.MarkChatAsRead:
 		return []appstate.WAPatchName{appstate.WAPatchRegularLow}
 	case *events.Mute, *events.Star, *events.DeleteForMe:
