@@ -50,6 +50,9 @@ var schemaMigrations = []migration{
 	// runner skips by version number only, so ensureCurrentSchema re-runs
 	// migrateLists to heal stores where another migration owns this number.
 	{version: 34, name: "WhatsApp lists and chat memberships", up: migrateLists},
+	// 35 is claimed by the open auto-unarchive branch. Like lists, the table
+	// is also ensured below so a renumbering cannot leave a store without it.
+	{version: 36, name: "WhatsApp Business quick replies", up: migrateQuickReplies},
 }
 
 func migratePlaceholderChatActivity(d *DB) error {
@@ -513,6 +516,9 @@ func (d *DB) ensureCurrentSchema() error {
 	}
 	if err := migrateLists(d); err != nil {
 		return fmt.Errorf("ensure current lists schema: %w", err)
+	}
+	if err := migrateQuickReplies(d); err != nil {
+		return fmt.Errorf("ensure current quick replies schema: %w", err)
 	}
 	return nil
 }

@@ -1,6 +1,6 @@
 # chats
 
-Read when: listing known chats, filtering chat state, archiving/pinning/muting/marking chats, or pruning stale local chat rows.
+Read when: listing known chats, filtering chat state, archiving/pinning/muting/marking chats, managing labels or quick replies, or pruning stale local chat rows.
 
 `wacli chats` reads chat rows from `wacli.db`. It can use session-backed PN/LID mappings to make historical `@lid` chat rows display as phone-number chats when possible. State commands normally send WhatsApp app-state patches through the authenticated session and update the local index after WhatsApp accepts the change. Explicit receipt mode uses the independent network receipt path described below.
 
@@ -10,6 +10,15 @@ Read when: listing known chats, filtering chat state, archiving/pinning/muting/m
 wacli chats list [--query TEXT] [--limit N] [--archived|--no-archived] [--pinned|--no-pinned] [--muted|--no-muted] [--unread|--no-unread]
 wacli chats list --list ID_OR_NAME [--json]
 wacli lists list [--json]
+wacli lists create --name NAME [--color 0-19] [--id ID]
+wacli lists edit ID_OR_NAME [--name NAME] [--color 0-19]
+wacli lists delete ID_OR_NAME
+wacli chats label add --chat CHAT --label ID_OR_NAME [--pick N]
+wacli chats label remove --chat CHAT --label ID_OR_NAME [--pick N]
+wacli quick-replies list [--json]
+wacli quick-replies create --shortcut SHORTCUT --message TEXT [--keyword WORD]...
+wacli quick-replies edit ID_OR_SHORTCUT [--shortcut S] [--message TEXT] [--keyword WORD]... [--clear-keywords]
+wacli quick-replies delete ID_OR_SHORTCUT
 wacli chats show --jid JID
 wacli chats archive --chat CHAT [--pick N]
 wacli chats unarchive --chat CHAT [--pick N]
@@ -97,6 +106,42 @@ already recorded, for example by a build that used the same migration number.
 definitions array with unknown completeness, without migrating it.
 `lists list` and `chats list --list` never create, rename, assign, or remove labels
 on WhatsApp. Run `wacli sync` separately to collect changes made on your phone.
+
+## Writing labels and quick replies
+
+`lists create|edit|delete` (also as `labels ...`), `chats label add|remove`, and
+`quick-replies create|edit|delete` send WhatsApp app-state patches in the
+`regular` collection, like archive and pin do in `regular_low`. Each write first
+syncs that collection (with the same recovery as the chat-state commands),
+resolves names and builds the patch from the refreshed local index, sends it, and
+then updates the local index. When `wacli sync --follow` holds the store, the
+command is handed to that process over the local socket instead of failing on the
+lock; an owner built before these commands rejects it and nothing changes, so
+restart `wacli sync` after upgrading. `--read-only` refuses every write.
+
+- `lists create` uses `appstate.BuildLabelEdit`. Without `--id` it takes the next
+  numeric ID after every ID ever observed, deleted ones included, and refuses
+  while `full_sync_events_seen` is false, because a label the index never saw
+  could be overwritten. Pass `--id` with an unused ID in that case. On accounts
+  whose observed lists use the `CUSTOM` type, the new definition is also sent as
+  `CUSTOM` and active. Duplicate names are refused.
+- `lists edit` and `lists delete` resend every stored field (predefined ID, type,
+  order, active and immutable flags), since WhatsApp replaces the whole value.
+  Immutable definitions and system list types are refused. Deleting a label makes
+  WhatsApp drop it from its chats.
+- `chats label add|remove` uses `appstate.BuildLabelChat` with the chat's phone
+  number JID. A LID-only chat with no known phone number is refused: LID label
+  associations have not been verified yet.
+- Quick replies use the `quick_reply` index, action version 2, under a
+  timestamp-based ID as WhatsApp Web does, so a new reply cannot collide with one
+  the index has not seen. Edits and deletes resend the stored shortcut, message,
+  keywords, usage count and label IDs. Shortcuts are matched with or without the
+  leading `/`.
+
+`quick-replies list` reads the replies observed during sync; like lists, its
+`completeness` is always `"unknown"`, and a reply deleted on the phone with a
+remove operation instead of a deletion flag stays listed until it is replaced.
+Only WhatsApp Business accounts show quick replies on the phone.
 
 ## Read receipts
 

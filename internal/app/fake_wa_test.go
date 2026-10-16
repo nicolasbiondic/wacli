@@ -80,6 +80,8 @@ type fakeWA struct {
 	pinCalls                    []fakePinCall
 	muteCalls                   []fakeMuteCall
 	markReadCalls               []fakeMarkReadCall
+	appStatePatches             []appstate.PatchInfo
+	appStatePatchErr            error
 	markReadBeforeApply         func()
 	markReadAfterApply          func()
 	readReceiptCalls            []fakeReadReceiptCall
@@ -877,6 +879,15 @@ func (f *fakeWA) MuteChat(ctx context.Context, target types.JID, mute bool, dura
 	f.muteCalls = append(f.muteCalls, fakeMuteCall{target: target, mute: mute, duration: duration})
 	beforeApply()
 	return nil, nil
+}
+
+func (f *fakeWA) SendAppStatePatch(ctx context.Context, patch appstate.PatchInfo, beforeApply func()) ([]any, error) {
+	f.mu.Lock()
+	f.appStatePatches = append(f.appStatePatches, patch)
+	err := f.appStatePatchErr
+	f.mu.Unlock()
+	beforeApply()
+	return nil, err
 }
 
 func (f *fakeWA) MarkChatAsRead(ctx context.Context, target types.JID, read bool, lastMsgTS time.Time, lastMsgKey *waCommon.MessageKey, beforeApply func()) ([]any, error) {

@@ -145,7 +145,7 @@ func (d *DB) Lists() (ListsResult, error) {
 		if err := rows.Scan(&l.ID, &l.Name, &l.Color, &l.PredefinedID, &l.Type, &l.OrderIndex, &l.IsActive, &l.IsImmutable); err != nil {
 			return result, err
 		}
-		l.ChatMembershipsSupported = l.Type == nil || *l.Type == 0 || *l.Type == 4 || *l.Type == 5
+		l.ChatMembershipsSupported = listTypeHasChatMemberships(l.Type)
 		result.Lists = append(result.Lists, l)
 	}
 	return result, rows.Err()
@@ -193,4 +193,71 @@ func migrateLIDListsToPN(tx *sql.Tx, lid, pn string) error {
 	}
 	_, err := tx.Exec(`DELETE FROM chat_lists WHERE chat_jid=?`, lid)
 	return err
+}
+
+// ListRecord is a stored definition, including a deleted one.
+type ListRecord struct {
+	List
+	Deleted bool `json:"deleted"`
+}
+
+// ListByID returns a stored definition, including a deleted one.
+func (d *DB) ListByID(id string) (ListRecord, bool, error) {
+	exists, err := d.tableExists("lists")
+	if err != nil || !exists {
+		return ListRecord{}, false, err
+	}
+	var r ListRecord
+	err = d.sql.QueryRow(`SELECT id,COALESCE(name,''),color,predefined_id,type,order_index,is_active,is_immutable,deleted
+		FROM lists WHERE id=?`, id).Scan(&r.ID, &r.Name, &r.Color, &r.PredefinedID, &r.Type, &r.OrderIndex, &r.IsActive, &r.IsImmutable, &r.Deleted)
+	if err == sql.ErrNoRows {
+		return ListRecord{}, false, nil
+	}
+	if err != nil {
+		return ListRecord{}, false, err
+	}
+	r.ChatMembershipsSupported = listTypeHasChatMemberships(r.Type)
+	return r, true, nil
+}
+
+// MaxNumericListID returns the largest numeric ID ever observed, deleted
+// definitions included, so a new label never reuses a retired ID.
+func (d *DB) MaxNumericListID() (int64, error) {
+	exists, err := d.tableExists("lists")
+	if err != nil || !exists {
+		return 0, err
+	}
+	var maxID sql.NullInt64
+	err = d.sql.QueryRow(`SELECT MAX(CAST(id AS INTEGER)) FROM lists WHERE id GLOB '[0-9]*' AND id NOT GLOB '*[^0-9]*'`).Scan(&maxID)
+	return maxID.Int64, err
+}
+
+// ResolveListForWrite resolves an exact ID, then an exact unique name, among
+// live definitions. Unlike ResolveList it accepts every list type; callers
+// decide which writes a type supports.
+func (d *DB) ResolveListForWrite(value string) (List, error) {
+	result, err := d.Lists()
+	if err != nil {
+		return List{}, err
+	}
+	var matches []List
+	for _, l := range result.Lists {
+		if l.ID == value {
+			return l, nil
+		}
+		if l.Name == value {
+			matches = append(matches, l)
+		}
+	}
+	if len(matches) == 0 {
+		return List{}, fmt.Errorf("list %q is not in the local index; sync first", value)
+	}
+	if len(matches) > 1 {
+		return List{}, fmt.Errorf("list name %q is ambiguous; use an ID", value)
+	}
+	return matches[0], nil
+}
+
+func listTypeHasChatMemberships(t *int32) bool {
+	return t == nil || *t == 0 || *t == 4 || *t == 5
 }

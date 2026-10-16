@@ -398,7 +398,11 @@ func (a *App) persistAppStateEvent(ctx context.Context, evt any, tracker *appSta
 	var err error
 	switch v := evt.(type) {
 	case *events.AppState:
-		err = a.handleLiveCallEvent(ctx, v)
+		if isQuickReplyEvent(v) {
+			err = a.handleQuickReplyEvent(v)
+		} else {
+			err = a.handleLiveCallEvent(ctx, v)
+		}
 	case *events.Star:
 		err = a.handleStarEvent(ctx, v)
 	case *events.DeleteForMe:
@@ -423,6 +427,9 @@ func appStateCollectionsForEvent(evt any) []appstate.WAPatchName {
 	case *events.Mute, *events.Star, *events.DeleteForMe:
 		return []appstate.WAPatchName{appstate.WAPatchRegularHigh}
 	case *events.AppState:
+		if isQuickReplyEvent(v) {
+			return []appstate.WAPatchName{appstate.WAPatchRegular}
+		}
 		if v == nil || v.SyncActionValue == nil || (v.GetCallLogAction() == nil && v.GetDeleteIndividualCallLog() == nil) {
 			return nil
 		}
