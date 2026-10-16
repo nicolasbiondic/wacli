@@ -55,6 +55,11 @@ var schemaMigrations = []migration{
 	{version: 9033, name: "vendas: messages ad_referral (#480)", up: migrateMessagesAdReferralColumn},
 	// vendas: lists (#394 branch upstream/read-chat-lists) not merged upstream; local number like 9033.
 	{version: 9034, name: "WhatsApp lists and chat memberships", up: migrateLists},
+	// vendas: lists (#394 branch upstream/read-chat-lists) not merged upstream; local number like 9033.
+	// Lists use 34, not the next free number: open PR #480 also claims 33. The
+	// runner skips by version number only, so ensureCurrentSchema re-runs
+	// migrateLists to heal stores where another migration owns this number.
+	{version: 9034, name: "WhatsApp lists and chat memberships", up: migrateLists},
 }
 
 func migratePlaceholderChatActivity(d *DB) error {
@@ -515,6 +520,9 @@ func (d *DB) ensureCurrentSchema() error {
 	}
 	if err := migrateUnavailableAppStateKeys(d); err != nil {
 		return fmt.Errorf("ensure unavailable app state keys: %w", err)
+	}
+	if err := migrateLists(d); err != nil {
+		return fmt.Errorf("ensure current lists schema: %w", err)
 	}
 	return nil
 }
