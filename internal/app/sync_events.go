@@ -110,7 +110,7 @@ func (a *App) addSyncEventHandler(ctx context.Context, opts SyncOptions, message
 			lastEvent.Store(nowUTC().UnixNano())
 			a.handleLiveCallEvent(ctx, v)
 		case *events.AppState, *events.Star, *events.DeleteForMe,
-			*events.Archive, *events.Pin, *events.Mute, *events.MarkChatAsRead:
+			*events.Archive, *events.UnarchiveChatsSetting, *events.Pin, *events.Mute, *events.MarkChatAsRead:
 			lastEvent.Store(nowUTC().UnixNano())
 			if limits != nil {
 				limits.appStatePending.Add(1)
@@ -402,7 +402,7 @@ func (a *App) persistAppStateEvent(ctx context.Context, evt any, tracker *appSta
 		err = a.handleStarEvent(ctx, v)
 	case *events.DeleteForMe:
 		err = a.handleDeleteForMeEvent(ctx, v)
-	case *events.Archive, *events.Pin, *events.Mute, *events.MarkChatAsRead:
+	case *events.Archive, *events.UnarchiveChatsSetting, *events.Pin, *events.Mute, *events.MarkChatAsRead:
 		err = a.handleChatStateEvent(ctx, v)
 	}
 	if tracker != nil {
@@ -413,7 +413,7 @@ func (a *App) persistAppStateEvent(ctx context.Context, evt any, tracker *appSta
 
 func appStateCollectionsForEvent(evt any) []appstate.WAPatchName {
 	switch v := evt.(type) {
-	case *events.Archive, *events.Pin, *events.MarkChatAsRead:
+	case *events.Archive, *events.UnarchiveChatsSetting, *events.Pin, *events.MarkChatAsRead:
 		return []appstate.WAPatchName{appstate.WAPatchRegularLow}
 	case *events.Mute, *events.Star, *events.DeleteForMe:
 		return []appstate.WAPatchName{appstate.WAPatchRegularHigh}
@@ -622,6 +622,17 @@ func (a *App) handleLiveSyncMessage(ctx context.Context, opts SyncOptions, v *ev
 	if err := a.storeParsedMessageForSync(ctx, pm, limits...); err == nil {
 		if incrementUnread {
 			a.incrementLiveUnread(ctx, pm)
+			if !pm.Edited {
+				chat := canonicalJIDString(a.canonicalStoreJID(ctx, pm.Chat))
+				if err := a.db.RecordChatArchiveIncoming(chat, pm.Timestamp); err != nil {
+					a.emitChatStateWarning("auto_unarchive", pm.Chat, err)
+					for _, limit := range limits {
+						if limit != nil {
+							limit.persistenceFailed.Store(true)
+						}
+					}
+				}
+			}
 		}
 		a.emitSyncProgress(messagesStored.Add(1))
 		if enqueueWebhook != nil {

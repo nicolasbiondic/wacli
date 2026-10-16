@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Sync: unarchive chats on eligible incoming messages when Keep chats archived is off, recover missing preferences on upgrade, and preserve newer unarchives across stale archive replays. Thanks @Luizssauro (#466).
+
 ## 0.22.0 - 2026-10-16
 
 **Highlights:** bounded message search context and cursor reads, a content-free incremental journal, safer sends and chat recovery, and five networking security fixes.

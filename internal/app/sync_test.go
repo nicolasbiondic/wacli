@@ -699,6 +699,9 @@ func TestSyncFetchesChatAppStateDeltasAfterConnect(t *testing.T) {
 
 	chat := types.NewJID("15551234567", types.DefaultUserServer)
 	base := time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC)
+	if err := a.db.SetChatArchiveSetting(false, base); err != nil {
+		t.Fatal(err)
+	}
 	result := waSyncAction.CallLogRecord_CONNECTED
 	callType := waSyncAction.CallLogRecord_REGULAR
 	if err := a.db.UpsertChat(chat.String(), "dm", "Alice", base); err != nil {
@@ -1598,7 +1601,7 @@ func TestArchiveChatOrdersPostSendEventsBeforeNewerLiveEventDuringApply(t *testi
 	}
 }
 
-func TestArchiveChatReplaysEventDispatchedAfterWriteCompletion(t *testing.T) {
+func TestArchiveChatRejectsDelayedOlderEventAndReconcilesDebt(t *testing.T) {
 	a := newTestApp(t)
 	f := newFakeWA()
 	a.wa = f
@@ -1632,8 +1635,8 @@ func TestArchiveChatReplaysEventDispatchedAfterWriteCompletion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetChat after delayed dispatch: %v", err)
 	}
-	if stored.Archived {
-		t.Fatalf("delayed event did not reproduce stale cache: %+v", stored)
+	if !stored.Archived {
+		t.Fatalf("older delayed event overwrote the new archive boundary: %+v", stored)
 	}
 	required, err := a.db.AppStateRecoveryRequired(string(appstate.WAPatchRegularLow))
 	if err != nil {
