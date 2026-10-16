@@ -48,7 +48,7 @@ func (d *DB) SetChatArchiveSetting(enabled bool, timestamp time.Time) error {
 	defer tx.Rollback()
 	if _, err := tx.Exec(`INSERT INTO chat_archive_setting(id,enabled,timestamp_ms) VALUES(1,?,?)
  ON CONFLICT(id) DO UPDATE SET enabled=excluded.enabled,timestamp_ms=excluded.timestamp_ms
- WHERE excluded.timestamp_ms > chat_archive_setting.timestamp_ms`, boolToInt(enabled), timestamp.UnixMilli()); err != nil {
+	 WHERE excluded.timestamp_ms >= chat_archive_setting.timestamp_ms`, boolToInt(enabled), timestamp.UnixMilli()); err != nil {
 		return err
 	}
 	if err := reconcileChatArchive(tx, ""); err != nil {

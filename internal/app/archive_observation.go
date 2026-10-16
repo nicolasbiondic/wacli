@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"maps"
 
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
@@ -18,7 +19,9 @@ func (a *App) observeArchiveEvent(ctx context.Context, evt any, persisted bool) 
 		if v == nil || v.Action == nil || v.Timestamp.IsZero() || v.JID.IsEmpty() {
 			return
 		}
-		jid = canonicalJIDString(a.canonicalStoreJID(ctx, v.JID))
+		// Keep the event identity stable until this exact event is persisted.
+		// Its phone mapping can appear while it waits in the queue.
+		jid = canonicalJIDString(v.JID.ToNonAD())
 		ms = v.Timestamp.UnixMilli()
 	case *events.UnarchiveChatsSetting:
 		if v == nil || v.Action == nil || v.Action.UnarchiveChats == nil || v.Timestamp.IsZero() {
@@ -56,6 +59,14 @@ func (a *App) observeArchiveEvent(ctx context.Context, evt any, persisted bool) 
 func (a *App) observedArchiveBoundary(ctx context.Context, chat types.JID) (int64, int64) {
 	jid := canonicalJIDString(a.canonicalStoreJID(ctx, chat))
 	a.archiveObservationMu.Lock()
-	defer a.archiveObservationMu.Unlock()
-	return max(a.archiveObserved[jid], a.archiveSettingObserved), a.archiveSettingObserved
+	observed := maps.Clone(a.archiveObserved)
+	setting := a.archiveSettingObserved
+	a.archiveObservationMu.Unlock()
+	boundary := setting
+	for raw, ms := range observed {
+		if raw == jid || a.canonicalStoreJIDString(ctx, raw) == jid {
+			boundary = max(boundary, ms)
+		}
+	}
+	return boundary, setting
 }

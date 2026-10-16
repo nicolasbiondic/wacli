@@ -195,6 +195,31 @@ func TestChatArchiveUpgradeAndRestart(t *testing.T) {
 	}
 }
 
+func TestChatArchiveSettingUsesLaterEqualTimestampValue(t *testing.T) {
+	for _, enabled := range []bool{false, true} {
+		t.Run(fmt.Sprintf("enabled=%t", enabled), func(t *testing.T) {
+			db := openTestDB(t)
+			jid := "15550000013@s.whatsapp.net"
+			base := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+			if err := db.ApplyChatArchive(jid, true, base); err != nil {
+				t.Fatal(err)
+			}
+			for _, value := range []bool{!enabled, enabled} {
+				if err := db.SetChatArchiveSetting(value, base.Add(time.Second)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := db.UpsertMessage(UpsertMessageParams{ChatJID: jid, MsgID: "incoming", Timestamp: base.Add(2 * time.Second), Text: "synthetic", ArchiveIncoming: true}); err != nil {
+				t.Fatal(err)
+			}
+			chat, err := db.GetChat(jid)
+			if err != nil || chat.Archived == enabled {
+				t.Fatalf("later equal-timestamp setting was ignored: %+v, %v", chat, err)
+			}
+		})
+	}
+}
+
 func TestChatArchiveCreatesMissingChatBeforeHistory(t *testing.T) {
 	for _, archived := range []bool{false, true} {
 		t.Run(fmt.Sprintf("archived=%t", archived), func(t *testing.T) {

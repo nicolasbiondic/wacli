@@ -14,12 +14,26 @@ import (
 )
 
 func TestAutoUnarchivePreservesDispatchOrderAcrossQueuedActions(t *testing.T) {
-	for _, settingQueued := range []bool{false, true} {
-		t.Run(map[bool]string{false: "queued archive", true: "queued setting"}[settingQueued], func(t *testing.T) {
+	for _, scenario := range []struct {
+		name          string
+		settingQueued bool
+		remapped      bool
+	}{
+		{name: "queued archive"},
+		{name: "queued setting", settingQueued: true},
+		{name: "queued archive remapped", remapped: true},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			settingQueued := scenario.settingQueued
 			a := newTestApp(t)
-			a.wa = newFakeWA()
+			f := newFakeWA()
+			a.wa = f
 			ctx := context.Background()
 			chat := types.NewJID("15550000009", types.DefaultUserServer)
+			archiveChat := chat
+			if scenario.remapped {
+				archiveChat = types.NewJID("15550000009", types.HiddenUserServer)
+			}
 			base := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
 			if err := a.db.UpsertChat(chat.String(), "dm", "Synthetic", base); err != nil {
 				t.Fatal(err)
@@ -34,7 +48,10 @@ func TestAutoUnarchivePreservesDispatchOrderAcrossQueuedActions(t *testing.T) {
 			if settingQueued {
 				a.handleAppStatePersistenceEvent(ctx, &events.UnarchiveChatsSetting{Timestamp: base.Add(500 * time.Millisecond), Action: &waSyncAction.UnarchiveChatsSetting{UnarchiveChats: proto.Bool(true)}}, nil)
 			} else {
-				a.handleAppStatePersistenceEvent(ctx, &events.Archive{JID: chat, Timestamp: base.Add(500 * time.Millisecond), Action: &waSyncAction.ArchiveChatAction{Archived: proto.Bool(true)}}, nil)
+				a.handleAppStatePersistenceEvent(ctx, &events.Archive{JID: archiveChat, Timestamp: base.Add(500 * time.Millisecond), Action: &waSyncAction.ArchiveChatAction{Archived: proto.Bool(true)}}, nil)
+			}
+			if scenario.remapped {
+				f.lids[archiveChat] = chat
 			}
 			var stored atomic.Int64
 			a.handleLiveSyncMessage(ctx, SyncOptions{}, &events.Message{Info: types.MessageInfo{MessageSource: types.MessageSource{Chat: chat, Sender: chat}, ID: "new", Timestamp: base}, Message: &waE2E.Message{Conversation: proto.String("synthetic")}}, &stored, nil, nil)
