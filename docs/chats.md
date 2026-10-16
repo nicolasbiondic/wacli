@@ -92,8 +92,9 @@ authenticated startup can resolve them.
 
 The next writable store open adds the list tables without changing existing
 chats/messages. It also recreates missing list tables when the schema version is
-already recorded, for example by a build that used the same migration number. `--read-only` can open an older, unmigrated store; it returns an
-empty definitions array with unknown completeness, without migrating it.
+already recorded, for example by a build that used the same migration number.
+`--read-only` can open an older, unmigrated store; it returns an empty
+definitions array with unknown completeness, without migrating it.
 `lists list` and `chats list --list` never create, rename, assign, or remove labels
 on WhatsApp. Run `wacli sync` separately to collect changes made on your phone.
 

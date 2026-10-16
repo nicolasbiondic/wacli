@@ -185,6 +185,43 @@ func TestListsStartupFullSyncIngestion(t *testing.T) {
 	assertAppListMembers(t, a, "123@s.whatsapp.net")
 }
 
+// Name resolution falls back to the raw JID when lookups fail; a label event
+// must not write that fallback over a known name or do network lookups.
+func TestListsAssociationKeepsKnownChatName(t *testing.T) {
+	a := newTestApp(t)
+	f := newFakeWA()
+	a.wa = f
+	remove, err := a.AddChatStatePersistenceHandler(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer remove()
+	at := time.Unix(100, 0)
+	group := types.NewJID("555", types.GroupServer)
+	dm := types.NewJID("123", types.DefaultUserServer)
+	for _, chat := range []types.JID{group, dm} {
+		if err := a.db.UpsertChat(chat.String(), chatKind(chat), "Known Name", at); err != nil {
+			t.Fatal(err)
+		}
+		f.emit(&events.LabelAssociationChat{LabelID: "7", JID: chat, Timestamp: at,
+			Action: &waSyncAction.LabelAssociationAction{Labeled: proto.Bool(true)}})
+		got, err := a.db.GetChat(chat.String())
+		if err != nil || got.Name != "Known Name" {
+			t.Fatalf("%s name = %q, %v", chatKind(chat), got.Name, err)
+		}
+	}
+	if f.groupInfoCalls != 0 {
+		t.Fatalf("label association did %d group lookups", f.groupInfoCalls)
+	}
+	// A removal for a chat that is not indexed must not create an empty row.
+	unknown := types.NewJID("777", types.DefaultUserServer)
+	f.emit(&events.LabelAssociationChat{LabelID: "7", JID: unknown, Timestamp: at,
+		Action: &waSyncAction.LabelAssociationAction{Labeled: proto.Bool(false)}})
+	if _, err := a.db.GetChat(unknown.String()); err == nil {
+		t.Fatal("unlabel created a chat row")
+	}
+}
+
 func TestListsPersistenceFailureReachesTrackerAndLiveCallback(t *testing.T) {
 	a := newTestApp(t)
 	a.wa = newFakeWA()
