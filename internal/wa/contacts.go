@@ -104,6 +104,26 @@ func (c *Client) ResolvePNToLID(ctx context.Context, jid types.JID) types.JID {
 	return resolvePNToLID(ctx, cli, jid)
 }
 
+// KnownLIDForPN returns the LID the local session already maps to the
+// phone-number JID, or an empty JID. Unlike ResolvePNToLID it never asks the
+// server, so a contact write stays a single app-state round trip.
+func (c *Client) KnownLIDForPN(ctx context.Context, jid types.JID) types.JID {
+	if jid.Server != types.DefaultUserServer {
+		return types.JID{}
+	}
+	c.mu.Lock()
+	cli := c.client
+	c.mu.Unlock()
+	if cli == nil || cli.Store == nil || cli.Store.LIDs == nil {
+		return types.JID{}
+	}
+	lid, err := cli.Store.LIDs.GetLIDForPN(ctx, jid.ToNonAD())
+	if err != nil {
+		return types.JID{}
+	}
+	return lid
+}
+
 func BestContactName(info types.ContactInfo) string {
 	if !info.Found {
 		return ""

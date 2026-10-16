@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Contacts: add `contacts save` (alias `rename`) to save or rename a contact in the WhatsApp address book through the `critical_unblock_low` app-state collection, with the chat-state write discipline (pre-write sync, durable intent, ordered echo persistence), a registration check, LID inclusion when known, delegation to a running `sync --follow`, and immediate `wacli.db` mirroring of contact echoes.
+
 ## 0.22.0 - 2026-10-16
 
 **Highlights:** bounded message search context and cursor reads, a content-free incremental journal, safer sends and chat recovery, and five networking security fixes.

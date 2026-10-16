@@ -7,8 +7,14 @@ import (
 
 	"go.mau.fi/whatsmeow/appstate"
 	"go.mau.fi/whatsmeow/proto/waCommon"
+	"go.mau.fi/whatsmeow/proto/waSyncAction"
 	"go.mau.fi/whatsmeow/types"
+	"google.golang.org/protobuf/proto"
 )
+
+// contactActionVersion is the static app-state action version WhatsApp
+// clients send with `contact` mutations.
+const contactActionVersion = 2
 
 func (c *Client) SendAppState(ctx context.Context, patch appstate.PatchInfo) error {
 	c.mu.Lock()
@@ -59,4 +65,35 @@ func (c *Client) MuteChat(ctx context.Context, target types.JID, mute bool, dura
 
 func (c *Client) MarkChatAsRead(ctx context.Context, target types.JID, read bool, lastMsgTS time.Time, lastMsgKey *waCommon.MessageKey, beforeApply func()) ([]any, error) {
 	return c.sendAppStateWithBoundary(ctx, appstate.BuildMarkChatAsRead(target, read, lastMsgTS, lastMsgKey), beforeApply)
+}
+
+// BuildContactPatch builds the `critical_unblock_low` app-state patch that
+// saves or renames an address book entry. The entry is indexed by the
+// phone-number JID, the form the primary device uses for its own contact
+// mutations; the known LID is carried in the action so the phone can link
+// both identities. SaveOnPrimaryAddressbook asks the phone to write the
+// entry to the device address book instead of keeping it WhatsApp-only.
+func BuildContactPatch(target types.JID, fullName, firstName string, lid types.JID) appstate.PatchInfo {
+	action := &waSyncAction.ContactAction{
+		FullName:                 proto.String(fullName),
+		SaveOnPrimaryAddressbook: proto.Bool(true),
+	}
+	if firstName != "" {
+		action.FirstName = proto.String(firstName)
+	}
+	if !lid.IsEmpty() {
+		action.LidJID = proto.String(lid.ToNonAD().String())
+	}
+	return appstate.PatchInfo{
+		Type: appstate.WAPatchCriticalUnblockLow,
+		Mutations: []appstate.MutationInfo{{
+			Index:   []string{appstate.IndexContact, target.ToNonAD().String()},
+			Version: contactActionVersion,
+			Value:   &waSyncAction.SyncActionValue{ContactAction: action},
+		}},
+	}
+}
+
+func (c *Client) SaveContact(ctx context.Context, target types.JID, fullName, firstName string, lid types.JID, beforeApply func()) ([]any, error) {
+	return c.sendAppStateWithBoundary(ctx, BuildContactPatch(target, fullName, firstName, lid), beforeApply)
 }

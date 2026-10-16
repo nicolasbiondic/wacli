@@ -79,6 +79,11 @@ type fakeWA struct {
 	archiveCalls                []fakeArchiveCall
 	pinCalls                    []fakePinCall
 	muteCalls                   []fakeMuteCall
+	saveContactCalls            []fakeSaveContactCall
+	saveContactErr              error
+	saveContactEvent            func() any
+	isOnWhatsApp                func(phones []string) ([]types.IsOnWhatsAppResponse, error)
+	isOnWhatsAppCalls           [][]string
 	markReadCalls               []fakeMarkReadCall
 	markReadBeforeApply         func()
 	markReadAfterApply          func()
@@ -121,6 +126,13 @@ type fakeMuteCall struct {
 	target   types.JID
 	mute     bool
 	duration time.Duration
+}
+
+type fakeSaveContactCall struct {
+	target    types.JID
+	fullName  string
+	firstName string
+	lid       types.JID
 }
 
 type fakeMarkReadCall struct {
@@ -331,6 +343,13 @@ func (f *fakeWA) GetUserInfo(ctx context.Context, jids []types.JID) (map[types.J
 }
 
 func (f *fakeWA) IsOnWhatsApp(ctx context.Context, phones []string) ([]types.IsOnWhatsAppResponse, error) {
+	f.mu.Lock()
+	hook := f.isOnWhatsApp
+	f.isOnWhatsAppCalls = append(f.isOnWhatsAppCalls, phones)
+	f.mu.Unlock()
+	if hook != nil {
+		return hook(phones)
+	}
 	return nil, nil
 }
 
@@ -877,6 +896,32 @@ func (f *fakeWA) MuteChat(ctx context.Context, target types.JID, mute bool, dura
 	f.muteCalls = append(f.muteCalls, fakeMuteCall{target: target, mute: mute, duration: duration})
 	beforeApply()
 	return nil, nil
+}
+
+func (f *fakeWA) SaveContact(ctx context.Context, target types.JID, fullName, firstName string, lid types.JID, beforeApply func()) ([]any, error) {
+	f.mu.Lock()
+	f.saveContactCalls = append(f.saveContactCalls, fakeSaveContactCall{target: target, fullName: fullName, firstName: firstName, lid: lid})
+	eventCB := f.saveContactEvent
+	err := f.saveContactErr
+	f.mu.Unlock()
+	beforeApply()
+	if eventCB != nil {
+		if evt := eventCB(); evt != nil {
+			return []any{evt}, err
+		}
+	}
+	return nil, err
+}
+
+func (f *fakeWA) KnownLIDForPN(ctx context.Context, jid types.JID) types.JID {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for lid, pn := range f.lids {
+		if pn == jid.ToNonAD() {
+			return lid
+		}
+	}
+	return types.JID{}
 }
 
 func (f *fakeWA) MarkChatAsRead(ctx context.Context, target types.JID, read bool, lastMsgTS time.Time, lastMsgKey *waCommon.MessageKey, beforeApply func()) ([]any, error) {
