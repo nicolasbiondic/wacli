@@ -308,6 +308,49 @@ func TestListsReadOnlyToleratesHalfCreatedSchema(t *testing.T) {
 	}
 }
 
+func TestResolveListIDPrecedesName(t *testing.T) {
+	db := openTestDB(t)
+	for _, p := range []ListUpdate{
+		{ID: "2", Name: listPtr("Promo")},
+		{ID: "7", Name: listPtr("2")},
+	} {
+		if err := db.UpsertList(p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if id, err := db.ResolveList("2"); err != nil || id != "2" {
+		t.Fatalf("ResolveList(2) = %q, %v; want ID 2, not the list named 2", id, err)
+	}
+}
+
+func TestResolveListDistinguishesDeletedFromUnknown(t *testing.T) {
+	db := openTestDB(t)
+	for _, p := range []ListUpdate{
+		{ID: "4", Name: listPtr("Deleted"), Deleted: listPtr(true)},
+		{ID: "7", Name: listPtr("4")},
+		{ID: "8", Name: listPtr("Reused"), Deleted: listPtr(true)},
+		{ID: "9", Name: listPtr("Reused")},
+	} {
+		if err := db.UpsertList(p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, tc := range []struct{ value, want string }{
+		{"4", `list "4" was deleted on the phone`},
+		{"Deleted", `list "Deleted" was deleted on the phone`},
+		{"8", `list "8" was deleted on the phone`},
+		{"404", `list "404" is not in the local index; sync first`},
+		{"missing", `list "missing" is not in the local index; sync first`},
+	} {
+		if _, err := db.ResolveList(tc.value); err == nil || err.Error() != tc.want {
+			t.Errorf("ResolveList(%q) error = %v, want %s", tc.value, err, tc.want)
+		}
+	}
+	if id, err := db.ResolveList("Reused"); err != nil || id != "9" {
+		t.Fatalf("active reused name = %q, %v", id, err)
+	}
+}
+
 func TestResolveListRejectsAmbiguityAndSystemMemberships(t *testing.T) {
 	db := openTestDB(t)
 	for _, p := range []ListUpdate{

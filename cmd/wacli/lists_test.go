@@ -68,8 +68,11 @@ func TestListsCLIJSONAndChatFilter(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = seed.Exec(`INSERT INTO lists(id,name,color,predefined_id,type,order_index,is_active,is_immutable,updated_at)
-		VALUES('7','Sales',3,0,5,2,1,0,100),('8','Groups',NULL,NULL,2,NULL,NULL,NULL,100);
-		INSERT INTO chat_lists(chat_jid,list_id,labeled,updated_at) VALUES('123@s.whatsapp.net','7',1,100);
+		VALUES('7','Sales',3,0,5,2,1,0,100),('8','Groups',NULL,NULL,2,NULL,NULL,NULL,100),
+			('2','Promo',NULL,NULL,5,NULL,NULL,NULL,100),('9','2',NULL,NULL,5,NULL,NULL,NULL,100);
+		INSERT INTO chat_lists(chat_jid,list_id,labeled,updated_at) VALUES('123@s.whatsapp.net','7',1,100),
+			('123@s.whatsapp.net','2',1,100),('456@s.whatsapp.net','9',1,100);
+		INSERT INTO lists(id,name,deleted,updated_at) VALUES('4','Deleted',1,100);
 		UPDATE list_sync_state SET full_sync_events_seen=1 WHERE id=1;`)
 	seed.Close()
 	if err != nil {
@@ -85,7 +88,7 @@ func TestListsCLIJSONAndChatFilter(t *testing.T) {
 			t.Fatalf("missing %s: %s", field, raw)
 		}
 	}
-	for _, value := range []string{"7", "Sales"} {
+	for _, value := range []string{"7", "Sales", "2", "Promo"} {
 		raw = captureRootStdout(t, func() {
 			if err := execute([]string{"--store", dir, "--read-only", "--json", "chats", "list", "--list", value}); err != nil {
 				t.Fatal(err)
@@ -106,4 +109,16 @@ func TestListsCLIJSONAndChatFilter(t *testing.T) {
 			t.Fatalf("system filter = %v", err)
 		}
 	})
+	for _, tc := range []struct{ value, want string }{
+		{"4", `list "4" was deleted on the phone`},
+		{"Deleted", `list "Deleted" was deleted on the phone`},
+		{"404", `list "404" is not in the local index; sync first`},
+		{"missing", `list "missing" is not in the local index; sync first`},
+	} {
+		captureRootStderr(t, func() {
+			if err := execute([]string{"--store", dir, "--read-only", "--json", "chats", "list", "--list", tc.value}); err == nil || err.Error() != tc.want {
+				t.Errorf("filter=%s error = %v, want %s", tc.value, err, tc.want)
+			}
+		})
+	}
 }
