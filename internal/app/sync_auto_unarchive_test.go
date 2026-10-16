@@ -189,3 +189,160 @@ func TestAutoUnarchiveWaitsForPreferenceAndArchiveBoundary(t *testing.T) {
 		})
 	}
 }
+
+// An upgraded store whose complete regular_low snapshot does not mention a
+// locally archived chat, or carries no Keep chats archived mutation, must not
+// request the full replay again on every start.
+func TestAutoUnarchiveRecoverySettlesAfterCompleteReplay(t *testing.T) {
+	base := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+	chat := types.NewJID("15550000004", types.DefaultUserServer)
+	preference := &events.UnarchiveChatsSetting{
+		Timestamp: base, Action: &waSyncAction.UnarchiveChatsSetting{UnarchiveChats: proto.Bool(true)},
+	}
+	for name, preferenceKnown := range map[string]bool{
+		"legacy archive absent from the snapshot": true,
+		"snapshot without a preference mutation":  false,
+	} {
+		t.Run(name, func(t *testing.T) {
+			a := newTestApp(t)
+			f := &appStateContextWA{fakeWA: newFakeWA()}
+			a.wa = f
+			ctx := context.Background()
+			if err := a.db.UpsertChat(chat.String(), "dm", "Legacy", base); err != nil {
+				t.Fatal(err)
+			}
+			if err := a.db.SetChatArchived(chat.String(), true); err != nil {
+				t.Fatal(err)
+			}
+			if preferenceKnown {
+				a.handleAppStatePersistenceEvent(ctx, preference, nil)
+			}
+			settled := base.Add(time.Hour)
+			previousNowUTC := nowUTC
+			nowUTC = func() time.Time { return settled }
+			t.Cleanup(func() { nowUTC = previousNowUTC })
+			fullReplays := 0
+			f.requestAppStateRecovery = func(context.Context, string) (types.MessageID, error) {
+				t.Error("verified full replay must not request a recovery snapshot")
+				return "", nil
+			}
+			f.fetchEvents = func(_ context.Context, name string, full, _ bool) ([]any, error) {
+				if name != string(appstate.WAPatchRegularLow) || !full {
+					return nil, nil
+				}
+				fullReplays++
+				// A verified snapshot with nothing for this store: whatsmeow
+				// returns only the completion sentinel.
+				return []any{&events.AppStateSyncComplete{Name: appstate.WAPatchRegularLow, Version: 7}}, nil
+			}
+			f.fetchAppState = func(ctx context.Context, name string, full, only bool) error {
+				_, err := f.fetchEvents(ctx, name, full, only)
+				return err
+			}
+			for start := 1; start <= 3; start++ {
+				var recoveries sync.Map
+				a.syncAppStateDeltas(ctx, &recoveries)
+				if required, err := a.db.AppStateRecoveryRequired(string(appstate.WAPatchRegularLow)); err != nil || required {
+					t.Fatalf("start %d: recovery intent kept after a completed full replay: %v %v", start, required, err)
+				}
+			}
+			if fullReplays != 1 {
+				t.Fatalf("full regular_low replays across 3 starts=%d, want 1", fullReplays)
+			}
+			got, err := a.db.GetChat(chat.String())
+			if err != nil || !got.Archived {
+				t.Fatalf("settled legacy archive=%+v, %v; want still archived", got, err)
+			}
+			var stored atomic.Int64
+			message := func(id string, ts time.Time) {
+				a.handleLiveSyncMessage(ctx, SyncOptions{}, &events.Message{
+					Info:    types.MessageInfo{MessageSource: types.MessageSource{Chat: chat, Sender: chat}, ID: id, Timestamp: ts},
+					Message: &waE2E.Message{Conversation: proto.String("synthetic arrival")},
+				}, &stored, nil, nil)
+			}
+			// The settlement is the chat's boundary: a message older than the
+			// snapshot never unarchives it.
+			message("older", settled.Add(-time.Second))
+			if got, err := a.db.GetChat(chat.String()); err != nil || !got.Archived {
+				t.Fatalf("message older than the settled snapshot unarchived the chat: %+v, %v", got, err)
+			}
+			// A newer arrival unarchives with a known preference. The settled
+			// preference is unknown, not "unarchive": the arrival waits for
+			// the real one, which replaces it however old its timestamp is.
+			message("newer", settled.Add(time.Second))
+			got, err = a.db.GetChat(chat.String())
+			if err != nil || got.Archived == preferenceKnown {
+				t.Fatalf("archived=%v after a message newer than the settled snapshot (preference known: %v); %v", got.Archived, preferenceKnown, err)
+			}
+			if !preferenceKnown {
+				a.handleAppStatePersistenceEvent(ctx, preference, nil)
+				if got, err := a.db.GetChat(chat.String()); err != nil || got.Archived {
+					t.Fatalf("real preference did not replace the settled one: %+v, %v", got, err)
+				}
+			}
+		})
+	}
+}
+
+// Known-broken collections never see the destructive full replay, request
+// one background snapshot per start, and settle once the primary's snapshot
+// arrives even when it does not mention the legacy archive.
+func TestAutoUnarchiveBrokenCollectionSettlesAfterRecoverySnapshot(t *testing.T) {
+	a := newTestApp(t)
+	f := &appStateContextWA{fakeWA: newFakeWA()}
+	a.wa = f
+	ctx := context.Background()
+	chat := types.NewJID("15550000005", types.DefaultUserServer)
+	base := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+	if err := a.db.UpsertChat(chat.String(), "dm", "Legacy", base); err != nil {
+		t.Fatal(err)
+	}
+	if err := a.db.SetChatArchived(chat.String(), true); err != nil {
+		t.Fatal(err)
+	}
+	a.setAppStateFullSyncResult(appstate.WAPatchRegularLow, true)
+	requests := 0
+	f.requestAppStateRecovery = func(context.Context, string) (types.MessageID, error) { requests++; return "snapshot", nil }
+	f.fetchEvents = func(_ context.Context, name string, full, _ bool) ([]any, error) {
+		if name == string(appstate.WAPatchRegularLow) && full {
+			t.Error("destructive full replay on known-broken collection")
+		}
+		return nil, nil
+	}
+	f.fetchAppState = func(ctx context.Context, name string, full, only bool) error {
+		_, err := f.fetchEvents(ctx, name, full, only)
+		return err
+	}
+	var first sync.Map
+	a.syncAppStateDeltas(ctx, &first)
+	if requests != 1 {
+		t.Fatalf("background snapshot requests=%d, want 1", requests)
+	}
+	if required, err := a.db.AppStateRecoveryRequired(string(appstate.WAPatchRegularLow)); err != nil || !required {
+		t.Fatalf("snapshot debt cleared before the primary answered: %v, %v", required, err)
+	}
+	// The primary answers with a snapshot that has neither the preference nor
+	// an action for the legacy archive.
+	f.emit(&events.AppStateSyncComplete{Name: appstate.WAPatchRegularLow, Version: 9, Recovery: true})
+	waitForCondition(t, time.Second, func() bool {
+		pending, err := a.db.AppStateRecoveryRequired(string(appstate.WAPatchRegularLow))
+		return err == nil && !pending
+	})
+	if required, err := a.db.ChatArchiveRecoveryRequired(); err != nil || required {
+		t.Fatalf("archive recovery still required after the primary's snapshot: %v, %v", required, err)
+	}
+	got, err := a.db.GetChat(chat.String())
+	if err != nil || !got.Archived {
+		t.Fatalf("legacy archive after settlement=%+v, %v; want archived", got, err)
+	}
+	for start := 2; start <= 3; start++ {
+		var next sync.Map
+		a.syncAppStateDeltas(ctx, &next)
+		if required, err := a.db.AppStateRecoveryRequired(string(appstate.WAPatchRegularLow)); err != nil || required {
+			t.Fatalf("start %d: settled store re-armed the recovery intent: %v, %v", start, required, err)
+		}
+	}
+	if requests != 1 {
+		t.Fatalf("background snapshot requests after settlement=%d, want 1", requests)
+	}
+}
