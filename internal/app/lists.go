@@ -33,7 +33,13 @@ func (a *App) handleListEvent(ctx context.Context, evt any) error {
 		}
 		chat := a.canonicalStoreJID(ctx, v.JID)
 		jid := canonicalJIDString(chat)
-		if err = a.db.UpsertChatMetadata(jid, chatKind(chat), a.wa.ResolveChatName(ctx, chat, "")); err == nil {
+		// A label only needs the chat row to exist so the filter can see it.
+		// An empty name keeps a stored one, and skipping name resolution keeps
+		// network lookups and the JID fallback out of the ordered writer.
+		if v.Action.GetLabeled() {
+			err = a.db.UpsertChatMetadata(jid, chatKind(chat), "")
+		}
+		if err == nil {
 			err = a.db.SetChatList(jid, v.LabelID, v.Action.GetLabeled(), v.Timestamp, v.FromFullSync)
 		}
 	}

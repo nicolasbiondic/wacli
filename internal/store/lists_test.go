@@ -85,6 +85,17 @@ func TestListsDefinitionsMembershipReplayAndDeletion(t *testing.T) {
 	if err != nil || len(result.Lists) != 1 || result.Lists[0].Name != "Renamed" {
 		t.Fatalf("undeleted list = %+v, %v", result, err)
 	}
+	// Equal timestamps resolve to deletion, whichever event arrives last.
+	tie := at.Add(5 * time.Second)
+	for _, deleted := range []bool{true, false} {
+		if err := db.UpsertList(ListUpdate{ID: "7", Deleted: listPtr(deleted), Timestamp: tie}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	result, err = db.Lists()
+	if err != nil || len(result.Lists) != 0 {
+		t.Fatalf("equal-timestamp undelete won: %+v, %v", result, err)
+	}
 }
 
 func assertListChats(t *testing.T, db *DB, id string, jids ...string) {
@@ -249,6 +260,12 @@ func TestListsMigrationSurvivesForeignVersionRows(t *testing.T) {
 			var name string
 			if err := db.sql.QueryRow(`SELECT name FROM schema_migrations WHERE version=?`, tc.foreign).Scan(&name); err != nil || name != foreignName {
 				t.Fatalf("foreign migration row = %q, %v", name, err)
+			}
+			if tc.foreign != version {
+				// The runner, not only the schema guard, applied the lists migration.
+				if err := db.sql.QueryRow(`SELECT name FROM schema_migrations WHERE version=?`, version).Scan(&name); err != nil || name != "WhatsApp lists and chat memberships" {
+					t.Fatalf("lists migration row = %q, %v", name, err)
+				}
 			}
 			db.Close()
 
