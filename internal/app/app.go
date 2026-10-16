@@ -77,6 +77,8 @@ type WAClient interface {
 	PinChat(ctx context.Context, target types.JID, pin bool, beforeApply func()) ([]any, error)
 	MuteChat(ctx context.Context, target types.JID, mute bool, duration time.Duration, beforeApply func()) ([]any, error)
 	MarkChatAsRead(ctx context.Context, target types.JID, read bool, lastMsgTS time.Time, lastMsgKey *waCommon.MessageKey, beforeApply func()) ([]any, error)
+	SaveContact(ctx context.Context, target types.JID, fullName, firstName string, lid types.JID, beforeApply func()) ([]any, error)
+	KnownLIDForPN(ctx context.Context, jid types.JID) types.JID
 	Upload(ctx context.Context, data []byte, mediaType whatsmeow.MediaType) (whatsmeow.UploadResponse, error)
 	UploadNewsletter(ctx context.Context, data []byte, mediaType whatsmeow.MediaType) (whatsmeow.UploadResponse, error)
 	DownloadMediaToFile(ctx context.Context, directPath string, encFileHash, fileHash, mediaKey []byte, fileLength uint64, mediaType, mmsType string, targetPath string) (int64, error)

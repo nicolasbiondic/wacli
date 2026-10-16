@@ -32,7 +32,7 @@ Read when: you need the user-facing command map, global flags, store model, or l
 - [calls](calls.md) - list stored WhatsApp call events.
 - [send](send.md) - send text, files, stickers, statuses, replies, and reactions.
 - [media](media.md) - download media attached to stored messages.
-- [contacts](contacts.md) - search contacts and manage local aliases/tags.
+- [contacts](contacts.md) - search contacts, save or rename WhatsApp address book entries, and manage local aliases/tags.
 - [contacts import-system](contacts-import-system.md) - import macOS Contacts names into local contact metadata.
 - [chats](chats.md) - list, show, filter, and manage known chat state.
 - [groups](groups.md) - refresh, inspect, rename, leave, join, invite, and manage participants.

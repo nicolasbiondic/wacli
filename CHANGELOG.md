@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Contacts: add `contacts save` (alias `rename`) to save or rename a contact in the WhatsApp address book through the `critical_unblock_low` app-state collection, with the chat-state write discipline (pre-write sync, durable intent, ordered echo persistence), a registration check, LID inclusion when known, delegation to a running `sync --follow`, and immediate `wacli.db` mirroring of contact echoes.
 - Send: avoid fresh message retries after ambiguous disconnects while retaining safe lookup and presence retries. Thanks @artemgetmann (#483).
 - Messages: preserve exact raw text, captions, and edits, including surrounding whitespace. Thanks @artemgetmann (#484).
 - Send: retain native quote IDs and canonical sender identities in immediate text and attachment history, and save attachments under the canonical recipient. Thanks @artemgetmann (#485, #486).
