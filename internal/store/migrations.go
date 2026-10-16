@@ -53,6 +53,8 @@ var schemaMigrations = []migration{
 	// guard, trigger rebuild only when the comparison is missing). The runner
 	// applies by version-set membership, so the numbering gap is harmless.
 	{version: 9033, name: "vendas: messages ad_referral (#480)", up: migrateMessagesAdReferralColumn},
+	// vendas: lists (#394 branch upstream/read-chat-lists) not merged upstream; local number like 9033.
+	{version: 9034, name: "WhatsApp lists and chat memberships", up: migrateLists},
 }
 
 func migratePlaceholderChatActivity(d *DB) error {
