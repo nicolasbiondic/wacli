@@ -808,3 +808,39 @@ func TestPR497Probe_QueuedLIDArchiveThenRemappedSameSecondArrival(t *testing.T) 
 		t.Fatal("queued LID archive drained after the arrival re-archived the remapped chat")
 	}
 }
+
+// P2 #6/#7 equal-timestamp settings: the later ordered mutation wins, both
+// directly and when both are queued behind startup replay with an arrival
+// in between.
+func TestPR497Probe_EqualTimestampSettingLaterValueWins(t *testing.T) {
+	a := newTestApp(t)
+	a.wa = newFakeWA()
+	ctx := context.Background()
+	chat := types.JID{User: "15550000001", Server: types.DefaultUserServer}
+	scnArchiveWithBoundary(t, a, chat, scnBase)
+	at := scnBase.Add(10 * time.Minute)
+	scnApply(t, a, scnSetting(true, at))
+	scnApply(t, a, scnSetting(false, at))
+	if enabled, known := scnPreference(t, a); !known || enabled {
+		t.Fatalf("direct: preference = enabled %v known %v; want the later disable", enabled, known)
+	}
+	scnDeliverLive(t, a, scnLive(chat, chat, "m1", at.Add(time.Minute), false, scnText("hi")))
+	if !scnArchived(t, a, chat) {
+		t.Fatal("direct: arrival unarchived although the later equal-timestamp setting disabled it")
+	}
+
+	blocker := a.appStatePersist.reserve()
+	a.handleAppStatePersistenceEvent(ctx, scnSetting(true, at.Add(time.Hour)), nil)
+	a.handleAppStatePersistenceEvent(ctx, scnSetting(false, at.Add(time.Hour)), nil)
+	scnDeliverLive(t, a, scnLive(chat, chat, "m2", at.Add(2*time.Hour), false, scnText("hi")))
+	a.appStatePersist.completeOne(blocker, func() {})
+	if err := a.appStatePersist.waitIdle(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if enabled, known := scnPreference(t, a); !known || enabled {
+		t.Fatalf("queued: preference = enabled %v known %v; want the later disable", enabled, known)
+	}
+	if !scnArchived(t, a, chat) {
+		t.Fatal("queued: arrival between two equal-timestamp settings unarchived a kept chat")
+	}
+}
