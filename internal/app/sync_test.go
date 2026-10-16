@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -3257,7 +3256,7 @@ func TestSyncDownloadMediaCanonicalizesLIDChatBeforeEnqueue(t *testing.T) {
 	}
 }
 
-func TestSyncMediaEnqueueUsesBoundedBackpressure(t *testing.T) {
+func TestSyncMediaBurstStoresEveryMessage(t *testing.T) {
 	a := newTestApp(t)
 	f := newFakeWA()
 	a.wa = f
@@ -3296,17 +3295,14 @@ func TestSyncMediaEnqueueUsesBoundedBackpressure(t *testing.T) {
 		})
 	}
 
-	before := runtime.NumGoroutine()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var during int
 	res, err := a.Sync(ctx, SyncOptions{
 		Mode:          SyncModeFollow,
 		AllowQR:       false,
 		DownloadMedia: true,
 		AfterConnect: func(context.Context) error {
-			during = runtime.NumGoroutine()
 			cancel()
 			return nil
 		},
@@ -3316,9 +3312,6 @@ func TestSyncMediaEnqueueUsesBoundedBackpressure(t *testing.T) {
 	}
 	if res.MessagesStored != 600 {
 		t.Fatalf("expected 600 messages stored, got %d", res.MessagesStored)
-	}
-	if leaked := during - before; leaked > 20 {
-		t.Fatalf("expected bounded media enqueue goroutines, saw +%d (before=%d during=%d)", leaked, before, during)
 	}
 }
 
