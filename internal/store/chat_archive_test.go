@@ -220,6 +220,43 @@ func TestChatArchiveSettingUsesLaterEqualTimestampValue(t *testing.T) {
 	}
 }
 
+func TestChatArchiveDeferredIncomingHonorsPayloadPurge(t *testing.T) {
+	for _, purged := range []bool{false, true} {
+		t.Run(fmt.Sprintf("purged=%t", purged), func(t *testing.T) {
+			db := openTestDB(t)
+			jid := "15550000016@s.whatsapp.net"
+			base := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+			if err := db.SetChatArchiveSetting(true, base.Add(-time.Second)); err != nil {
+				t.Fatal(err)
+			}
+			if err := db.ApplyChatArchive(jid, true, base); err != nil {
+				t.Fatal(err)
+			}
+			if err := db.UpsertMessage(UpsertMessageParams{ChatJID: jid, MsgID: "incoming", Timestamp: base, Text: "synthetic", ArchiveIncoming: true}); err != nil {
+				t.Fatal(err)
+			}
+			if purged {
+				if err := db.MarkMessageDeletedForMe(jid, "incoming", jid, false, base); err != nil {
+					t.Fatal(err)
+				}
+				if err := db.PurgeMessage(jid, "incoming"); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := db.ApplyChatArchive(jid, true, base.Add(500*time.Millisecond)); err != nil {
+				t.Fatal(err)
+			}
+			if err := db.ReconcileChatArchiveIncoming(jid, "incoming", base); err != nil {
+				t.Fatal(err)
+			}
+			chat, err := db.GetChat(jid)
+			if err != nil || chat.Archived != purged {
+				t.Fatalf("deferred incoming ignored purge state: %+v, %v", chat, err)
+			}
+		})
+	}
+}
+
 func TestChatArchiveCreatesMissingChatBeforeHistory(t *testing.T) {
 	for _, archived := range []bool{false, true} {
 		t.Run(fmt.Sprintf("archived=%t", archived), func(t *testing.T) {

@@ -82,7 +82,21 @@ func (d *DB) ApplyChatArchive(jid string, archived bool, timestamp time.Time) er
 	return tx.Commit()
 }
 
-func recordChatArchiveIncoming(tx *sql.Tx, jid, id string, timestamp time.Time, observedMS, settingObservedMS int64) error {
+// ReconcileChatArchiveIncoming runs behind an in-flight app-state replay while
+// the original message and incoming boundary remain committed atomically.
+func (d *DB) ReconcileChatArchiveIncoming(jid, id string, timestamp time.Time) error {
+	tx, err := d.sql.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := recordChatArchiveIncoming(tx, jid, id, timestamp, 0, 0, true); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func recordChatArchiveIncoming(tx *sql.Tx, jid, id string, timestamp time.Time, observedMS, settingObservedMS int64, stored bool) error {
 	if timestamp.IsZero() {
 		return nil
 	}
@@ -97,12 +111,12 @@ func recordChatArchiveIncoming(tx *sql.Tx, jid, id string, timestamp time.Time, 
  FROM chat_archive_setting WHERE id=1),0)),
  archive_setting_min_ms=MAX(archive_setting_min_ms,?) WHERE jid=?
  AND NOT EXISTS(SELECT 1 FROM message_payload_purges WHERE chat_jid=? AND msg_id=?)
- AND COALESCE((SELECT COALESCE(display_text,'')='(message)' AND TRIM(COALESCE(text,''))=''
+ AND COALESCE((SELECT (? OR (COALESCE(display_text,'')='(message)' AND TRIM(COALESCE(text,''))=''
+ AND COALESCE(media_type,'')='' AND COALESCE(buttons,'')=''))
  AND from_me=0 AND edited=0 AND revoked=0 AND deleted_for_me=0
  AND deleted_at IS NULL AND payload_purged_at IS NULL
  AND COALESCE(reaction_to_id,'')='' AND COALESCE(reaction_emoji,'')=''
- AND COALESCE(media_type,'')='' AND COALESCE(buttons,'')=''
- FROM messages WHERE chat_jid=? AND msg_id=?),1)`, ms, observedMS, ms, observedMS, ms, ms, settingObservedMS, jid, jid, id, jid, id); err != nil {
+ FROM messages WHERE chat_jid=? AND msg_id=?),?)`, ms, observedMS, ms, observedMS, ms, ms, settingObservedMS, jid, jid, id, stored, jid, id, !stored); err != nil {
 		return err
 	}
 	return reconcileChatArchive(tx, jid)

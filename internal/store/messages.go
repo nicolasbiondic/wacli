@@ -148,7 +148,7 @@ func (d *DB) UpsertMessage(p UpsertMessageParams) error {
 	defer tx.Rollback()
 	// Decide and write under the writer lock before reading message state.
 	// A deferred read-then-write transaction can fail with SQLITE_BUSY_SNAPSHOT.
-	if err := recordChatArchiveIncoming(tx, p.ChatJID, p.MsgID, p.Timestamp, p.ArchiveObservedMS, p.ArchiveSettingObservedMS); err != nil {
+	if err := recordChatArchiveIncoming(tx, p.ChatJID, p.MsgID, p.Timestamp, p.ArchiveObservedMS, p.ArchiveSettingObservedMS, false); err != nil {
 		return err
 	}
 	if err := d.q.WithTx(tx).UpsertMessage(storeCtx(), params); err != nil {

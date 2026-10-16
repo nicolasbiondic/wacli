@@ -625,7 +625,31 @@ func (a *App) handleLiveSyncMessage(ctx context.Context, opts SyncOptions, v *ev
 	}
 	incrementUnread := a.shouldIncrementLiveUnread(ctx, pm)
 	storeOptions := messageStoreOptions{archiveIncoming: incrementUnread && !pm.Edited && !archiveDisabled, archiveObservedMS: observedArchiveMS, archiveSettingObservedMS: observedSettingMS}
+	stored := false
+	if storeOptions.archiveIncoming {
+		if ticket, queued := a.appStatePersist.reserveAfterPending(); queued {
+			// Store content synchronously; only reconcile its boundary again
+			// after older fetches have exposed their archive timestamps.
+			defer func() {
+				a.appStatePersist.completeOne(ticket, func() {
+					if !stored {
+						return
+					}
+					chat := canonicalJIDString(a.canonicalStoreJID(context.WithoutCancel(ctx), pm.Chat))
+					if err := a.db.ReconcileChatArchiveIncoming(chat, pm.ID, pm.Timestamp); err != nil {
+						for _, limit := range limits {
+							if limit != nil {
+								limit.persistenceFailed.Store(true)
+							}
+						}
+						a.emitWarning("archive_incoming_reconcile_failed", fmt.Sprintf("warning: failed to reconcile incoming archive state: %v", err), nil)
+					}
+				})
+			}()
+		}
+	}
 	if err := a.storeParsedMessageForSync(ctx, pm, storeOptions, limits...); err == nil {
+		stored = true
 		if incrementUnread {
 			a.incrementLiveUnread(ctx, pm)
 		}
