@@ -66,6 +66,9 @@ func (d *DB) ApplyChatArchive(jid string, archived bool, timestamp time.Time) er
 		return err
 	}
 	defer tx.Rollback()
+	if _, err := tx.Exec(`INSERT INTO chats(jid,kind) VALUES(?,'unknown') ON CONFLICT(jid) DO NOTHING`, jid); err != nil {
+		return err
+	}
 	// A replay at the same timestamp must not re-archive a newer arrival.
 	if _, err := tx.Exec(`UPDATE chats SET
  archived=CASE WHEN ? AND ? >= archive_cleared_ms THEN 1 ELSE 0 END,

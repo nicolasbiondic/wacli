@@ -195,6 +195,30 @@ func TestChatArchiveUpgradeAndRestart(t *testing.T) {
 	}
 }
 
+func TestChatArchiveCreatesMissingChatBeforeHistory(t *testing.T) {
+	for _, archived := range []bool{false, true} {
+		t.Run(fmt.Sprintf("archived=%t", archived), func(t *testing.T) {
+			db := openTestDB(t)
+			jid := "15550000012@s.whatsapp.net"
+			base := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+			if err := db.ApplyChatArchive(jid, archived, base); err != nil {
+				t.Fatal(err)
+			}
+			chat, err := db.GetChat(jid)
+			if err != nil || chat.Archived != archived {
+				t.Fatalf("missing chat archive was lost: %+v, %v", chat, err)
+			}
+			if err := db.UpsertChat(jid, "dm", "from history", base.Add(time.Second)); err != nil {
+				t.Fatal(err)
+			}
+			chat, err = db.GetChat(jid)
+			if err != nil || chat.Archived != archived {
+				t.Fatalf("history overwrote archive: %+v, %v", chat, err)
+			}
+		})
+	}
+}
+
 func TestChatArchiveIdentityMergeKeepsNewerBoundary(t *testing.T) {
 	for _, incomingOnLID := range []bool{false, true} {
 		t.Run(map[bool]string{false: "phone incoming", true: "lid incoming"}[incomingOnLID], func(t *testing.T) {
