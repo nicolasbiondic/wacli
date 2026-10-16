@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Contacts: add `contacts save` to save or rename a contact in the WhatsApp account, synced to the phone and linked devices, with the contact's LID resolved first and an optional `--phonebook` copy to the device address book.
 - Send: avoid fresh message retries after ambiguous disconnects while retaining safe lookup and presence retries. Thanks @artemgetmann (#483).
 - Messages: preserve exact raw text, captions, and edits, including surrounding whitespace. Thanks @artemgetmann (#484).
 - Send: retain native quote IDs and canonical sender identities in immediate text and attachment history, and save attachments under the canonical recipient. Thanks @artemgetmann (#485, #486).
