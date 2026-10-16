@@ -96,6 +96,9 @@ func assertAppListMembers(t *testing.T, a *App, want ...string) {
 }
 
 func TestListsRecoverySnapshotAndFetchedReplay(t *testing.T) {
+	// Bound the waits so a routing regression fails fast instead of hanging.
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
 	a := newTestApp(t)
 	f := newFakeWA()
 	a.wa = f
@@ -113,14 +116,14 @@ func TestListsRecoverySnapshotAndFetchedReplay(t *testing.T) {
 		f.emit(&events.AppStateSyncComplete{Name: appstate.WAPatchRegular, Recovery: true})
 	}
 	for range 2 {
-		evts, capture, err := a.waitForPrimaryAppStateRecovery(t.Context(), appstate.WAPatchRegular, nil)
+		evts, capture, err := a.waitForPrimaryAppStateRecovery(ctx, appstate.WAPatchRegular, nil)
 		if err != nil || capture != nil {
 			t.Fatalf("snapshot: %v, %v", capture, err)
 		}
 		if len(evts) != 2 {
 			t.Fatalf("snapshot omitted labels: %v", evts)
 		}
-		if err := a.persistFetchedAppStateEvents(t.Context(), evts, &appStatePersistenceTracker{}); err != nil {
+		if err := a.persistFetchedAppStateEvents(ctx, evts, &appStatePersistenceTracker{}); err != nil {
 			t.Fatal(err)
 		}
 		assertAppListMembers(t, a, jid.String())
@@ -130,7 +133,7 @@ func TestListsRecoverySnapshotAndFetchedReplay(t *testing.T) {
 	wrapped.fetchEvents = func(context.Context, string, bool, bool) ([]any, error) { return fixture, nil }
 	a.wa = wrapped
 	for range 2 {
-		fetchErr, persistErr := a.fetchAndPersistAppState(t.Context(), appstate.WAPatchRegular, true, &appStatePersistenceTracker{})
+		fetchErr, persistErr := a.fetchAndPersistAppState(ctx, appstate.WAPatchRegular, true, &appStatePersistenceTracker{})
 		if fetchErr != nil || persistErr != nil {
 			t.Fatalf("full replay: %v, %v", fetchErr, persistErr)
 		}

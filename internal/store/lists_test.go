@@ -76,6 +76,15 @@ func TestListsDefinitionsMembershipReplayAndDeletion(t *testing.T) {
 	if _, err := db.ResolveList("7"); err == nil {
 		t.Fatal("deleted list resolved")
 	}
+	// A newer undelete restores the definition and its retained memberships.
+	if err := db.UpsertList(ListUpdate{ID: "7", Deleted: listPtr(false), Timestamp: at.Add(4 * time.Second)}); err != nil {
+		t.Fatal(err)
+	}
+	assertListChats(t, db, "7", chat)
+	result, err = db.Lists()
+	if err != nil || len(result.Lists) != 1 || result.Lists[0].Name != "Renamed" {
+		t.Fatalf("undeleted list = %+v, %v", result, err)
+	}
 }
 
 func assertListChats(t *testing.T, db *DB, id string, jids ...string) {
@@ -142,7 +151,7 @@ func TestListsMigrationPopulatedOlderStoreAndReadOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := db.sql.Exec(`DROP TABLE lists; DROP TABLE chat_lists; DROP TABLE list_sync_state;
-		DELETE FROM schema_migrations WHERE version=33`); err != nil {
+		DELETE FROM schema_migrations WHERE version=?`, listsMigrationVersion(t)); err != nil {
 		t.Fatal(err)
 	}
 	db.Close()
@@ -163,9 +172,6 @@ func TestListsMigrationPopulatedOlderStoreAndReadOnly(t *testing.T) {
 	ro.Close()
 	for range 2 {
 		w := mustOpen(t, path)
-		if err := migrateLists(w); err != nil {
-			t.Fatal(err)
-		}
 		if !w.hasTable("lists") || !w.hasTable("chat_lists") {
 			t.Fatal("migration missing")
 		}
@@ -174,6 +180,114 @@ func TestListsMigrationPopulatedOlderStoreAndReadOnly(t *testing.T) {
 			t.Fatalf("populated store changed: %+v, %v", m, err)
 		}
 		w.Close()
+	}
+}
+
+// listsMigrationVersion looks the number up by name so renumbering the
+// migration (for example after open PR #480 lands) does not break tests.
+func listsMigrationVersion(t *testing.T) int {
+	t.Helper()
+	for _, m := range schemaMigrations {
+		if m.name == "WhatsApp lists and chat memberships" {
+			return m.version
+		}
+	}
+	t.Fatal("lists migration not registered")
+	return 0
+}
+
+// A store upgraded by another branch can already record the version number
+// used here (#480 claims 33), or a local build can record the list tables
+// under a different number. Neither may skip or reset the list schema.
+func TestListsMigrationSurvivesForeignVersionRows(t *testing.T) {
+	const foreignName = "messages ad_referral column"
+	version := listsMigrationVersion(t)
+	for _, tc := range []struct {
+		name    string
+		foreign int
+	}{
+		{"foreign 33 from PR 480", 33},
+		{"foreign row at the lists version", version},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "wacli.db")
+			db := mustOpen(t, path)
+			if _, err := db.sql.Exec(`DROP TABLE lists; DROP TABLE chat_lists; DROP TABLE list_sync_state;
+				DELETE FROM schema_migrations WHERE version IN (?, ?)`, version, tc.foreign); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.sql.Exec(`INSERT INTO schema_migrations(version, name, applied_at) VALUES(?, ?, 1)`,
+				tc.foreign, foreignName); err != nil {
+				t.Fatal(err)
+			}
+			db.Close()
+
+			db = mustOpen(t, path)
+			// Sync startup calls these first; a missing chat_lists aborts sync.
+			if _, err := db.HistoricalLIDJIDs(); err != nil {
+				t.Fatalf("HistoricalLIDJIDs: %v", err)
+			}
+			lid, pn := "999@lid", "123@s.whatsapp.net"
+			if err := db.MigrateLIDToPN(lid, pn); err != nil {
+				t.Fatalf("MigrateLIDToPN: %v", err)
+			}
+			for _, table := range []string{"lists", "chat_lists", "list_sync_state"} {
+				if !db.hasTable(table) {
+					t.Fatalf("%s missing after writable open", table)
+				}
+			}
+			at := time.Unix(100, 0)
+			if err := db.UpsertChat(pn, "dm", "Fixture", at); err != nil {
+				t.Fatal(err)
+			}
+			if err := db.UpsertList(ListUpdate{ID: "7", Name: listPtr("Sales"), Type: listPtr(int32(5)), Timestamp: at, FromFullSync: true}); err != nil {
+				t.Fatal(err)
+			}
+			if err := db.SetChatList(pn, "7", true, at, true); err != nil {
+				t.Fatal(err)
+			}
+			var name string
+			if err := db.sql.QueryRow(`SELECT name FROM schema_migrations WHERE version=?`, tc.foreign).Scan(&name); err != nil || name != foreignName {
+				t.Fatalf("foreign migration row = %q, %v", name, err)
+			}
+			db.Close()
+
+			// Simulate collapsing a local number (e.g. 9034) onto the upstream
+			// one: the migration runs again over populated list rows.
+			db = mustOpen(t, path)
+			if _, err := db.sql.Exec(`DELETE FROM schema_migrations WHERE version=?`, version); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.sql.Exec(`INSERT OR IGNORE INTO schema_migrations(version, name, applied_at) VALUES(9034, 'local lists', 1)`); err != nil {
+				t.Fatal(err)
+			}
+			db.Close()
+			db = mustOpen(t, path)
+			defer db.Close()
+			result, err := db.Lists()
+			if err != nil || len(result.Lists) != 1 || result.Lists[0].Name != "Sales" || !result.FullSyncEventsSeen {
+				t.Fatalf("Lists after re-run = %+v, %v", result, err)
+			}
+			assertListChats(t, db, "7", pn)
+		})
+	}
+}
+
+func TestListsReadOnlyToleratesHalfCreatedSchema(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "wacli.db")
+	db := mustOpen(t, path)
+	if _, err := db.sql.Exec(`DROP TABLE list_sync_state`); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	ro, err := OpenReadOnly(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ro.Close()
+	result, err := ro.Lists()
+	if err != nil || len(result.Lists) != 0 || result.Completeness != "unknown" {
+		t.Fatalf("half-created read-only Lists = %+v, %v", result, err)
 	}
 }
 
