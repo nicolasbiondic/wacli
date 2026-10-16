@@ -28,10 +28,9 @@ type contactSaveResult struct {
 	LID       string `json:"lid,omitempty"`
 	FullName  string `json:"full_name"`
 	FirstName string `json:"first_name"`
-	// Registered and Responded mirror `contacts check`: responded=false means
-	// the server did not answer for the number, so it is unknown, not negative.
-	Registered bool `json:"registered"`
-	Responded  bool `json:"responded"`
+	// RequestedJID is the typed number when WhatsApp reported a different
+	// canonical phone number for it (regional rewrites); empty otherwise.
+	RequestedJID string `json:"requested_jid,omitempty"`
 }
 
 func newContactsSaveCmd(flags *rootFlags) *cobra.Command {
@@ -43,7 +42,10 @@ func newContactsSaveCmd(flags *rootFlags) *cobra.Command {
 		Long: "Save a phone number under a name in the WhatsApp address book of the linked\n" +
 			"account, or rename an existing contact. The change is sent as a WhatsApp\n" +
 			"contact mutation, so the phone and other linked devices receive it; the phone\n" +
-			"is asked to store the entry in its device address book.",
+			"is asked to store the entry in its device address book. The number must be\n" +
+			"confirmed as registered on WhatsApp; the entry is saved under the phone number\n" +
+			"WhatsApp reports for it.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runContactsSave(flags, opts)
 		},
@@ -147,16 +149,17 @@ func saveContact(ctx context.Context, a contactSaveApp, jid types.JID, name, fir
 		return contactSaveResult{}, err
 	}
 	result := contactSaveResult{
-		Action:     "save",
-		JID:        saved.JID.String(),
-		Phone:      saved.JID.User,
-		FullName:   saved.FullName,
-		FirstName:  saved.FirstName,
-		Registered: saved.Registered,
-		Responded:  saved.Responded,
+		Action:    "save",
+		JID:       saved.JID.String(),
+		Phone:     saved.JID.User,
+		FullName:  saved.FullName,
+		FirstName: saved.FirstName,
 	}
 	if !saved.LID.IsEmpty() {
 		result.LID = saved.LID.String()
+	}
+	if !saved.Requested.IsEmpty() {
+		result.RequestedJID = saved.Requested.String()
 	}
 	return result, nil
 }
@@ -188,8 +191,8 @@ func writeContactSaveResult(flags *rootFlags, result contactSaveResult) error {
 		return out.WriteJSON(os.Stdout, result)
 	}
 	note := ""
-	if !result.Responded {
-		note = " (registration unknown: WhatsApp did not answer for this number)"
+	if result.RequestedJID != "" {
+		note = fmt.Sprintf(" (WhatsApp's number for %s)", sanitize(result.RequestedJID))
 	}
 	fmt.Fprintf(os.Stdout, "saved: %s as %q%s\n", sanitize(result.JID), sanitize(result.FullName), note)
 	return nil

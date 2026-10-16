@@ -22,6 +22,14 @@ func registeredChecker(jid types.JID) func([]string) ([]types.IsOnWhatsAppRespon
 	}
 }
 
+// lidRegisteredChecker answers like whatsmeow's IsOnWhatsApp, which queries
+// with LID addressing: JID is the LID and PhoneNumber the canonical PN.
+func lidRegisteredChecker(query string, pn, lid types.JID) func([]string) ([]types.IsOnWhatsAppResponse, error) {
+	return func(phones []string) ([]types.IsOnWhatsAppResponse, error) {
+		return []types.IsOnWhatsAppResponse{{Query: query, JID: lid, PhoneNumber: pn, IsIn: true}}, nil
+	}
+}
+
 // rawContactNames reads the stored name columns directly: the display name
 // precedence in store.Contact could hide which column a write filled.
 func rawContactNames(t *testing.T, a *App, jid string) (fullName, firstName, phone string) {
@@ -54,8 +62,8 @@ func TestSaveContactWritesContactCollectionAndMirrorsLocally(t *testing.T) {
 	if saved.JID != target || saved.LID != lid || saved.FullName != "Ada Lovelace" || saved.FirstName != "" {
 		t.Fatalf("saved = %+v, want trimmed name, PN target and known LID", saved)
 	}
-	if !saved.Registered || !saved.Responded {
-		t.Fatalf("saved = %+v, want registration confirmed", saved)
+	if !saved.Requested.IsEmpty() {
+		t.Fatalf("saved = %+v, want no requested rewrite", saved)
 	}
 
 	f.mu.Lock()
@@ -136,9 +144,11 @@ func TestSaveContactRenamesExistingEntry(t *testing.T) {
 	if _, err := a.SaveContact(context.Background(), target, "New Name", ""); err != nil {
 		t.Fatalf("SaveContact: %v", err)
 	}
+	// The action is authoritative for both names, like whatsmeow's
+	// PutContactName in session.db: the old first name must not survive.
 	full, first, _ := rawContactNames(t, a, target.String())
-	if full != "New Name" || first != "Old" {
-		t.Fatalf("stored names = %q/%q, want renamed full name and untouched first name", full, first)
+	if full != "New Name" || first != "" {
+		t.Fatalf("stored names = %q/%q, want renamed full name and cleared first name", full, first)
 	}
 	c, err := a.db.GetContact(target.String())
 	if err != nil {
@@ -146,6 +156,98 @@ func TestSaveContactRenamesExistingEntry(t *testing.T) {
 	}
 	if c.Name != "New Name" {
 		t.Fatalf("display name = %q", c.Name)
+	}
+	if found, err := a.db.SearchContacts("Old", 10); err != nil || len(found) != 0 {
+		t.Fatalf("search for the replaced names = %+v, %v; want no match", found, err)
+	}
+	raw, err := sql.Open("sqlite3", filepath.Join(a.StoreDir(), "wacli.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer raw.Close()
+	var push, biz string
+	if err := raw.QueryRow(`SELECT push_name, business_name FROM contacts WHERE jid = ?`, target.String()).Scan(&push, &biz); err != nil || push != "Push" || biz != "Biz" {
+		t.Fatalf("push/business = %q/%q, %v; want untouched", push, biz, err)
+	}
+}
+
+// IsOnWhatsApp queries with LID addressing, so the answer carries the LID as
+// JID and the canonical phone number apart. The save must be indexed by that
+// phone number even when it differs from the typed one (regional rewrites),
+// and the LID must come from the answer when the session had no mapping.
+func TestSaveContactIndexesByServerCanonicalPhoneNumber(t *testing.T) {
+	a := newTestApp(t)
+	f := newFakeWA()
+	a.wa = f
+	typed := types.NewJID("15550001111", types.DefaultUserServer)
+	canonical := types.NewJID("15550009999", types.DefaultUserServer)
+	lid := types.NewJID("987654321098765", types.HiddenUserServer)
+	canonicalAD := canonical
+	canonicalAD.Device = 3
+	f.isOnWhatsApp = lidRegisteredChecker("+"+typed.User, canonicalAD, lid)
+
+	saved, err := a.SaveContact(context.Background(), typed, "Ada Lovelace", "")
+	if err != nil {
+		t.Fatalf("SaveContact: %v", err)
+	}
+	if saved.JID != canonical || saved.LID != lid || saved.Requested != typed {
+		t.Fatalf("saved = %+v, want canonical PN, LID from the answer, typed number as requested", saved)
+	}
+	f.mu.Lock()
+	calls := append([]fakeSaveContactCall(nil), f.saveContactCalls...)
+	f.mu.Unlock()
+	if len(calls) != 1 || calls[0].target != canonical || calls[0].lid != lid {
+		t.Fatalf("save calls = %+v, want one indexed by the canonical PN with the answered LID", calls)
+	}
+	full, _, phone := rawContactNames(t, a, canonical.String())
+	if full != "Ada Lovelace" || phone != canonical.User {
+		t.Fatalf("canonical row = %q phone=%q", full, phone)
+	}
+	if _, err := a.db.GetContact(typed.String()); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("typed-number row created: %v", err)
+	}
+}
+
+func TestSaveContactUsesAnsweredLIDWithoutRewrite(t *testing.T) {
+	a := newTestApp(t)
+	f := newFakeWA()
+	a.wa = f
+	target := types.NewJID("15550001111", types.DefaultUserServer)
+	lid := types.NewJID("987654321098765", types.HiddenUserServer)
+	f.isOnWhatsApp = lidRegisteredChecker("+"+target.User, target, lid)
+
+	saved, err := a.SaveContact(context.Background(), target, "Ada", "")
+	if err != nil {
+		t.Fatalf("SaveContact: %v", err)
+	}
+	if saved.JID != target || saved.LID != lid || !saved.Requested.IsEmpty() {
+		t.Fatalf("saved = %+v, want typed PN, answered LID, no requested rewrite", saved)
+	}
+}
+
+// Events the post-send fetch returns are persisted in order after the local
+// mirror, through the same contact handler as live events.
+func TestSaveContactPersistsPostSendContactEvents(t *testing.T) {
+	a := newTestApp(t)
+	f := newFakeWA()
+	a.wa = f
+	target := types.NewJID("15550001111", types.DefaultUserServer)
+	other := types.NewJID("15550003333", types.DefaultUserServer)
+	f.isOnWhatsApp = registeredChecker(target)
+	f.saveContactEvent = func() any {
+		return &events.Contact{
+			JID:    other,
+			Action: &waSyncAction.ContactAction{FullName: proto.String("Edited On Phone")},
+		}
+	}
+	if _, err := a.SaveContact(context.Background(), target, "Ada", ""); err != nil {
+		t.Fatalf("SaveContact: %v", err)
+	}
+	if full, _, _ := rawContactNames(t, a, target.String()); full != "Ada" {
+		t.Fatalf("saved row = %q", full)
+	}
+	if full, _, phone := rawContactNames(t, a, other.String()); full != "Edited On Phone" || phone != other.User {
+		t.Fatalf("post-send event row = %q phone=%q", full, phone)
 	}
 }
 
@@ -214,18 +316,32 @@ func TestSaveContactRejectsConfirmedUnregisteredNumber(t *testing.T) {
 	}
 }
 
-func TestSaveContactProceedsWhenServerOmitsTheNumber(t *testing.T) {
+// Without an answer there is no confirmed registration and no canonical
+// phone number to index by, so the save fails closed before any write.
+func TestSaveContactRejectsUnansweredNumber(t *testing.T) {
 	a := newTestApp(t)
 	f := newFakeWA()
 	a.wa = f
 	target := types.NewJID("15550001111", types.DefaultUserServer)
-	// The fake's default IsOnWhatsApp returns no entries at all.
-	saved, err := a.SaveContact(context.Background(), target, "Ada", "")
-	if err != nil {
-		t.Fatalf("SaveContact: %v", err)
+	for name, answer := range map[string][]types.IsOnWhatsAppResponse{
+		"no entries":   nil,
+		"other number": {{Query: "+15550002222", JID: types.NewJID("15550002222", types.DefaultUserServer), IsIn: true}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			f.isOnWhatsApp = func([]string) ([]types.IsOnWhatsAppResponse, error) { return answer, nil }
+			_, err := a.SaveContact(context.Background(), target, "Ada", "")
+			if !errors.Is(err, ErrContactRegistrationUnknown) {
+				t.Fatalf("error = %v, want ErrContactRegistrationUnknown", err)
+			}
+		})
 	}
-	if saved.Registered || saved.Responded {
-		t.Fatalf("saved = %+v, want registration reported unknown", saved)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.saveContactCalls) != 0 || len(f.appStateFetches) != 0 {
+		t.Fatal("unanswered number still reached the app-state write")
+	}
+	if _, err := a.db.GetContact(target.String()); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("local contact row after rejected save: %v", err)
 	}
 }
 
@@ -318,51 +434,111 @@ func TestSaveContactSendFailureKeepsLocalStoreUnchanged(t *testing.T) {
 	}
 }
 
-func TestContactEventPersistsIntoLocalContacts(t *testing.T) {
+// contactEventRegistrations installs the production handler that receives
+// whatsmeow events: the `sync --follow` handler or the one-shot persistence
+// handler used by write commands.
+var contactEventRegistrations = map[string]func(t *testing.T, a *App, f *fakeWA){
+	"sync follow handler": func(t *testing.T, a *App, f *fakeWA) {
+		installBoundaryReplayHandler(t, a, f)
+	},
+	"chat state persistence handler": func(t *testing.T, a *App, f *fakeWA) {
+		remove, err := a.AddChatStatePersistenceHandler(t.Context())
+		if err != nil {
+			t.Fatalf("AddChatStatePersistenceHandler: %v", err)
+		}
+		t.Cleanup(remove)
+	},
+}
+
+// Contact edits made on the phone or another linked device, and the echo of
+// our own save, reach wacli.db through the production event handlers.
+func TestContactEventPersistsThroughProductionHandlers(t *testing.T) {
+	if got := appStateCollectionsForEvent(&events.Contact{}); len(got) != 1 || got[0] != appstate.WAPatchCriticalUnblockLow {
+		t.Fatalf("collections for events.Contact = %v", got)
+	}
+	for name, install := range contactEventRegistrations {
+		t.Run(name, func(t *testing.T) {
+			a := newTestApp(t)
+			f := newFakeWA()
+			a.wa = f
+			target := types.NewJID("15550002222", types.DefaultUserServer)
+			lid := types.NewJID("111222333444555", types.HiddenUserServer)
+			f.lids[lid] = target
+			if err := a.db.UpsertContact(target.String(), target.User, "Push", "", "", ""); err != nil {
+				t.Fatal(err)
+			}
+			install(t, a, f)
+
+			// A LID-indexed echo is stored under the mapped phone-number row.
+			f.emit(&events.Contact{
+				JID:    lid,
+				Action: &waSyncAction.ContactAction{FullName: proto.String("Grace Hopper"), FirstName: proto.String("Grace")},
+			})
+			if err := a.appStatePersist.waitIdle(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			full, first, phone := rawContactNames(t, a, target.String())
+			if full != "Grace Hopper" || first != "Grace" || phone != target.User {
+				t.Fatalf("stored = %q/%q phone=%q", full, first, phone)
+			}
+			required, err := a.db.AppStateRecoveryRequired(string(appstate.WAPatchCriticalUnblockLow))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if required {
+				t.Fatal("live contact event left its recovery marker behind")
+			}
+
+			// A rename on the phone without a first name clears the old one,
+			// as whatsmeow does in session.db.
+			f.emit(&events.Contact{JID: target, Action: &waSyncAction.ContactAction{FullName: proto.String("Rear Admiral Hopper")}})
+			if err := a.appStatePersist.waitIdle(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			full, first, _ = rawContactNames(t, a, target.String())
+			if full != "Rear Admiral Hopper" || first != "" {
+				t.Fatalf("after phone rename = %q/%q, want new full name and no first name", full, first)
+			}
+			c, err := a.db.GetContact(target.String())
+			if err != nil || c.Name != "Rear Admiral Hopper" {
+				t.Fatalf("display = %+v, %v", c, err)
+			}
+		})
+	}
+}
+
+func TestContactEventIgnoresNonUserAndMalformedEvents(t *testing.T) {
 	a := newTestApp(t)
 	f := newFakeWA()
 	a.wa = f
 	target := types.NewJID("15550002222", types.DefaultUserServer)
-	lid := types.NewJID("111222333444555", types.HiddenUserServer)
-	f.lids[lid] = target
-
-	if got := appStateCollectionsForEvent(&events.Contact{}); len(got) != 1 || got[0] != appstate.WAPatchCriticalUnblockLow {
-		t.Fatalf("collections for events.Contact = %v", got)
-	}
-
-	persisted := make(chan error, 1)
-	// A LID-indexed echo is stored under the mapped phone-number row.
-	a.handleAppStatePersistenceEvent(context.Background(), &events.Contact{
-		JID:    lid,
-		Action: &waSyncAction.ContactAction{FullName: proto.String("Grace Hopper"), FirstName: proto.String("Grace")},
-	}, func(err error) { persisted <- err })
-	if err := <-persisted; err != nil {
-		t.Fatalf("persist contact event: %v", err)
-	}
-	full, first, phone := rawContactNames(t, a, target.String())
-	if full != "Grace Hopper" || first != "Grace" || phone != target.User {
-		t.Fatalf("stored = %q/%q phone=%q", full, first, phone)
-	}
-	required, err := a.db.AppStateRecoveryRequired(string(appstate.WAPatchCriticalUnblockLow))
-	if err != nil {
+	if err := a.db.UpsertContact(target.String(), target.User, "", "Grace Hopper", "Grace", ""); err != nil {
 		t.Fatal(err)
 	}
-	if required {
-		t.Fatal("live contact echo left its recovery marker behind")
-	}
-
-	// Empty actions and non-user JIDs are ignored without writing rows.
 	for _, evt := range []*events.Contact{
 		nil,
 		{JID: target},
-		{JID: target, Action: &waSyncAction.ContactAction{}},
 		{JID: types.NewJID("120363000000000000", types.GroupServer), Action: &waSyncAction.ContactAction{FullName: proto.String("Group")}},
+		{JID: types.NewJID("15550004444", types.DefaultUserServer), Action: &waSyncAction.ContactAction{}},
 	} {
 		if err := a.handleContactEvent(context.Background(), evt); err != nil {
 			t.Fatalf("handleContactEvent(%+v) = %v", evt, err)
 		}
 	}
-	if _, err := a.db.GetContact("120363000000000000@g.us"); !errors.Is(err, sql.ErrNoRows) {
-		t.Fatalf("group contact row created: %v", err)
+	if full, first, _ := rawContactNames(t, a, target.String()); full != "Grace Hopper" || first != "Grace" {
+		t.Fatalf("event without action changed names: %q/%q", full, first)
+	}
+	for _, jid := range []string{"120363000000000000@g.us", "15550004444@s.whatsapp.net"} {
+		if _, err := a.db.GetContact(jid); !errors.Is(err, sql.ErrNoRows) {
+			t.Fatalf("contact row %s created: %v", jid, err)
+		}
+	}
+
+	// An action without names clears the existing names, like whatsmeow.
+	if err := a.handleContactEvent(context.Background(), &events.Contact{JID: target, Action: &waSyncAction.ContactAction{}}); err != nil {
+		t.Fatal(err)
+	}
+	if full, first, _ := rawContactNames(t, a, target.String()); full != "" || first != "" {
+		t.Fatalf("empty action left names %q/%q", full, first)
 	}
 }
