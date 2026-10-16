@@ -193,3 +193,26 @@ func TestSetContactActionNameIsAuthoritativeForActionNames(t *testing.T) {
 		t.Fatalf("empty action created %d rows, %v", n, err)
 	}
 }
+
+// An action that carries only a first name is still authoritative for the
+// full name: the previous full name is cleared, not kept.
+func TestSetContactActionNameFirstNameOnlyClearsFullName(t *testing.T) {
+	db := openTestDB(t)
+	jid := "333@s.whatsapp.net"
+	if err := db.UpsertContact(jid, "333", "Push", "Old Name", "Old", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.SetContactActionName(jid, "", "", "First"); err != nil {
+		t.Fatalf("SetContactActionName: %v", err)
+	}
+	var full, first, push *string
+	if err := db.sql.QueryRow(`SELECT full_name, first_name, push_name FROM contacts WHERE jid = ?`, jid).Scan(&full, &first, &push); err != nil {
+		t.Fatal(err)
+	}
+	if full != nil || first == nil || *first != "First" {
+		t.Fatalf("action names = %v/%v, want cleared full name and first name %q", full, first, "First")
+	}
+	if push == nil || *push != "Push" {
+		t.Fatalf("push name changed: %v", push)
+	}
+}
