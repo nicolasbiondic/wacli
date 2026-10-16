@@ -309,6 +309,7 @@ func syncActivityEvent(evt any) bool {
 // onPersisted runs at the ordered write boundary, including when this event
 // was queued behind startup replay. Sync uses it to track freshness safely.
 func (a *App) handleAppStatePersistenceEvent(ctx context.Context, evt any, onPersisted func(error)) {
+	a.observeArchiveEvent(ctx, evt, false)
 	report := func(err error) {
 		if onPersisted != nil {
 			onPersisted(err)
@@ -407,6 +408,9 @@ func (a *App) persistAppStateEvent(ctx context.Context, evt any, tracker *appSta
 	}
 	if tracker != nil {
 		tracker.record(err)
+	}
+	if err == nil {
+		a.observeArchiveEvent(ctx, evt, true)
 	}
 	return err
 }
@@ -597,9 +601,13 @@ func (a *App) handleStarEvent(ctx context.Context, evt *events.Star) error {
 }
 
 func (a *App) handleLiveSyncMessage(ctx context.Context, opts SyncOptions, v *events.Message, messagesStored *atomic.Int64, enqueueMedia func(string, string), enqueueWebhook func(wa.ParsedMessage), limits ...*syncStorageLimits) {
+	if v == nil {
+		return
+	}
 	if historySyncNotificationFromMessage(v) != nil {
 		return
 	}
+	observedArchiveMS, observedSettingMS := a.observedArchiveBoundary(ctx, v.Info.Chat)
 	var ok bool
 	v, ok = a.decryptSecretEdit(ctx, v)
 	if !ok {
@@ -619,7 +627,8 @@ func (a *App) handleLiveSyncMessage(ctx context.Context, opts SyncOptions, v *ev
 		}
 	}
 	incrementUnread := a.shouldIncrementLiveUnread(ctx, pm)
-	if err := a.storeParsedMessageForSync(ctx, pm, incrementUnread && !pm.Edited, limits...); err == nil {
+	storeOptions := messageStoreOptions{archiveIncoming: incrementUnread && !pm.Edited, archiveObservedMS: observedArchiveMS, archiveSettingObservedMS: observedSettingMS}
+	if err := a.storeParsedMessageForSync(ctx, pm, storeOptions, limits...); err == nil {
 		if incrementUnread {
 			a.incrementLiveUnread(ctx, pm)
 		}
@@ -769,7 +778,7 @@ func (a *App) handleHistorySync(ctx context.Context, opts SyncOptions, v *events
 			}
 			storedPM := pm
 			storedPM.UnhandledPayload = ""
-			if err := a.storeParsedMessageForSync(ctx, storedPM, false, limits...); err == nil {
+			if err := a.storeParsedMessageForSync(ctx, storedPM, messageStoreOptions{}, limits...); err == nil {
 				unhandledWarnings.observe(a, pm)
 				a.emitSyncProgress(messagesStored.Add(1))
 				if pm.Poll != nil || pm.PollAdd != nil || pm.PollVote != nil {
@@ -892,11 +901,11 @@ func (a *App) emitSyncProgress(total int64) {
 	a.emitOrPrint("progress", map[string]any{"messages_synced": total}, "\rSynced %d messages...", total)
 }
 
-func (a *App) storeParsedMessageForSync(ctx context.Context, pm wa.ParsedMessage, archiveIncoming bool, limits ...*syncStorageLimits) error {
+func (a *App) storeParsedMessageForSync(ctx context.Context, pm wa.ParsedMessage, options messageStoreOptions, limits ...*syncStorageLimits) error {
 	if len(limits) > 0 && limits[0] != nil {
-		return limits[0].StoreParsedMessage(ctx, pm, archiveIncoming)
+		return limits[0].StoreParsedMessage(ctx, pm, options)
 	}
-	return a.storeParsedMessage(ctx, pm, archiveIncoming)
+	return a.storeParsedMessage(ctx, pm, options)
 }
 
 func (a *App) decryptEncryptedReaction(ctx context.Context, pm *wa.ParsedMessage, msg *events.Message) {

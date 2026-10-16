@@ -11,7 +11,7 @@ func migrateChatAutoUnarchive(d *DB) error {
 	if err != nil || !hasChats {
 		return err
 	}
-	for _, column := range []string{"archive_action_ms", "archive_incoming_ms", "archive_cleared_ms"} {
+	for _, column := range []string{"archive_action_ms", "archive_incoming_ms", "archive_cleared_ms", "archive_setting_min_ms"} {
 		exists, err := d.tableHasColumn("chats", column)
 		if err != nil {
 			return err
@@ -79,7 +79,7 @@ func (d *DB) ApplyChatArchive(jid string, archived bool, timestamp time.Time) er
 	return tx.Commit()
 }
 
-func recordChatArchiveIncoming(tx *sql.Tx, jid, id string, timestamp time.Time) error {
+func recordChatArchiveIncoming(tx *sql.Tx, jid, id string, timestamp time.Time, observedMS, settingObservedMS int64) error {
 	if timestamp.IsZero() {
 		return nil
 	}
@@ -88,16 +88,18 @@ func recordChatArchiveIncoming(tx *sql.Tx, jid, id string, timestamp time.Time) 
 	// their real millisecond ordering, and duplicate deliveries never enter here.
 	ms := timestamp.UnixMilli()
 	if _, err := tx.Exec(`UPDATE chats SET archive_incoming_ms=MAX(archive_incoming_ms,?,
+ CASE WHEN ?/1000=?/1000 THEN ?+1 ELSE 0 END,
  CASE WHEN archive_action_ms/1000=?/1000 THEN archive_action_ms+1 ELSE 0 END,
  COALESCE((SELECT CASE WHEN timestamp_ms/1000=?/1000 THEN timestamp_ms+1 ELSE 0 END
- FROM chat_archive_setting WHERE id=1),0)) WHERE jid=?
+ FROM chat_archive_setting WHERE id=1),0)),
+ archive_setting_min_ms=MAX(archive_setting_min_ms,?) WHERE jid=?
  AND NOT EXISTS(SELECT 1 FROM message_payload_purges WHERE chat_jid=? AND msg_id=?)
  AND COALESCE((SELECT COALESCE(display_text,'')='(message)' AND TRIM(COALESCE(text,''))=''
  AND from_me=0 AND edited=0 AND revoked=0 AND deleted_for_me=0
  AND deleted_at IS NULL AND payload_purged_at IS NULL
  AND COALESCE(reaction_to_id,'')='' AND COALESCE(reaction_emoji,'')=''
  AND COALESCE(media_type,'')='' AND COALESCE(buttons,'')=''
- FROM messages WHERE chat_jid=? AND msg_id=?),1)`, ms, ms, ms, jid, jid, id, jid, id); err != nil {
+ FROM messages WHERE chat_jid=? AND msg_id=?),1)`, ms, observedMS, ms, observedMS, ms, ms, settingObservedMS, jid, jid, id, jid, id); err != nil {
 		return err
 	}
 	return reconcileChatArchive(tx, jid)
@@ -109,6 +111,7 @@ func reconcileChatArchive(tx *sql.Tx, jid string) error {
  WHERE archive_action_ms > 0
  AND archive_incoming_ms > archive_action_ms
  AND EXISTS(SELECT 1 FROM chat_archive_setting WHERE id=1 AND enabled=1
+   AND timestamp_ms >= archive_setting_min_ms
    AND archive_incoming_ms > timestamp_ms)`
 	var args []any
 	if jid != "" {
@@ -125,6 +128,7 @@ func migrateLIDChatArchive(tx *sql.Tx, lid, phone string) error {
    WHEN dst.archive_action_ms=0 THEN MAX(src.archived,dst.archived) ELSE dst.archived END,
  archive_action_ms=MAX(src.archive_action_ms,dst.archive_action_ms),
  archive_incoming_ms=MAX(src.archive_incoming_ms,dst.archive_incoming_ms),
+ archive_setting_min_ms=MAX(src.archive_setting_min_ms,dst.archive_setting_min_ms),
  archive_cleared_ms=MAX(src.archive_cleared_ms,dst.archive_cleared_ms)
  FROM chats AS src WHERE src.jid=? AND dst.jid=?`, lid, phone); err != nil {
 		return err

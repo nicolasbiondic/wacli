@@ -133,6 +133,7 @@ func TestChatArchiveUpgradeAndRestart(t *testing.T) {
 		"ALTER TABLE chats DROP COLUMN archive_action_ms",
 		"ALTER TABLE chats DROP COLUMN archive_incoming_ms",
 		"ALTER TABLE chats DROP COLUMN archive_cleared_ms",
+		"ALTER TABLE chats DROP COLUMN archive_setting_min_ms",
 		"DROP TABLE chat_archive_setting",
 		"DELETE FROM schema_migrations WHERE version=33",
 	} {

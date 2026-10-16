@@ -182,7 +182,7 @@ func TestAutoUnarchiveWaitsForPreferenceAndArchiveBoundary(t *testing.T) {
 			assert(false)
 			// Shared history ingestion must not act as a fresh arrival.
 			a.handleAppStatePersistenceEvent(ctx, &events.Archive{JID: chat, Timestamp: base.Add(3 * time.Second), Action: &waSyncAction.ArchiveChatAction{Archived: proto.Bool(true)}}, nil)
-			if err := a.storeParsedMessage(ctx, wa.ParsedMessage{Chat: chat, ID: "history", Timestamp: base.Add(4 * time.Second), Text: "history"}, false); err != nil {
+			if err := a.storeParsedMessage(ctx, wa.ParsedMessage{Chat: chat, ID: "history", Timestamp: base.Add(4 * time.Second), Text: "history"}, messageStoreOptions{}); err != nil {
 				t.Fatal(err)
 			}
 			assert(true)
