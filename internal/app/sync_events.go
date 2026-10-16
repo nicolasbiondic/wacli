@@ -619,20 +619,9 @@ func (a *App) handleLiveSyncMessage(ctx context.Context, opts SyncOptions, v *ev
 		}
 	}
 	incrementUnread := a.shouldIncrementLiveUnread(ctx, pm)
-	if err := a.storeParsedMessageForSync(ctx, pm, limits...); err == nil {
+	if err := a.storeParsedMessageForSync(ctx, pm, incrementUnread && !pm.Edited, limits...); err == nil {
 		if incrementUnread {
 			a.incrementLiveUnread(ctx, pm)
-			if !pm.Edited {
-				chat := canonicalJIDString(a.canonicalStoreJID(ctx, pm.Chat))
-				if err := a.db.RecordChatArchiveIncoming(chat, pm.Timestamp); err != nil {
-					a.emitChatStateWarning("auto_unarchive", pm.Chat, err)
-					for _, limit := range limits {
-						if limit != nil {
-							limit.persistenceFailed.Store(true)
-						}
-					}
-				}
-			}
 		}
 		a.emitSyncProgress(messagesStored.Add(1))
 		if enqueueWebhook != nil {
@@ -780,7 +769,7 @@ func (a *App) handleHistorySync(ctx context.Context, opts SyncOptions, v *events
 			}
 			storedPM := pm
 			storedPM.UnhandledPayload = ""
-			if err := a.storeParsedMessageForSync(ctx, storedPM, limits...); err == nil {
+			if err := a.storeParsedMessageForSync(ctx, storedPM, false, limits...); err == nil {
 				unhandledWarnings.observe(a, pm)
 				a.emitSyncProgress(messagesStored.Add(1))
 				if pm.Poll != nil || pm.PollAdd != nil || pm.PollVote != nil {
@@ -903,11 +892,11 @@ func (a *App) emitSyncProgress(total int64) {
 	a.emitOrPrint("progress", map[string]any{"messages_synced": total}, "\rSynced %d messages...", total)
 }
 
-func (a *App) storeParsedMessageForSync(ctx context.Context, pm wa.ParsedMessage, limits ...*syncStorageLimits) error {
+func (a *App) storeParsedMessageForSync(ctx context.Context, pm wa.ParsedMessage, archiveIncoming bool, limits ...*syncStorageLimits) error {
 	if len(limits) > 0 && limits[0] != nil {
-		return limits[0].StoreParsedMessage(ctx, pm)
+		return limits[0].StoreParsedMessage(ctx, pm, archiveIncoming)
 	}
-	return a.storeParsedMessage(ctx, pm)
+	return a.storeParsedMessage(ctx, pm, archiveIncoming)
 }
 
 func (a *App) decryptEncryptedReaction(ctx context.Context, pm *wa.ParsedMessage, msg *events.Message) {

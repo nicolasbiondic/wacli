@@ -24,10 +24,10 @@ func TestSystemEventDoesNotBecomeTheChatsNewestMessage(t *testing.T) {
 
 	if err := a.storeParsedMessage(context.Background(), wa.ParsedMessage{
 		Chat: chat, ID: "m-real", SenderJID: chat.String(), Timestamp: spoke, Text: "hello",
-	}); err != nil {
+	}, false); err != nil {
 		t.Fatalf("storeParsedMessage: %v", err)
 	}
-	if err := a.storeParsedMessage(context.Background(), systemEvent(chat, "m-system", spoke.Add(48*time.Hour))); err != nil {
+	if err := a.storeParsedMessage(context.Background(), systemEvent(chat, "m-system", spoke.Add(48*time.Hour)), false); err != nil {
 		t.Fatalf("storeParsedMessage system event: %v", err)
 	}
 
@@ -50,7 +50,7 @@ func TestSystemEventInANewChatLeavesItWithoutAListTime(t *testing.T) {
 	chat := types.JID{User: "456", Server: types.DefaultUserServer}
 
 	if err := a.storeParsedMessage(context.Background(),
-		systemEvent(chat, "m-system", time.Date(2024, 2, 1, 12, 0, 0, 0, time.UTC))); err != nil {
+		systemEvent(chat, "m-system", time.Date(2024, 2, 1, 12, 0, 0, 0, time.UTC)), false); err != nil {
 		t.Fatalf("storeParsedMessage: %v", err)
 	}
 
@@ -85,7 +85,7 @@ func TestMessagesWithContentStillSetTheChatsListTime(t *testing.T) {
 			pm.Chat = chat
 			pm.SenderJID = chat.String()
 			pm.Timestamp = tc.at
-			if err := a.storeParsedMessage(context.Background(), pm); err != nil {
+			if err := a.storeParsedMessage(context.Background(), pm, false); err != nil {
 				t.Fatalf("storeParsedMessage: %v", err)
 			}
 			stored, err := a.db.GetChat(chat.String())

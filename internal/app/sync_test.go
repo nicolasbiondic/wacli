@@ -2861,7 +2861,7 @@ func TestStoreParsedStatusMessageUsesSeparateStatusTable(t *testing.T) {
 		SenderJID: "15551234567@s.whatsapp.net",
 		Timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 		Text:      "incoming status",
-	})
+	}, false)
 	if err != nil {
 		t.Fatalf("storeParsedMessage: %v", err)
 	}
@@ -2893,7 +2893,7 @@ func TestStoreParsedMessageNormalizesDefaultUserADJIDs(t *testing.T) {
 		SenderJID: sender.String(),
 		Timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 		Text:      "hello",
-	})
+	}, false)
 	if err != nil {
 		t.Fatalf("storeParsedMessage: %v", err)
 	}
@@ -2930,7 +2930,7 @@ func TestStoreParsedMessageResolvesLIDChatAndSender(t *testing.T) {
 		SenderJID: lid.String(),
 		Timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 		Text:      "hello",
-	})
+	}, false)
 	if err != nil {
 		t.Fatalf("storeParsedMessage: %v", err)
 	}
@@ -2980,7 +2980,7 @@ func TestStoreParsedMessageResolvesGroupIdentityLIDs(t *testing.T) {
 		ReplyToSenderJID: lid.String(),
 		Timestamp:        time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 		Text:             "hello",
-	})
+	}, false)
 	if err != nil {
 		t.Fatalf("storeParsedMessage: %v", err)
 	}
@@ -3028,7 +3028,7 @@ func TestStoreParsedMessageStoresForwardedMetadata(t *testing.T) {
 		Text:            "forwarded",
 		IsForwarded:     true,
 		ForwardingScore: 4,
-	})
+	}, false)
 	if err != nil {
 		t.Fatalf("storeParsedMessage: %v", err)
 	}

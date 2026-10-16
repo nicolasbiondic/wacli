@@ -1,10 +1,77 @@
 package store
 
 import (
+	"database/sql"
+	"errors"
 	"path/filepath"
 	"testing"
 	"time"
 )
+
+func TestArchiveIncomingIsAtomicAndOrdersSameSecond(t *testing.T) {
+	db := openTestDB(t)
+	base := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+	jid := "15550000001@s.whatsapp.net"
+	if err := db.UpsertChat(jid, "dm", "Synthetic", base); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.SetChatArchiveSetting(true, base.Add(-time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.ApplyChatArchive(jid, true, base.Add(500*time.Millisecond)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.sql.Exec(`CREATE TRIGGER fail_archive_incoming BEFORE UPDATE OF archive_incoming_ms ON chats BEGIN SELECT RAISE(FAIL,'injected boundary failure'); END`); err != nil {
+		t.Fatal(err)
+	}
+	p := UpsertMessageParams{ChatJID: jid, MsgID: "incoming", Timestamp: base, Text: "synthetic", ArchiveIncoming: true}
+	if err := db.UpsertMessage(p); err == nil {
+		t.Fatal("expected boundary persistence failure")
+	}
+	if _, err := db.GetMessage(jid, p.MsgID); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("message escaped rolled-back boundary: %v", err)
+	}
+	if _, err := db.sql.Exec(`DROP TRIGGER fail_archive_incoming`); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.UpsertMessage(p); err != nil {
+		t.Fatal(err)
+	}
+	chat, err := db.GetChat(jid)
+	if err != nil || chat.Archived {
+		t.Fatalf("same-second incoming stayed archived: %+v, %v", chat, err)
+	}
+	if err := db.ApplyChatArchive(jid, true, base.Add(500*time.Millisecond)); err != nil {
+		t.Fatal(err)
+	}
+	chat, err = db.GetChat(jid)
+	if err != nil || chat.Archived {
+		t.Fatalf("same-second replay undid incoming: %+v, %v", chat, err)
+	}
+	if err := db.ApplyChatArchive(jid, true, base.Add(800*time.Millisecond)); err != nil {
+		t.Fatal(err)
+	}
+	// Simulate a second delivery that was classified before the first committed.
+	if err := db.UpsertMessage(p); err != nil {
+		t.Fatal(err)
+	}
+	chat, err = db.GetChat(jid)
+	if err != nil || !chat.Archived {
+		t.Fatalf("duplicate undid newer same-second archive: %+v, %v", chat, err)
+	}
+	p.MsgID = "next"
+	p.Timestamp = base.Add(time.Second)
+	if err := db.UpsertMessage(p); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.ApplyChatArchive(jid, true, p.Timestamp); err != nil {
+		t.Fatal(err)
+	}
+	chat, err = db.GetChat(jid)
+	if err != nil || !chat.Archived {
+		t.Fatalf("later explicit action at equal precision lost: %+v, %v", chat, err)
+	}
+}
 
 func TestChatArchiveUpgradeAndRestart(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "archive.db")
@@ -52,7 +119,7 @@ func TestChatArchiveUpgradeAndRestart(t *testing.T) {
 	if required, err := db.ChatArchiveRecoveryRequired(); err != nil || !required {
 		t.Fatalf("upgrade recovery=%v, %v", required, err)
 	}
-	if err := db.RecordChatArchiveIncoming(jid, base.Add(2*time.Second)); err != nil {
+	if err := db.UpsertMessage(UpsertMessageParams{ChatJID: jid, MsgID: "incoming", Timestamp: base.Add(2 * time.Second), Text: "synthetic", ArchiveIncoming: true}); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.SetChatArchiveSetting(true, base); err != nil {
@@ -106,7 +173,7 @@ func TestChatArchiveIdentityMergeKeepsNewerBoundary(t *testing.T) {
 			if incomingOnLID {
 				incoming = lid
 			}
-			if err := db.RecordChatArchiveIncoming(incoming, base.Add(2*time.Second)); err != nil {
+			if err := db.UpsertMessage(UpsertMessageParams{ChatJID: incoming, MsgID: "incoming", Timestamp: base.Add(2 * time.Second), Text: "synthetic", ArchiveIncoming: true}); err != nil {
 				t.Fatal(err)
 			}
 			if err := db.MigrateLIDToPN(lid, phone); err != nil {

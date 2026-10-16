@@ -14,6 +14,7 @@ import (
 var ErrMessageNotTombstoned = errors.New("message is not tombstoned")
 
 type UpsertMessageParams struct {
+	ArchiveIncoming bool
 	ChatJID         string
 	ChatName        string
 	MsgID           string
@@ -98,7 +99,7 @@ func (d *DB) UpsertMessage(p UpsertMessageParams) error {
 	if p.Edited {
 		editedTS = unix(p.Timestamp)
 	}
-	return d.q.UpsertMessage(storeCtx(), storedb.UpsertMessageParams{
+	params := storedb.UpsertMessageParams{
 		ChatJid:    p.ChatJID,
 		ChatName:   nullString(p.ChatName),
 		MsgID:      p.MsgID,
@@ -134,7 +135,28 @@ func (d *DB) UpsertMessage(p UpsertMessageParams) error {
 		Buttons:         buttonsJSON,
 		ChatJid_2:       strings.TrimSpace(p.ChatJID),
 		MsgID_2:         strings.TrimSpace(p.MsgID),
-	})
+	}
+	if !p.ArchiveIncoming {
+		return d.q.UpsertMessage(storeCtx(), params)
+	}
+	tx, err := d.sql.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	fresh, err := newArchiveIncoming(tx, p.ChatJID, p.MsgID)
+	if err != nil {
+		return err
+	}
+	if err := d.q.WithTx(tx).UpsertMessage(storeCtx(), params); err != nil {
+		return err
+	}
+	if fresh {
+		if err := recordChatArchiveIncoming(tx, p.ChatJID, p.Timestamp); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 func (d *DB) MarkMessageRevoked(chatJID, msgID string) error {

@@ -403,7 +403,7 @@ func (a *App) upsertMessageChat(pm wa.ParsedMessage, name string) error {
 	return a.db.UpsertChatMetadata(jid, chatKind(pm.Chat), name)
 }
 
-func (a *App) storeParsedMessage(ctx context.Context, pm wa.ParsedMessage) error {
+func (a *App) storeParsedMessage(ctx context.Context, pm wa.ParsedMessage, archiveIncoming bool) error {
 	pm.Chat = a.canonicalStoreJID(ctx, pm.Chat)
 	chatJID := canonicalJIDString(pm.Chat)
 	var chatName string
@@ -505,6 +505,7 @@ func (a *App) storeParsedMessage(ctx context.Context, pm wa.ParsedMessage) error
 	}
 
 	if err := a.db.UpsertMessage(store.UpsertMessageParams{
+		ArchiveIncoming: archiveIncoming,
 		ChatJID:         chatJID,
 		ChatName:        chatName,
 		MsgID:           pm.ID,

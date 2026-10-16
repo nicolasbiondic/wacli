@@ -24,9 +24,9 @@ func (l *syncStorageLimits) canRecordFreshness() bool {
 	return l == nil || (l.appStatePending.Load() == 0 && !l.persistenceFailed.Load())
 }
 
-func (l *syncStorageLimits) StoreParsedMessage(ctx context.Context, pm wa.ParsedMessage) error {
+func (l *syncStorageLimits) StoreParsedMessage(ctx context.Context, pm wa.ParsedMessage, archiveIncoming bool) error {
 	if l.opts.MaxMessages <= 0 && l.opts.MaxDBSizeBytes <= 0 {
-		err := l.app.storeParsedMessage(ctx, pm)
+		err := l.app.storeParsedMessage(ctx, pm, archiveIncoming)
 		if err != nil {
 			l.persistenceFailed.Store(true)
 		}
@@ -36,7 +36,7 @@ func (l *syncStorageLimits) StoreParsedMessage(ctx context.Context, pm wa.Parsed
 		l.setErr(err)
 		return err
 	}
-	if err := l.app.storeParsedMessage(ctx, pm); err != nil {
+	if err := l.app.storeParsedMessage(ctx, pm, archiveIncoming); err != nil {
 		l.persistenceFailed.Store(true)
 		return err
 	}
