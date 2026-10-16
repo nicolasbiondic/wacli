@@ -685,8 +685,11 @@ func TestPR497Scenario_UpgradedStoreRecoveryIsRequestedOnce(t *testing.T) {
 			f.fetchEvents = func(_ context.Context, name string, full, _ bool) ([]any, error) {
 				if name == string(appstate.WAPatchRegularLow) && full {
 					fullFetches++
+					// A verified snapshot with nothing for this store: whatsmeow
+					// still appends the completion sentinel after a full sync.
+					return []any{&events.AppStateSyncComplete{Name: appstate.WAPatchRegularLow, Version: 7}}, nil
 				}
-				return nil, nil // snapshot carries nothing for this store
+				return nil, nil
 			}
 			f.fetchAppState = func(ctx context.Context, name string, full, only bool) error {
 				_, err := f.fetchEvents(ctx, name, full, only)
