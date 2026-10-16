@@ -53,12 +53,9 @@ var schemaMigrations = []migration{
 	// guard, trigger rebuild only when the comparison is missing). The runner
 	// applies by version-set membership, so the numbering gap is harmless.
 	{version: 9033, name: "vendas: messages ad_referral (#480)", up: migrateMessagesAdReferralColumn},
-	// vendas: lists (#394 branch upstream/read-chat-lists) not merged upstream; local number like 9033.
-	{version: 9034, name: "WhatsApp lists and chat memberships", up: migrateLists},
-	// vendas: lists (#394 branch upstream/read-chat-lists) not merged upstream; local number like 9033.
-	// Lists use 34, not the next free number: open PR #480 also claims 33. The
-	// runner skips by version number only, so ensureCurrentSchema re-runs
-	// migrateLists to heal stores where another migration owns this number.
+	// vendas: lists (upstream/read-chat-lists, proposed as 34) are not merged
+	// upstream either; local number like 9033. ensureCurrentSchema also re-runs
+	// migrateLists, so whichever number upstream assigns stays a no-op here.
 	{version: 9034, name: "WhatsApp lists and chat memberships", up: migrateLists},
 }
 
