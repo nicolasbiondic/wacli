@@ -720,6 +720,12 @@ func (a *App) ownsManualAppStateFetch(collection appstate.WAPatchName) bool {
 }
 
 func (a *App) clearCompletedAppStateRecovery(collection appstate.WAPatchName, markerGeneration int64) error {
+	if markerGeneration == 0 {
+		// Intent ids start at 1: generation 0 is a recovery that recorded no
+		// intent (the archive metadata snapshot request). It has nothing to
+		// clear, and intents written while it was pending are not its debt.
+		return nil
+	}
 	cleared, err := a.db.ClearAppStateRecoveryGeneration(string(collection), markerGeneration)
 	if err != nil {
 		return fmt.Errorf("clear WhatsApp app state recovery for %s: %w", collection, err)
