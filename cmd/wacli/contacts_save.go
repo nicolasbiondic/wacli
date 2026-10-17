@@ -39,7 +39,7 @@ func newContactsSaveCmd(flags *rootFlags) *cobra.Command {
 			if err := flags.requireWritable(); err != nil {
 				return err
 			}
-			target, name, err := parseContactSaveInput(targetRaw, name)
+			target, name, firstName, err := parseContactSaveInput(targetRaw, name, firstName)
 			if err != nil {
 				return err
 			}
@@ -147,11 +147,11 @@ func saveContact(ctx context.Context, cli contactSaver, db *store.DB, target typ
 // owns the store lock and the connected session. It validates the request
 // like the command does, so an older or hand-written client gets the same errors.
 func executeDelegatedContactsSave(ctx context.Context, cli contactSaver, db *store.DB, req sendDelegateRequest) (sendDelegateResponse, error) {
-	target, name, err := parseContactSaveInput(req.To, req.Name)
+	target, name, firstName, err := parseContactSaveInput(req.To, req.Name, req.FirstName)
 	if err != nil {
 		return sendDelegateResponse{}, err
 	}
-	result, err := saveContact(ctx, cli, db, target, name, req.FirstName, req.Phonebook)
+	result, err := saveContact(ctx, cli, db, target, name, firstName, req.Phonebook)
 	if err != nil {
 		return sendDelegateResponse{}, err
 	}
@@ -175,19 +175,26 @@ func writeContactSaveResult(flags *rootFlags, result contactSaveResult) error {
 	return nil
 }
 
-// parseContactSaveInput validates the target and name before any lock,
+// parseContactSaveInput validates the target and names before any lock,
 // connection, or delegation, so mistakes fail fast with the same errors in
 // both paths.
-func parseContactSaveInput(targetRaw, name string) (types.JID, string, error) {
+func parseContactSaveInput(targetRaw, name, firstName string) (types.JID, string, string, error) {
 	target, err := parseContactSaveTarget(targetRaw)
 	if err != nil {
-		return types.JID{}, "", err
+		return types.JID{}, "", "", err
 	}
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return types.JID{}, "", fmt.Errorf("--name is required")
+		return types.JID{}, "", "", fmt.Errorf("--name is required")
 	}
-	return target, name, nil
+	if err := wa.ValidateContactName(name); err != nil {
+		return types.JID{}, "", "", fmt.Errorf("--name: %w", err)
+	}
+	firstName = strings.TrimSpace(firstName)
+	if err := wa.ValidateContactName(firstName); err != nil {
+		return types.JID{}, "", "", fmt.Errorf("--first-name: %w", err)
+	}
+	return target, name, firstName, nil
 }
 
 func parseContactSaveTarget(raw string) (types.JID, error) {
@@ -200,6 +207,11 @@ func parseContactSaveTarget(raw string) (types.JID, error) {
 	}
 	if target.Server != types.DefaultUserServer {
 		return types.JID{}, fmt.Errorf("--jid must be a phone number (got %s); use `wacli contacts resolve` to find the number of a LID", target)
+	}
+	// A full JID skips the bare-number normalization, so check its user part
+	// here rather than after connecting.
+	if target.User == "" || strings.Trim(target.User, "0123456789") != "" {
+		return types.JID{}, fmt.Errorf("--jid must be a phone number JID with a numeric user part, got %q", raw)
 	}
 	return target.ToNonAD(), nil
 }

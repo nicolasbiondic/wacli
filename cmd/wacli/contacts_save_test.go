@@ -27,6 +27,14 @@ func TestParseContactSaveTarget(t *testing.T) {
 	if _, err := parseContactSaveTarget("  "); err == nil {
 		t.Fatal("empty accepted")
 	}
+	if got, err := parseContactSaveTarget("5511999990000:3@s.whatsapp.net"); err != nil || got.String() != "5511999990000@s.whatsapp.net" {
+		t.Fatalf("device JID: got %v, %v", got, err)
+	}
+	for _, raw := range []string{"@s.whatsapp.net", "abc@s.whatsapp.net", "+55 11@s.whatsapp.net"} {
+		if _, err := parseContactSaveTarget(raw); err == nil {
+			t.Fatalf("malformed phone JID %q accepted", raw)
+		}
+	}
 }
 
 func TestContactsSaveRequiresName(t *testing.T) {
@@ -35,6 +43,23 @@ func TestContactsSaveRequiresName(t *testing.T) {
 	cmd.SilenceUsage, cmd.SilenceErrors = true, true
 	if err := cmd.Execute(); err == nil || err.Error() != "--name is required" {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+// Names are checked before the store is opened or a daemon is asked, so the
+// empty rootFlags here would fail loudly if validation ran any later.
+func TestContactsSaveRejectsControlCharactersBeforeConnecting(t *testing.T) {
+	for _, args := range [][]string{
+		{"--jid", "5511999990000", "--name", "Maria\nSouza"},
+		{"--jid", "5511999990000", "--name", "Maria", "--first-name", "Ma\x00ria"},
+		{"--jid", "5511999990000", "--name", "Maria\tSouza"},
+	} {
+		cmd := newContactsSaveCmd(&rootFlags{})
+		cmd.SetArgs(args)
+		cmd.SilenceUsage, cmd.SilenceErrors = true, true
+		if err := cmd.Execute(); err == nil || !strings.Contains(err.Error(), "control characters") {
+			t.Fatalf("args %q: err = %v", args, err)
+		}
 	}
 }
 
