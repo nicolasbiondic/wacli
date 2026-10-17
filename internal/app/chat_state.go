@@ -397,7 +397,9 @@ func (a *App) loadAppStateFullSyncResultsLocked() {
 // replay of those, so that debt stays durable until a verified full replay or
 // a primary recovery snapshot covers it (both clear through their own, newer
 // generation). One background recovery request per collection per 6h still
-// nudges the primary, since only it can repair the broken full sync.
+// nudges the primary, since only it can repair the broken full sync. The
+// contact collection is the exception: its debt is settled from the session
+// contact store (see settleContactDebtFromSessionStore) and nothing is kept.
 //
 // Returns handled=false (fall back to replayRequiredAppState, which waits for
 // the primary's snapshot while local state exists and runs a full replay
@@ -422,6 +424,16 @@ func (a *App) degradedAppStateReplay(ctx context.Context, collection appstate.WA
 	if fetchErr != nil {
 		// LTHash mismatch (or any other failure): today's behavior.
 		return false, nil
+	}
+	if collection == appstate.WAPatchCriticalUnblockLow {
+		// Contact debt means batches the session consumed and wacli.db never
+		// saw; the session contact store holds them, so mirror it and settle
+		// the debt here. Only on failure fall through to the nudge below.
+		mirrorErr := a.mirrorContactsUnderTicket(ctx)
+		if mirrorErr == nil {
+			return true, a.clearCompletedAppStateRecovery(collection, markerGeneration)
+		}
+		a.warnAppStateRecovery(string(collection), fmt.Errorf("mirror contacts from the session store before the write: %w", mirrorErr))
 	}
 	reason := "full sync is known not to verify on this account"
 	if !a.isAppStateFullSyncBroken(collection) {
@@ -829,7 +841,9 @@ func (a *App) completeLocalAppStateWrite(ctx context.Context, pending *pendingLo
 	// exits before that goroutine runs, and future incremental deltas would
 	// skip the batch forever. On broken collections the degraded pre-write
 	// path keeps later writes fast despite the kept debt; a verified full
-	// replay or primary recovery snapshot clears it.
+	// replay or primary recovery snapshot clears it. A contact save settles
+	// its own intent after mirroring the session contact store, which holds
+	// the post-send batch before SendAppState returns (see SaveContact).
 	return <-result
 }
 
@@ -932,6 +946,15 @@ func (a *App) handleChatStateEvent(ctx context.Context, evt any) error {
 // first name, as in whatsmeow's PutContactName: a name the action omits is
 // cleared. A LID-indexed mutation is stored under the mapped phone number;
 // without a mapping it is stored under the LID, as the whatsmeow store does.
+//
+// The names come from whatsmeow's contact store rather than the event
+// payload. whatsmeow writes that store when it applies a batch and dispatches
+// each batch's events from its own goroutine (the 409 conflict patches, the
+// post-send fetch of a retry, the post-send fetch of an earlier save), so an
+// older batch can be dispatched after a newer one; the store already holds
+// the newer name by then, and re-reading it makes the late event harmless.
+// The payload is only used when the store has no row for the mutation's
+// index, which the pinned SDK does not do but a store write error could.
 func (a *App) handleContactEvent(ctx context.Context, evt *events.Contact) error {
 	if evt == nil || evt.JID.IsEmpty() || evt.Action == nil {
 		return nil
@@ -946,6 +969,9 @@ func (a *App) handleContactEvent(ctx context.Context, evt *events.Contact) error
 	}
 	fullName := strings.TrimSpace(evt.Action.GetFullName())
 	firstName := strings.TrimSpace(evt.Action.GetFirstName())
+	if full, first, ok := a.sessionContactName(ctx, evt.JID); ok {
+		fullName, firstName = full, first
+	}
 	if err := a.db.SetContactActionName(contact.String(), phone, fullName, firstName); err != nil {
 		a.emitWarning(
 			"contact_store_failed",

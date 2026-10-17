@@ -161,6 +161,20 @@ func (a *App) syncAppStateDeltas(ctx context.Context, recoveries *sync.Map) {
 					a.warnAppStateRecovery(name, err)
 					continue
 				}
+				if collection == appstate.WAPatchCriticalUnblockLow {
+					// Contact debt is settled from the session contact store;
+					// a snapshot could not cover a consumed batch anyway.
+					if err := a.settleContactDebtFromSessionStore(ctx, generation); err != nil {
+						a.warnAppStateRecovery(name, err)
+						a.requestBackgroundAppStateRecovery(ctx, collection, generation)
+						continue
+					}
+					a.emitOrPrint("app_state_contacts_mirrored", map[string]any{"name": name},
+						"\rApp state %s mirrored from the session contact store\n", name)
+					// No recovery ran; a later live hash failure may still start one.
+					recoveries.Delete(name)
+					continue
+				}
 				a.requestBackgroundAppStateRecovery(ctx, collection, generation)
 				// Keep catching up new mutations while the primary is asleep.
 				// This does not settle the older, still-unseen snapshot debt.
