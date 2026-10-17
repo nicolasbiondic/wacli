@@ -80,9 +80,17 @@ func (j *ContactStoreJournal) HighWater() uint64 {
 
 // Pending returns the writes not yet acknowledged, in sequence order.
 func (j *ContactStoreJournal) Pending() []ContactWrite {
+	pending, _ := j.Snapshot()
+	return pending
+}
+
+// Snapshot returns the pending writes together with the high-water sequence
+// at the same instant, so a caller that applies them all knows every write
+// up to highWater is mirrored.
+func (j *ContactStoreJournal) Snapshot() (pending []ContactWrite, highWater uint64) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
-	return append([]ContactWrite(nil), j.pending...)
+	return append([]ContactWrite(nil), j.pending...), j.seq
 }
 
 // Ack drops every pending write with a sequence number up to seq.

@@ -160,24 +160,6 @@ type ContactActionName struct {
 	JID, Phone, FullName, FirstName string
 }
 
-// ContactActionNames returns the full and first name of every contact row.
-func (d *DB) ContactActionNames() (map[string]ContactActionName, error) {
-	rows, err := d.sql.Query(`SELECT jid, COALESCE(phone,''), COALESCE(full_name,''), COALESCE(first_name,'') FROM contacts`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	names := map[string]ContactActionName{}
-	for rows.Next() {
-		var name ContactActionName
-		if err := rows.Scan(&name.JID, &name.Phone, &name.FullName, &name.FirstName); err != nil {
-			return nil, err
-		}
-		names[name.JID] = name
-	}
-	return names, rows.Err()
-}
-
 // SetContactActionNames applies SetContactActionName to every entry in one
 // transaction.
 func (d *DB) SetContactActionNames(names []ContactActionName) error {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/openclaw/wacli/internal/store"
@@ -33,13 +32,16 @@ type SavedContact struct {
 // waits for other app-state writes and recovery, synchronizes the collection
 // first, records durable recovery debt before the send, and reserves the
 // local mirror's place in the persistence order before whatsmeow can advance
-// the collection. whatsmeow applies the batch it fetches after the send (our
-// echo, a newer edit from the phone, other contacts' edits) to its contact
-// store before SendAppState returns and only dispatches the events later, so
-// the mirror is written from that store under the reserved ticket: the batch
-// is covered even if this process exits before the events are dispatched,
-// and the debt is settled here. The events themselves re-read the store when
-// they arrive, so a batch dispatched late never regresses the mirror.
+// the collection. whatsmeow writes every contact mutation of the batches it
+// applies for the send (the 409 conflict patches, the post-send fetch) to its
+// contact store before SendAppState returns, and those writes are journaled in
+// that order (wa.ContactStoreJournal); the events are only dispatched later.
+// The save projects the journal under its reserved ticket, so the batch
+// reaches wacli.db even if a one-shot save exits before the events are
+// dispatched, and settles its own debt only once that projection covered
+// every write of the send. The events, when they arrive, drain the journal
+// again and never apply their payload, so a batch dispatched late cannot
+// regress the mirror.
 func (a *App) SaveContact(ctx context.Context, target types.JID, fullName, firstName string, phonebook bool) (SavedContact, error) {
 	lid := a.wa.ResolvePNToLID(ctx, target)
 	if lid.Server != types.HiddenUserServer || lid.User == "" {
@@ -53,12 +55,18 @@ func (a *App) SaveContact(ctx context.Context, target types.JID, fullName, first
 	action := patch.Mutations[0].Value.GetContactAction()
 	saved := SavedContact{JID: target, LID: lid, FullName: action.GetFullName(), FirstName: action.GetFirstName(), Phonebook: phonebook}
 
-	release, err := a.beginChatStateWrite(ctx, appstate.WAPatchCriticalUnblockLow)
+	collection := appstate.WAPatchCriticalUnblockLow
+	release, err := a.beginChatStateWrite(ctx, collection)
 	if err != nil {
 		return SavedContact{}, err
 	}
 	defer release()
-	pending, err := a.beginLocalAppStateWrite(appstate.WAPatchCriticalUnblockLow)
+	// The pre-write sync persisted its own events; mirror anything still
+	// journaled before the optimistic write takes its place in the order.
+	if _, err := a.drainContactJournalUnderTicket(ctx); err != nil {
+		return SavedContact{}, fmt.Errorf("mirror pending contact writes before the save: %w", err)
+	}
+	pending, err := a.beginLocalAppStateWrite(collection)
 	if err != nil {
 		return SavedContact{}, err
 	}
@@ -69,141 +77,111 @@ func (a *App) SaveContact(ctx context.Context, target types.JID, fullName, first
 	if !pending.reserved {
 		return SavedContact{}, fmt.Errorf("WhatsApp app state send completed without an apply boundary")
 	}
+	// Every store write whatsmeow made for this send is journaled by now.
+	var highWater uint64
+	if journal := a.wa.ContactJournal(); journal != nil {
+		highWater = journal.HighWater()
+	}
 	persistCtx := context.WithoutCancel(ctx)
-	var mirrorErr error
+	var covered uint64
+	var drainErr error
 	err = a.completeLocalAppStateWrite(ctx, &pending, postSendEvents, func() error {
 		if err := a.db.SetContactActionName(target.String(), target.User, saved.FullName, saved.FirstName); err != nil {
 			return err
 		}
-		mirrorErr = a.mirrorContactsFromSessionStore(persistCtx)
+		covered, drainErr = a.drainContactJournal(persistCtx)
 		return nil
 	})
 	if err != nil {
 		return SavedContact{}, fmt.Errorf("contact saved on WhatsApp, but updating the local index failed: %w", err)
 	}
-	if mirrorErr != nil {
-		// The debt recorded before the send stays; the next start or write
-		// settles it from the session store.
-		a.warnAppStateRecovery(string(appstate.WAPatchCriticalUnblockLow), fmt.Errorf("mirror the contact batch after the save: %w", mirrorErr))
+	if drainErr != nil || covered < highWater {
+		// The debt recorded before the send stays until the primary's
+		// snapshot replays the collection; see degradedAppStateReplay.
+		if drainErr == nil {
+			drainErr = fmt.Errorf("journal drained to %d, the send's writes reach %d", covered, highWater)
+		}
+		a.warnAppStateRecovery(string(collection), fmt.Errorf("mirror the contact writes of the save: %w", drainErr))
 		return saved, nil
 	}
-	if _, err := a.db.ClearAppStateRecoveryGeneration(string(appstate.WAPatchCriticalUnblockLow), pending.generation); err != nil {
-		a.warnAppStateRecovery(string(appstate.WAPatchCriticalUnblockLow), fmt.Errorf("clear the settled contact debt: %w", err))
+	// Only this save's own intent: older debt belongs to writes this process
+	// never saw (a save that died between its send and its mirror).
+	if err := a.db.ClearAppStateRecoveryIntent(string(collection), pending.generation); err != nil {
+		a.warnAppStateRecovery(string(collection), fmt.Errorf("clear the settled contact debt: %w", err))
 	}
 	return saved, nil
 }
 
-// sessionContactName returns the names whatsmeow's contact store holds for
-// jid, the key a `contact` mutation is indexed by. whatsmeow writes that store
-// when it applies the mutation, before it dispatches the event (and, for the
-// batches fetched by SendAppState, before SendAppState returns), so it always
-// holds the newest applied name. ok is false when the store has no row or
-// cannot be read, in which case the caller falls back to the event payload.
-func (a *App) sessionContactName(ctx context.Context, jid types.JID) (fullName, firstName string, ok bool) {
-	info, err := a.wa.GetContact(ctx, jid)
-	if err != nil || !info.Found {
-		return "", "", false
-	}
-	return strings.TrimSpace(info.FullName), strings.TrimSpace(info.FirstName), true
-}
-
-// mirrorContactsFromSessionStore rewrites the contact names in wacli.db from
-// whatsmeow's contact store, the SDK's own state for `critical_unblock_low`,
-// which holds every batch whatsmeow consumed, including batches whose events
-// never reached wacli.db. Only names that differ are written, in one
-// transaction. Session rows without any name are left alone: they cannot be
-// told apart from contacts that were never saved, and `contacts refresh`
-// never clears names either. When two session rows (a LID and the phone
-// number it maps to) disagree about one contact, that contact is left as the
-// events established it, since the store keeps no order between them.
+// drainContactJournal projects the contact store writes whatsmeow journaled
+// into wacli.db, in the order the SDK applied them, and acknowledges them.
+// Each write is stored under the canonical contact (a mapped LID lands on
+// its phone number; an unmapped LID stays under the LID), with the names the
+// SDK stored: a nameless action clears, exactly as whatsmeow's PutContactName
+// stores empty names. A write whose store update failed is applied too: the
+// mutation was decoded and the cursor advanced, so its names are WhatsApp's
+// state. All writes of one drain go in one transaction; on failure nothing is
+// acknowledged and the next drain retries them.
 //
-// Must run inside a persistence task, so that it is ordered with the contact
-// events whatsmeow dispatches: those re-read the store too, so whichever runs
-// last sees the newer state.
-func (a *App) mirrorContactsFromSessionStore(ctx context.Context) error {
-	session, err := a.wa.GetAllContacts(ctx)
-	if err != nil {
-		return fmt.Errorf("read session contact store: %w", err)
+// Must run inside a persistence task: drains are serialized by the ticket
+// order, which with the journal's sequence order makes the last write to a
+// contact across its indices the one wacli.db ends on. Returns the sequence
+// number every journaled write up to which has been mirrored.
+func (a *App) drainContactJournal(ctx context.Context) (covered uint64, err error) {
+	journal := a.wa.ContactJournal()
+	if journal == nil {
+		return 0, nil
 	}
-	local, err := a.db.ContactActionNames()
-	if err != nil {
-		return fmt.Errorf("read local contact names: %w", err)
+	writes, highWater := journal.Snapshot()
+	if len(writes) == 0 {
+		return highWater, nil
 	}
-	changed := map[string]store.ContactActionName{}
-	conflicting := map[string]bool{}
-	for jid, info := range session {
-		fullName, firstName := strings.TrimSpace(info.FullName), strings.TrimSpace(info.FirstName)
-		if fullName == "" && firstName == "" {
+	names := make([]store.ContactActionName, 0, len(writes))
+	for _, write := range writes {
+		if write.JID.IsEmpty() {
 			continue
 		}
-		contact := a.canonicalStoreJID(ctx, jid)
+		contact := a.canonicalStoreJID(ctx, write.JID)
 		if contact.Server != types.DefaultUserServer && contact.Server != types.HiddenUserServer {
-			continue
-		}
-		key := contact.String()
-		if previous, seen := changed[key]; seen && (previous.FullName != fullName || previous.FirstName != firstName) {
-			conflicting[key] = true
 			continue
 		}
 		phone := ""
 		if contact.Server == types.DefaultUserServer {
 			phone = contact.User
 		}
-		changed[key] = store.ContactActionName{JID: key, Phone: phone, FullName: fullName, FirstName: firstName}
+		names = append(names, store.ContactActionName{
+			JID: contact.String(), Phone: phone,
+			FullName: strings.TrimSpace(write.FullName), FirstName: strings.TrimSpace(write.FirstName),
+		})
 	}
-	names := make([]store.ContactActionName, 0, len(changed))
-	for key, name := range changed {
-		if conflicting[key] {
-			continue
-		}
-		if current, ok := local[key]; ok && current.FullName == name.FullName && current.FirstName == name.FirstName {
-			continue
-		}
-		names = append(names, name)
-	}
-	slices.SortFunc(names, func(x, y store.ContactActionName) int { return strings.Compare(x.JID, y.JID) })
 	if err := a.db.SetContactActionNames(names); err != nil {
-		return fmt.Errorf("write %d contact names: %w", len(names), err)
+		a.emitWarning(
+			"contact_store_failed",
+			fmt.Sprintf("warning: failed to store %d contact names from the session: %v", len(names), err),
+			map[string]any{"count": len(names), "error": err.Error()},
+		)
+		return writes[0].Seq - 1, fmt.Errorf("mirror %d contact writes: %w", len(names), err)
 	}
-	return nil
+	journal.Ack(writes[len(writes)-1].Seq)
+	return highWater, nil
 }
 
-// settleContactDebtFromSessionStore repairs `critical_unblock_low` replay debt
-// without the phone: the collection is caught up incrementally, the session
-// contact store is mirrored under a persistence ticket, and the debt up to
-// generation is cleared once both succeeded. The pinned whatsmeow ignores a
-// recovery snapshot whose version is not newer than the session cursor, so a
-// snapshot could never cover a batch the session already consumed; the store
-// can, because whatsmeow wrote it when it consumed the batch. Returns the
-// error that kept the debt, if any.
-func (a *App) settleContactDebtFromSessionStore(ctx context.Context, generation int64) error {
-	collection := appstate.WAPatchCriticalUnblockLow
-	fetchErr, persistenceErr := a.fetchAndPersistAppState(ctx, collection, false, &appStatePersistenceTracker{})
-	if err := errors.Join(fetchErr, persistenceErr); err != nil {
-		return fmt.Errorf("catch up %s before mirroring the session contact store: %w", collection, err)
-	}
-	if err := a.mirrorContactsUnderTicket(ctx); err != nil {
-		return err
-	}
-	// Newer generations belong to live events still being persisted; they
-	// clear themselves, and the mirror already reflects them.
-	if _, err := a.db.ClearAppStateRecoveryGeneration(string(collection), generation); err != nil {
-		return fmt.Errorf("clear settled %s debt: %w", collection, err)
-	}
-	return nil
-}
-
-// mirrorContactsUnderTicket runs mirrorContactsFromSessionStore as its own
-// persistence task, ordered with the live contact events.
-func (a *App) mirrorContactsUnderTicket(ctx context.Context) error {
+// drainContactJournalUnderTicket runs drainContactJournal as its own
+// persistence task, ordered with the contact events.
+func (a *App) drainContactJournalUnderTicket(ctx context.Context) (uint64, error) {
 	ticket := a.appStatePersist.reserve()
 	persistCtx := context.WithoutCancel(ctx)
-	result := make(chan error, 1)
+	type result struct {
+		covered uint64
+		err     error
+	}
+	done := make(chan result, 1)
 	frontier := a.appStatePersist.complete(ticket, func() {
-		result <- a.mirrorContactsFromSessionStore(persistCtx)
+		covered, err := a.drainContactJournal(persistCtx)
+		done <- result{covered, err}
 	})
 	if err := a.appStatePersist.waitThrough(persistCtx, frontier); err != nil {
-		return err
+		return 0, err
 	}
-	return <-result
+	r := <-done
+	return r.covered, r.err
 }
