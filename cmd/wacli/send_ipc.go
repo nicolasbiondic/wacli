@@ -448,7 +448,7 @@ func executeDelegatedSend(parent context.Context, a *app.App, req sendDelegateRe
 	case chatStateKind:
 		return executeDelegatedChatState(ctx, a, req)
 	case contactsSaveKind:
-		return executeDelegatedContactsSave(ctx, a.WA(), a.DB(), req)
+		return executeDelegatedContactsSave(ctx, a, req)
 	default:
 		return sendDelegateResponse{}, fmt.Errorf("unsupported send kind %q", req.Kind)
 	}

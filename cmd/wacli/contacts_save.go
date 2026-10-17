@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/openclaw/wacli/internal/app"
 	"github.com/openclaw/wacli/internal/out"
-	"github.com/openclaw/wacli/internal/store"
 	"github.com/openclaw/wacli/internal/wa"
 	"github.com/spf13/cobra"
 	"go.mau.fi/whatsmeow/types"
@@ -101,57 +101,42 @@ func runContactsSave(flags *rootFlags, target types.JID, name, firstName string,
 	if err := a.Connect(ctx, false, nil); err != nil {
 		return err
 	}
-	result, err := saveContact(ctx, a.WA(), a.DB(), target, name, firstName, phonebook)
+	result, err := saveContact(ctx, a, target, name, firstName, phonebook)
 	if err != nil {
 		return err
 	}
 	return writeContactSaveResult(flags, result)
 }
 
-// contactSaver is the part of the session a save needs, so the delegated
-// path can be tested without a live client.
-type contactSaver interface {
-	ResolvePNToLID(ctx context.Context, jid types.JID) types.JID
-	SaveContact(ctx context.Context, target, lid types.JID, fullName, firstName string, phonebook bool) error
+// contactSaveApp is the part of the app a save needs, so the delegated path
+// can be tested without a live session.
+type contactSaveApp interface {
+	SaveContact(ctx context.Context, target types.JID, fullName, firstName string, phonebook bool) (app.SavedContact, error)
 }
 
-func saveContact(ctx context.Context, cli contactSaver, db *store.DB, target types.JID, name, firstName string, phonebook bool) (contactSaveResult, error) {
-	// Current clients key contacts by LID and show only the number for
-	// a contact saved without it, so refuse rather than half-save.
-	lid := cli.ResolvePNToLID(ctx, target)
-	if lid.Server != types.HiddenUserServer || lid.User == "" {
-		return contactSaveResult{}, fmt.Errorf("could not find the WhatsApp ID (LID) of %s; nothing was saved (is the number on WhatsApp?)", target.User)
-	}
-	patch, err := wa.BuildSaveContact(target, lid, name, firstName, phonebook)
+func saveContact(ctx context.Context, a contactSaveApp, target types.JID, name, firstName string, phonebook bool) (contactSaveResult, error) {
+	saved, err := a.SaveContact(ctx, target, name, firstName, phonebook)
 	if err != nil {
 		return contactSaveResult{}, err
 	}
-	action := patch.Mutations[0].Value.GetContactAction()
-	first := action.GetFirstName()
-	if err := cli.SaveContact(ctx, target, lid, name, first, phonebook); err != nil {
-		return contactSaveResult{}, fmt.Errorf("save contact: %w", err)
-	}
-	if err := db.UpsertContact(target.String(), target.User, "", name, first, ""); err != nil {
-		return contactSaveResult{}, fmt.Errorf("contact saved on WhatsApp, but updating the local index failed: %w", err)
-	}
 	return contactSaveResult{
-		JID:       target.String(),
-		Name:      name,
-		FirstName: first,
-		Phonebook: phonebook,
-		LID:       action.GetLidJID(),
+		JID:       saved.JID.String(),
+		Name:      saved.FullName,
+		FirstName: saved.FirstName,
+		Phonebook: saved.Phonebook,
+		LID:       saved.LID.String(),
 	}, nil
 }
 
 // executeDelegatedContactsSave runs the save on the follow process, which
 // owns the store lock and the connected session. It validates the request
 // like the command does, so an older or hand-written client gets the same errors.
-func executeDelegatedContactsSave(ctx context.Context, cli contactSaver, db *store.DB, req sendDelegateRequest) (sendDelegateResponse, error) {
+func executeDelegatedContactsSave(ctx context.Context, a contactSaveApp, req sendDelegateRequest) (sendDelegateResponse, error) {
 	target, name, firstName, err := parseContactSaveInput(req.To, req.Name, req.FirstName)
 	if err != nil {
 		return sendDelegateResponse{}, err
 	}
-	result, err := saveContact(ctx, cli, db, target, name, firstName, req.Phonebook)
+	result, err := saveContact(ctx, a, target, name, firstName, req.Phonebook)
 	if err != nil {
 		return sendDelegateResponse{}, err
 	}

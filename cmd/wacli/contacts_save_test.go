@@ -4,12 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
-	"github.com/openclaw/wacli/internal/store"
+	"github.com/openclaw/wacli/internal/app"
 	"go.mau.fi/whatsmeow/types"
 )
 
@@ -63,45 +62,35 @@ func TestContactsSaveRejectsControlCharactersBeforeConnecting(t *testing.T) {
 	}
 }
 
-// fakeContactSaver stands in for the follow process's connected session.
+// fakeContactSaver stands in for the follow process's app.
 type fakeContactSaver struct {
-	lid   types.JID
 	err   error
 	saved []string
 }
 
-func (f *fakeContactSaver) ResolvePNToLID(_ context.Context, jid types.JID) types.JID {
-	if f.lid.IsEmpty() {
-		return jid
+func (f *fakeContactSaver) SaveContact(_ context.Context, target types.JID, fullName, firstName string, phonebook bool) (app.SavedContact, error) {
+	f.saved = append(f.saved, fmt.Sprintf("%s %q %q %v", target, fullName, firstName, phonebook))
+	if f.err != nil {
+		return app.SavedContact{}, f.err
 	}
-	return f.lid
-}
-
-func (f *fakeContactSaver) SaveContact(_ context.Context, target, lid types.JID, fullName, firstName string, phonebook bool) error {
-	f.saved = append(f.saved, fmt.Sprintf("%s %s %q %q %v", target, lid, fullName, firstName, phonebook))
-	return f.err
-}
-
-func openContactSaveTestDB(t *testing.T) *store.DB {
-	t.Helper()
-	db, err := store.Open(filepath.Join(t.TempDir(), "wacli.db"))
-	if err != nil {
-		t.Fatal(err)
+	if firstName == "" {
+		firstName = strings.Fields(fullName)[0]
 	}
-	t.Cleanup(func() { _ = db.Close() })
-	return db
+	return app.SavedContact{
+		JID: target, LID: types.NewJID("99887766", types.HiddenUserServer),
+		FullName: fullName, FirstName: firstName, Phonebook: phonebook,
+	}, nil
 }
 
-func TestExecuteDelegatedContactsSaveSavesAndIndexes(t *testing.T) {
-	db := openContactSaveTestDB(t)
-	saver := &fakeContactSaver{lid: types.NewJID("99887766", types.HiddenUserServer)}
-	resp, err := executeDelegatedContactsSave(context.Background(), saver, db, sendDelegateRequest{
+func TestExecuteDelegatedContactsSaveRunsTheAppSave(t *testing.T) {
+	saver := &fakeContactSaver{}
+	resp, err := executeDelegatedContactsSave(context.Background(), saver, sendDelegateRequest{
 		Kind: contactsSaveKind, To: "+1 555 000 1111", Name: "  Ada Lovelace ", Phonebook: true,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := []string{`15550001111@s.whatsapp.net 99887766@lid "Ada Lovelace" "Ada" true`}; !slices.Equal(saver.saved, want) {
+	if want := []string{`15550001111@s.whatsapp.net "Ada Lovelace" "" true`}; !slices.Equal(saver.saved, want) {
 		t.Fatalf("saved = %q, want %q", saver.saved, want)
 	}
 	if !resp.OK || resp.Contact == nil {
@@ -112,38 +101,16 @@ func TestExecuteDelegatedContactsSaveSavesAndIndexes(t *testing.T) {
 	if got != want {
 		t.Fatalf("contact = %+v, want %+v", got, want)
 	}
-	c, err := db.GetContact("15550001111@s.whatsapp.net")
-	if err != nil || c.Name != "Ada Lovelace" || c.Phone != "15550001111" {
-		t.Fatalf("local index = %+v, %v", c, err)
-	}
-}
-
-func TestExecuteDelegatedContactsSaveRefusesWithoutLID(t *testing.T) {
-	db := openContactSaveTestDB(t)
-	saver := &fakeContactSaver{}
-	_, err := executeDelegatedContactsSave(context.Background(), saver, db, sendDelegateRequest{
-		Kind: contactsSaveKind, To: "15550001111", Name: "Ada",
-	})
-	if err == nil || !strings.Contains(err.Error(), "LID") || !strings.Contains(err.Error(), "nothing was saved") {
-		t.Fatalf("err = %v", err)
-	}
-	if saver.saved != nil {
-		t.Fatalf("mutation sent without a LID: %q", saver.saved)
-	}
-	if _, err := db.GetContact("15550001111@s.whatsapp.net"); err == nil {
-		t.Fatal("local index updated although nothing was saved")
-	}
 }
 
 func TestExecuteDelegatedContactsSaveValidatesLikeTheCommand(t *testing.T) {
-	db := openContactSaveTestDB(t)
-	saver := &fakeContactSaver{lid: types.NewJID("99887766", types.HiddenUserServer)}
+	saver := &fakeContactSaver{}
 	for _, req := range []sendDelegateRequest{
 		{Kind: contactsSaveKind, To: "123@lid", Name: "Ada"},
 		{Kind: contactsSaveKind, To: "15550001111", Name: "   "},
 		{Kind: contactsSaveKind, Name: "Ada"},
 	} {
-		if _, err := executeDelegatedContactsSave(context.Background(), saver, db, req); err == nil {
+		if _, err := executeDelegatedContactsSave(context.Background(), saver, req); err == nil {
 			t.Errorf("request %+v accepted", req)
 		}
 	}
@@ -152,17 +119,13 @@ func TestExecuteDelegatedContactsSaveValidatesLikeTheCommand(t *testing.T) {
 	}
 }
 
-func TestExecuteDelegatedContactsSaveReportsSendErrors(t *testing.T) {
-	db := openContactSaveTestDB(t)
-	saver := &fakeContactSaver{lid: types.NewJID("99887766", types.HiddenUserServer), err: errors.New("boom")}
-	_, err := executeDelegatedContactsSave(context.Background(), saver, db, sendDelegateRequest{
+func TestExecuteDelegatedContactsSaveReportsSaveErrors(t *testing.T) {
+	saver := &fakeContactSaver{err: errors.New("save contact: boom")}
+	_, err := executeDelegatedContactsSave(context.Background(), saver, sendDelegateRequest{
 		Kind: contactsSaveKind, To: "15550001111", Name: "Ada",
 	})
 	if err == nil || !strings.Contains(err.Error(), "save contact: boom") {
 		t.Fatalf("err = %v", err)
-	}
-	if _, err := db.GetContact("15550001111@s.whatsapp.net"); err == nil {
-		t.Fatal("local index updated after a failed send")
 	}
 }
 

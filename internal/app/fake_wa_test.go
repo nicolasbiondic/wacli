@@ -70,6 +70,9 @@ type fakeWA struct {
 	downloadHistory             func(notif *waE2E.HistorySyncNotification) (*waHistorySync.HistorySync, error)
 	deleteHistoryCalls          []*waE2E.HistorySyncNotification
 	appStateRecoveryErr         error
+	saveContactCalls            []fakeSaveContactCall
+	saveContactErr              error
+	saveContactAfterSend        func(call fakeSaveContactCall)
 	onAppStateRecovery          func(name string)
 	appStateFetchErr            error
 	appStateFetchErrs           []error
@@ -974,8 +977,47 @@ func (f *fakeWA) SetProfileName(ctx context.Context, name string) error {
 	return nil
 }
 
+type fakeSaveContactCall struct {
+	target, lid         types.JID
+	fullName, firstName string
+	phonebook           bool
+}
+
 func (f *fakeWA) SaveContact(ctx context.Context, target, lid types.JID, fullName, firstName string, phonebook bool) error {
-	return nil
+	_, err := f.saveContact(fakeSaveContactCall{target: target, lid: lid, fullName: fullName, firstName: firstName, phonebook: phonebook}, func() {})
+	return err
+}
+
+// saveContact models whatsmeow's SendAppState: the persistence boundary runs
+// before the send, then afterSend models the post-send fetch, whose events
+// whatsmeow dispatches from a goroutine before returning.
+func (f *fakeWA) saveContact(call fakeSaveContactCall, beforeApply func()) ([]any, error) {
+	f.mu.Lock()
+	f.saveContactCalls = append(f.saveContactCalls, call)
+	err := f.saveContactErr
+	afterSend := f.saveContactAfterSend
+	f.mu.Unlock()
+	beforeApply()
+	if err != nil {
+		return nil, err
+	}
+	if afterSend != nil {
+		afterSend(call)
+	}
+	return nil, nil
+}
+
+// dispatchAsync delivers events from a goroutine, like whatsmeow's post-send
+// dispatch, and returns once every handler has been called.
+func (f *fakeWA) dispatchAsync(evts ...any) {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for _, evt := range evts {
+			f.emit(evt)
+		}
+	}()
+	<-done
 }
 
 func (f *fakeWA) GetBusinessProfile(ctx context.Context, jid types.JID) (*types.BusinessProfile, error) {
