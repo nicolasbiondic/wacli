@@ -61,6 +61,8 @@ type sendDelegateRequest struct {
 	Latitude             float64  `json:"latitude,omitempty"`
 	Longitude            float64  `json:"longitude,omitempty"`
 	Name                 string   `json:"name,omitempty"`
+	BackgroundColor      string   `json:"background_color,omitempty"`
+	Font                 *int32   `json:"font,omitempty"`
 	Question             string   `json:"question,omitempty"`
 	Options              []string `json:"options,omitempty"`
 	Selectable           int      `json:"selectable,omitempty"`
@@ -419,6 +421,8 @@ func executeDelegatedSend(parent context.Context, a *app.App, req sendDelegateRe
 		return executeDelegatedReact(ctx, a, req)
 	case "location":
 		return executeDelegatedLocation(ctx, a, req)
+	case "status":
+		return executeDelegatedStatus(ctx, a, req)
 	case "poll":
 		return executeDelegatedPoll(ctx, a, req)
 	case "poll_vote":
@@ -769,6 +773,8 @@ func writeDelegatedSendOutput(flags *rootFlags, kind string, resp sendDelegateRe
 		fmt.Fprintf(os.Stdout, "Sent sticker to %s (id %s)\n", resp.To, resp.ID)
 	case "location":
 		fmt.Fprintf(os.Stdout, "Sent location to %s (id %s)\n", resp.To, resp.ID)
+	case "status":
+		fmt.Fprintf(os.Stdout, "Sent status (id %s)\n", resp.ID)
 	case "voice":
 		fmt.Fprintf(os.Stdout, "Sent voice note to %s (id %s)\n", resp.To, resp.ID)
 	case "react":

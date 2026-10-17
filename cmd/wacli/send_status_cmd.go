@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/openclaw/wacli/internal/app"
 	"github.com/openclaw/wacli/internal/out"
 	"github.com/openclaw/wacli/internal/store"
 	"github.com/spf13/cobra"
@@ -70,6 +72,27 @@ func newSendStatusCmd(flags *rootFlags) *cobra.Command {
 
 			a, lk, err := newApp(ctx, flags, true, false)
 			if err != nil {
+				// The tenant's `sync --follow` owns the store lock and the one
+				// live connection, so a status goes through it like any send.
+				delegateFile := filePath
+				if abs, absErr := filepath.Abs(filePath); filePath != "" && absErr == nil {
+					delegateFile = abs
+				}
+				resp, delegated, delegateErr := tryDelegateSend(ctx, flags, err, sendDelegateRequest{
+					Kind:            "status",
+					Message:         message,
+					File:            delegateFile,
+					MIME:            mimeOverride,
+					BackgroundColor: backgroundColor,
+					Font:            fontPtr,
+					PostSendWaitMS:  durationMillis(postSendWait),
+				})
+				if delegated {
+					if delegateErr != nil {
+						return delegateErr
+					}
+					return writeDelegatedSendOutput(flags, "status", resp)
+				}
 				return err
 			}
 			defer closeApp(a, lk)
@@ -184,4 +207,67 @@ func parseStatusBackgroundColor(s string) (uint32, error) {
 
 func sendStatusTextMessage(ctx context.Context, sender statusMessageSender, msg *waProto.Message) (types.MessageID, error) {
 	return sender.SendProtoMessage(ctx, types.StatusBroadcastJID, msg)
+}
+
+// executeDelegatedStatus posts a status for a CLI that lost the store lock to
+// the running sync process. It mirrors the direct path above: text goes out as
+// an ExtendedTextMessage to the status broadcast list and is stored in
+// status_messages, media goes through sendFile with the text as its caption.
+func executeDelegatedStatus(ctx context.Context, a *app.App, req sendDelegateRequest) (sendDelegateResponse, error) {
+	if strings.TrimSpace(req.Message) == "" && strings.TrimSpace(req.File) == "" {
+		return sendDelegateResponse{}, fmt.Errorf("--message or --file is required")
+	}
+	if err := warnRapidSendIfNeeded(a.StoreDir(), time.Now().UTC(), os.Stderr); err != nil {
+		return sendDelegateResponse{}, err
+	}
+	if strings.TrimSpace(req.File) != "" {
+		res, err := runSendOperation(ctx, reconnectForSend(a), func(ctx context.Context) (sendDelegateResponse, error) {
+			outcome, err := sendFile(ctx, a, types.StatusBroadcastJID, strings.TrimSpace(req.File), sendFileOptions{
+				caption:      req.Message,
+				mimeOverride: req.MIME,
+			})
+			if err != nil {
+				return sendDelegateResponse{}, err
+			}
+			resp := sendDelegateResponse{OK: true, Sent: true, To: types.StatusBroadcastJID.String(), ID: outcome.id, File: outcome.meta}
+			if outcome.storeWarning != nil {
+				resp.StoreWarning = outcome.storeWarning.Error()
+			}
+			return resp, nil
+		})
+		if err != nil {
+			return sendDelegateResponse{}, err
+		}
+		waitForPostSendRetryReceipts(ctx, millisDuration(req.PostSendWaitMS, 0))
+		return res, nil
+	}
+
+	msg, err := buildStatusTextMessage(req.Message, statusTextOptions{BackgroundColor: req.BackgroundColor, Font: req.Font})
+	if err != nil {
+		return sendDelegateResponse{}, err
+	}
+	msgID, err := runSendOperation(ctx, reconnectForSend(a), func(ctx context.Context) (types.MessageID, error) {
+		return sendStatusTextMessage(ctx, a.WA(), msg)
+	})
+	if err != nil {
+		return sendDelegateResponse{}, err
+	}
+	var storedFont int32
+	if req.Font != nil {
+		storedFont = *req.Font
+	}
+	storeErr := a.DB().UpsertStatusMessage(store.UpsertStatusMessageParams{
+		MsgID:           string(msgID),
+		Timestamp:       time.Now().UTC(),
+		FromMe:          true,
+		Text:            req.Message,
+		BackgroundColor: req.BackgroundColor,
+		Font:            storedFont,
+	})
+	waitForPostSendRetryReceipts(ctx, millisDuration(req.PostSendWaitMS, 0))
+	resp := sendDelegateResponse{OK: true, Sent: true, To: types.StatusBroadcastJID.String(), ID: string(msgID)}
+	if storeErr != nil {
+		resp.StoreWarning = storeErr.Error()
+	}
+	return resp, nil
 }
