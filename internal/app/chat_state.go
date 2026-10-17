@@ -230,6 +230,9 @@ func (a *App) syncChatStateBeforeWrite(ctx context.Context, collection appstate.
 		return a.replayRequiredAppState(ctx, collection, markerGeneration, tracker)
 	}
 
+	keyCtx, cancelKeyWait := context.WithTimeout(ctx, appStateRecoveryMaxWait)
+	defer cancelKeyWait()
+	retryDelay := appStateRetryInitialDelay
 	for {
 		err, persistenceErr := a.fetchAndPersistAppState(ctx, collection, false, tracker)
 		if persistenceErr != nil {
@@ -242,13 +245,27 @@ func (a *App) syncChatStateBeforeWrite(ctx context.Context, collection appstate.
 		if errors.Is(err, appstate.ErrMismatchingLTHash) || errors.Is(err, wa.ErrEmptyAppStateKeyShare) {
 			return a.replayRequiredAppState(ctx, collection, markerGeneration, tracker)
 		} else if errors.Is(err, appstate.ErrKeyNotFound) {
-			return a.replayRequiredAppState(ctx, collection, markerGeneration, tracker)
+			if !a.keepsLocalAppStateOnRecovery(ctx, collection) {
+				return a.replayRequiredAppState(ctx, collection, markerGeneration, tracker)
+			}
+			// An ordinary missing key is not a reason to give up local state
+			// or to wait for a snapshot: retry the incremental fetch until
+			// the key whatsmeow requested arrives.
+			if err := waitForAppStateKeyDelivery(keyCtx, collection, &retryDelay); err != nil {
+				return err
+			}
 		} else {
 			return fmt.Errorf("sync WhatsApp chat state before update: %w", err)
 		}
 	}
 }
 
+// replayRequiredAppState settles a hash mismatch, a known-empty key, or
+// replay debt the degraded path could not handle: with a full replay, retried
+// while whatsmeow waits for a missing key, or from the primary's snapshot on
+// a collection whose local state must not be destroyed. An ordinary missing
+// key on such a collection is retried incrementally by the callers instead,
+// so it never reaches the snapshot wait.
 func (a *App) replayRequiredAppState(ctx context.Context, collection appstate.WAPatchName, markerGeneration int64, tracker *appStatePersistenceTracker) error {
 	ctx, cancel := context.WithTimeout(ctx, appStateRecoveryMaxWait)
 	defer cancel()
@@ -276,24 +293,29 @@ func (a *App) replayRequiredAppState(ctx context.Context, collection appstate.WA
 		if !errors.Is(fetchErr, appstate.ErrKeyNotFound) {
 			return fmt.Errorf("replay WhatsApp app state recovery for %s: %w", collection, fetchErr)
 		}
-		// whatsmeow requests the missing keys when patch decoding returns
-		// ErrKeyNotFound. Keep the connection alive for that delivery, bounded
-		// so one absent key cannot hold all chat-state writes forever.
-
-		timer := time.NewTimer(retryDelay)
-		select {
-		case <-ctx.Done():
-			timer.Stop()
-			return fmt.Errorf("wait for missing WhatsApp app state key during %s recovery: %w", collection, ctx.Err())
-		case <-timer.C:
-		}
-		if retryDelay < appStateRetryMaxDelay {
-			retryDelay *= 2
-			if retryDelay > appStateRetryMaxDelay {
-				retryDelay = appStateRetryMaxDelay
-			}
+		if err := waitForAppStateKeyDelivery(ctx, collection, &retryDelay); err != nil {
+			return err
 		}
 	}
+}
+
+// waitForAppStateKeyDelivery waits before the next fetch of a collection
+// whose patches could not be decoded for lack of a key. whatsmeow requests
+// the missing keys when patch decoding returns ErrKeyNotFound; keep the
+// connection alive for that delivery, with backoff and bounded by ctx so one
+// absent key cannot hold all chat-state writes forever.
+func waitForAppStateKeyDelivery(ctx context.Context, collection appstate.WAPatchName, retryDelay *time.Duration) error {
+	timer := time.NewTimer(*retryDelay)
+	select {
+	case <-ctx.Done():
+		timer.Stop()
+		return fmt.Errorf("wait for missing WhatsApp app state key during %s recovery: %w", collection, ctx.Err())
+	case <-timer.C:
+	}
+	if *retryDelay < appStateRetryMaxDelay {
+		*retryDelay = min(*retryDelay*2, appStateRetryMaxDelay)
+	}
+	return nil
 }
 
 // setAppStateFullSyncResult records whether the latest full sync of the
@@ -417,9 +439,25 @@ func (a *App) degradedAppStateReplay(ctx context.Context, collection appstate.WA
 	if !hasLocal {
 		return false, nil
 	}
-	fetchErr, persistenceErr := a.fetchAndPersistAppState(ctx, collection, false, tracker)
-	if persistenceErr != nil {
-		return true, fmt.Errorf("persist degraded app state replay %s: %w", collection, persistenceErr)
+	keyCtx, cancelKeyWait := context.WithTimeout(ctx, appStateRecoveryMaxWait)
+	defer cancelKeyWait()
+	retryDelay := appStateRetryInitialDelay
+	var fetchErr error
+	for {
+		var persistenceErr error
+		fetchErr, persistenceErr = a.fetchAndPersistAppState(ctx, collection, false, tracker)
+		if persistenceErr != nil {
+			return true, fmt.Errorf("persist degraded app state replay %s: %w", collection, persistenceErr)
+		}
+		if !errors.Is(fetchErr, appstate.ErrKeyNotFound) || collection != appstate.WAPatchCriticalUnblockLow {
+			break
+		}
+		// The contact collection is never full-synced while local state
+		// exists, and a snapshot is not how an ordinary missing key arrives:
+		// retry the incremental fetch until whatsmeow receives the key.
+		if err := waitForAppStateKeyDelivery(keyCtx, collection, &retryDelay); err != nil {
+			return true, err
+		}
 	}
 	if fetchErr != nil {
 		// LTHash mismatch (or any other failure): today's behavior.
