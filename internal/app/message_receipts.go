@@ -61,6 +61,9 @@ func (a *App) handleOutgoingReceiptEvent(ctx context.Context, evt *events.Receip
 	if !ok {
 		return nil
 	}
+	if evt.Chat == types.StatusBroadcastJID {
+		return a.handleStatusReceiptEvent(ctx, evt, status)
+	}
 	chat := canonicalJIDString(a.canonicalStoreJID(ctx, evt.Chat))
 	recipient := evt.Sender
 	if recipient.IsEmpty() {
@@ -78,6 +81,32 @@ func (a *App) handleOutgoingReceiptEvent(ctx context.Context, evt *events.Receip
 				"message_receipt_store_failed",
 				fmt.Sprintf("warning: failed to store a %s receipt for chat %s: %v", status, chat, err),
 				map[string]any{"chat_jid": chat, "status": status, "error": err.Error()},
+			)
+			return err
+		}
+	}
+	return nil
+}
+
+// handleStatusReceiptEvent records who has seen a status of ours, one row per
+// participant. Statuses live in status_messages rather than messages, so they
+// cannot use the per-chat receipt table; a receipt for a status we do not hold
+// is dropped.
+func (a *App) handleStatusReceiptEvent(ctx context.Context, evt *events.Receipt, status string) error {
+	if evt.Sender.IsEmpty() {
+		return nil
+	}
+	participant := canonicalJIDString(a.canonicalStoreJID(ctx, evt.Sender))
+	when := evt.Timestamp
+	if when.IsZero() {
+		when = nowUTC()
+	}
+	for _, id := range evt.MessageIDs {
+		if _, err := a.db.UpsertStatusReceipt(string(id), participant, status, when); err != nil {
+			a.emitWarning(
+				"status_receipt_store_failed",
+				fmt.Sprintf("warning: failed to store a %s status receipt: %v", status, err),
+				map[string]any{"status": status, "error": err.Error()},
 			)
 			return err
 		}

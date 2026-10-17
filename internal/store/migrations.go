@@ -53,6 +53,11 @@ var schemaMigrations = []migration{
 	// guard, trigger rebuild only when the comparison is missing). The runner
 	// applies by version-set membership, so the numbering gap is harmless.
 	{version: 9033, name: "vendas: messages ad_referral (#480)", up: migrateMessagesAdReferralColumn},
+	// vendas: status receipts (who saw a status of ours) are not upstream yet;
+	// local number like 9033. 9034 belongs to the lists branch. The body is a
+	// CREATE IF NOT EXISTS and ensureCurrentSchema re-runs it, so whichever
+	// number upstream assigns stays a no-op here.
+	{version: 9035, name: "vendas: status receipts", up: ensureStatusReceiptsTable},
 }
 
 func migratePlaceholderChatActivity(d *DB) error {
@@ -514,6 +519,9 @@ func (d *DB) ensureCurrentSchema() error {
 	if err := migrateUnavailableAppStateKeys(d); err != nil {
 		return fmt.Errorf("ensure unavailable app state keys: %w", err)
 	}
+	if err := ensureStatusReceiptsTable(d); err != nil {
+		return fmt.Errorf("ensure current status receipts schema: %w", err)
+	}
 	return nil
 }
 
@@ -930,6 +938,27 @@ func migrateStatusMessages(d *DB) error {
 	}
 	return migrateStatusMessageMediaColumns(d)
 }
+
+// ensureStatusReceiptsTable adds the per-viewer receipt table for statuses of
+// ours. status_messages is created by migration 17, long before this runs.
+func ensureStatusReceiptsTable(d *DB) error {
+	if _, err := d.sql.Exec(statusReceiptsSchema); err != nil {
+		return fmt.Errorf("ensure status receipts: %w", err)
+	}
+	return nil
+}
+
+const statusReceiptsSchema = `
+ CREATE TABLE IF NOT EXISTS status_receipts (
+  msg_id TEXT NOT NULL,
+  participant_jid TEXT NOT NULL,
+  status TEXT NOT NULL,
+  ts INTEGER NOT NULL,
+  PRIMARY KEY (msg_id, participant_jid),
+  FOREIGN KEY (msg_id) REFERENCES status_messages(msg_id) ON DELETE CASCADE
+ );
+ CREATE INDEX IF NOT EXISTS idx_status_receipts_msg ON status_receipts(msg_id);
+`
 
 func migrateContactsSystemNameColumn(d *DB) error {
 	hasContacts, err := d.tableExists("contacts")

@@ -22,6 +22,7 @@ wacli groups prune [--days N] [--left-only=false|--include-active] [--dry-run] [
 
 - `store stats` reads local counts for chats, groups, left groups, and normal chat messages.
 - Status broadcasts are persisted separately in `status_messages`; they are not chat rows and are not included in normal chat/message cleanup paths.
+- Who has seen a status of yours is persisted in `status_receipts` (status message ID, participant JID, `delivered`/`read`/`played`, timestamp), one row per participant, filled from receipts for `status@broadcast`. Receipts for statuses that are not yours, or not stored, are dropped. Rows follow their `status_messages` row through the SQLite cascade. Stores created before this table existed get it on open; statuses posted by older builds simply have no rows.
 - What recipients report about your own messages is persisted in `message_receipts`, one row per recipient. The rows follow their chat through the SQLite cascade, so `store cleanup` and `chats cleanup` remove them with it.
 - Location pins are persisted in `message_locations`. Coordinates follow the same lifecycle as the rest of a message's local payload: `messages purge` removes them with the retained payload, `store cleanup` and `chats cleanup` remove them with their chat, and a LID-to-phone identity migration moves them with the message rather than leaving them under the old identity.
 - `store cleanup` removes chats whose known local activity is older than `--days` and deletes their messages through the SQLite chat/message cascade.

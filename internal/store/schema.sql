@@ -156,6 +156,19 @@ CREATE TABLE IF NOT EXISTS status_messages (
 
 CREATE INDEX IF NOT EXISTS idx_status_messages_ts ON status_messages(ts);
 
+-- What viewers reported about a status of ours: one row per participant,
+-- keeping the furthest state reached (delivered|read|played).
+CREATE TABLE IF NOT EXISTS status_receipts (
+    msg_id TEXT NOT NULL,
+    participant_jid TEXT NOT NULL,
+    status TEXT NOT NULL,
+    ts INTEGER NOT NULL,
+    PRIMARY KEY (msg_id, participant_jid),
+    FOREIGN KEY (msg_id) REFERENCES status_messages(msg_id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_status_receipts_msg ON status_receipts(msg_id);
+
 CREATE TABLE IF NOT EXISTS call_events (
     rowid INTEGER PRIMARY KEY AUTOINCREMENT,
     chat_jid TEXT NOT NULL,
