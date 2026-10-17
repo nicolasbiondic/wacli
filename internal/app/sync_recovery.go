@@ -47,8 +47,12 @@ func (a *App) handleAppStateSyncError(ctx context.Context, evt *events.AppStateS
 	}
 
 	a.appStateRecoveryWorkers.Go(func() {
+		strategy := "attempting full sync"
+		if a.keepsLocalAppStateOnRecovery(ctx, evt.Name) {
+			strategy = "requesting the primary's recovery snapshot, keeping local state"
+		}
 		a.emitWarning(code,
-			fmt.Sprintf("warning: app state %s %s; attempting full sync", name, reason),
+			fmt.Sprintf("warning: app state %s %s; %s", name, reason, strategy),
 			map[string]any{"name": name})
 		a.recoverAppStateCollection(ctx, name, recoveries, appStateRecoveryStepTimeout)
 	})

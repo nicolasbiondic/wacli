@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Contacts: add `contacts save` to save or rename a contact in the WhatsApp account, synced to the phone and linked devices, with the contact's LID resolved first, an optional `--phonebook` copy to the device address book, and delegation to a running `sync --follow`. Contact mutations received from the phone or other linked devices are now mirrored into `wacli.db` (authoritative for the full and first name). Saves go through the app-state write coordinator, and `critical_unblock_low` is repaired from the phone's recovery snapshot instead of a destructive full sync; a live hash failure on any collection whose full sync is known not to verify now does the same.
+- Contacts: add `contacts save` to save or rename a contact in the WhatsApp account, synced to the phone and linked devices, with the contact's LID resolved first, an optional `--phonebook` copy to the device address book, and delegation to a running `sync --follow`. Contact mutations received from the phone or other linked devices are now mirrored into `wacli.db` from the whatsmeow contact store (authoritative for the full and first name). Saves go through the app-state write coordinator, and `critical_unblock_low` is never repaired with a destructive full sync while local state exists: missed contact batches are mirrored from the session store, and a hash failure requests the phone's recovery snapshot.
 - Dependencies: update x/exp after the 48-hour cooldown while retaining the Go 1.27.0 source minimum and Go 1.27.2 build toolchain.
 - Sync: unarchive chats on eligible incoming messages when Keep chats archived is off, recover missing preferences on upgrade, and preserve newer unarchives across stale archive replays. Thanks @Luizssauro (#466).
 

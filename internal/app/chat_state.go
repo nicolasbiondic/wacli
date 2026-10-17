@@ -358,12 +358,17 @@ func (a *App) avoidsDestructiveFullSync(collection appstate.WAPatchName) bool {
 	return collection == appstate.WAPatchCriticalUnblockLow || a.isAppStateFullSyncBroken(collection)
 }
 
-// keepsLocalAppStateOnRecovery reports whether a recovery of the collection
-// must skip the full sync and wait for the primary's snapshot: the collection
-// avoids destructive full syncs and has local state to lose. Without local
-// state a full sync is the only way to get the collection and loses nothing.
+// keepsLocalAppStateOnRecovery reports whether a hash failure of the
+// collection must skip the full sync and wait for the primary's snapshot.
+// Only `critical_unblock_low` with local state to lose: its local hash can
+// stop verifying after a save (see avoidsDestructiveFullSync), and its
+// mirror is derived from the session contact store, which a full sync would
+// empty. Collections flagged by #497 keep main's behaviour here (a full
+// replay first); changing that belongs to the follow-ups of #497, not to
+// contacts. Without local state a full sync is the only way to get the
+// collection and loses nothing.
 func (a *App) keepsLocalAppStateOnRecovery(ctx context.Context, collection appstate.WAPatchName) bool {
-	if !a.avoidsDestructiveFullSync(collection) {
+	if collection != appstate.WAPatchCriticalUnblockLow {
 		return false
 	}
 	hasLocal, err := a.wa.HasLocalAppState(ctx, string(collection))
