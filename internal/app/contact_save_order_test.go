@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"sync"
 	"testing"
@@ -61,10 +62,10 @@ func TestSaveContactSameBatchRenameWinsOverOptimisticMirror(t *testing.T) {
 				t.Cleanup(remove)
 			}
 			f.saveContactAfterSend = func(fakeSaveContactCall) {
-				f.dispatchAsync(
+				f.applyContactBatch(
 					contactEvent(testContactLID, "Ada Lovelace", "Ada"),
 					contactEvent(testContactLID, "Grace Hopper", "Grace"),
-				)
+				)()
 			}
 			if _, err := a.SaveContact(t.Context(), testContactPN, "Ada Lovelace", "", false); err != nil {
 				t.Fatal(err)
@@ -74,6 +75,61 @@ func TestSaveContactSameBatchRenameWinsOverOptimisticMirror(t *testing.T) {
 			}
 		})
 	}
+}
+
+// whatsmeow dispatches every fetched batch from its own goroutine: the 409
+// conflict patches, the post-send fetch of the retry that follows them, and
+// the post-send fetch of an earlier save all run independently of each other
+// and of SendAppState returning. An older batch can therefore reach wacli.db
+// after a newer one. whatsmeow writes each batch to the session contact store
+// before it dispatches it, so the mirror must follow that store, not the
+// event payloads. (Schedules reproduced by the round-1 reviewers.)
+func TestSaveContactDelayedOlderBatchDoesNotRegressTheMirror(t *testing.T) {
+	t.Run("409 conflict retry", func(t *testing.T) {
+		a, f := newContactSaveTestApp(t)
+		f.hasLocalAppState = true
+		installBoundaryReplayHandler(t, a, f)
+		f.saveContactAfterSend = func(fakeSaveContactCall) {
+			// sendAppState applies the conflicting older rename first and
+			// then, after the retry, the fetch holding our own echo. The two
+			// dispatch goroutines run in the opposite order.
+			dispatchConflict := f.applyContactBatch(contactEvent(testContactPN, "Grace Hopper", "Grace"))
+			dispatchRetry := f.applyContactBatch(contactEvent(testContactPN, "Ada Lovelace", "Ada"))
+			dispatchRetry()
+			dispatchConflict()
+		}
+		if _, err := a.SaveContact(t.Context(), testContactPN, "Ada Lovelace", "", false); err != nil {
+			t.Fatal(err)
+		}
+		if got := storedContact(t, a, testContactPN); got.full != "Ada Lovelace" || got.first != "Ada" {
+			t.Fatalf("local mirror = %+v, but the retry the server accepted saved Ada Lovelace", got)
+		}
+	})
+	t.Run("two serialized saves", func(t *testing.T) {
+		a, f := newContactSaveTestApp(t)
+		f.hasLocalAppState = true
+		installBoundaryReplayHandler(t, a, f)
+		var dispatchFirstEcho func()
+		f.saveContactAfterSend = func(call fakeSaveContactCall) {
+			dispatch := f.applyContactBatch(contactEvent(call.target, call.fullName, call.firstName))
+			if dispatchFirstEcho == nil {
+				// The first save returns before its dispatch goroutine runs.
+				dispatchFirstEcho = dispatch
+				return
+			}
+			dispatch()
+		}
+		if _, err := a.SaveContact(t.Context(), testContactPN, "Ada Lovelace", "", false); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := a.SaveContact(t.Context(), testContactPN, "Grace Hopper", "", false); err != nil {
+			t.Fatal(err)
+		}
+		dispatchFirstEcho()
+		if got := storedContact(t, a, testContactPN); got.full != "Grace Hopper" || got.first != "Grace" {
+			t.Fatalf("local mirror = %+v, but the server applied Grace Hopper last", got)
+		}
+	})
 }
 
 // Two concurrent saves of the same contact (two delegated requests) must
@@ -166,16 +222,21 @@ func TestSaveContactSerializesWithAppStateWrites(t *testing.T) {
 }
 
 // A one-shot save returns, disconnects and removes its persistence handler
-// before whatsmeow's dispatch goroutine runs. Edits fetched in that batch
-// never reach wacli.db, so recovery debt for the collection must already be
-// durable, and a later recovery must deliver them.
-func TestSaveContactOneShotKeepsDebtUntilTheBatchIsCovered(t *testing.T) {
+// before whatsmeow's dispatch goroutine runs, so the events of the post-send
+// batch never reach wacli.db. whatsmeow wrote that batch to the session
+// contact store before SendAppState returned, so the save mirrors the batch
+// from there, and the debt recorded before the send is settled without a
+// recovery snapshot.
+func TestSaveContactOneShotMirrorsTheBatchFromTheSessionStore(t *testing.T) {
 	a, f := newContactSaveTestApp(t)
 	f.hasLocalAppState = true
 	other := types.NewJID("15550002222", types.DefaultUserServer)
-	batch := []any{
-		contactEvent(testContactLID, "Ada Lovelace", "Ada"),
-		contactEvent(other, "Grace Hopper", "Grace"),
+	var dispatch func()
+	f.saveContactAfterSend = func(fakeSaveContactCall) {
+		dispatch = f.applyContactBatch(
+			contactEvent(testContactLID, "Ada Lovelace", "Ada"),
+			contactEvent(other, "Grace Hopper", "Grace"),
+		)
 	}
 	remove, err := a.AddChatStatePersistenceHandler(t.Context())
 	if err != nil {
@@ -185,35 +246,117 @@ func TestSaveContactOneShotKeepsDebtUntilTheBatchIsCovered(t *testing.T) {
 		t.Fatal(err)
 	}
 	remove()
-	f.dispatchAsync(batch...) // nobody is listening any more
-	if got := storedContact(t, a, other); got.found {
-		t.Fatalf("test setup: the late batch was persisted: %+v", got)
-	}
-	if !contactRecoveryRequired(t, a) {
-		t.Fatal("no durable critical_unblock_low recovery debt after the cursor advanced past an unpersisted batch")
-	}
-
-	// The next sync start settles the debt from the primary's snapshot.
-	f.onAppStateRecovery = func(name string) {
-		go func() {
-			if name == string(contactCollection) {
-				for _, evt := range batch {
-					f.emit(evt)
-				}
-			}
-			f.emit(&events.AppStateSyncComplete{Name: appstate.WAPatchName(name), Recovery: true})
-		}()
-	}
-	a.syncAppStateDeltas(t.Context(), &sync.Map{})
-	deadline := time.Now().Add(5 * time.Second)
-	for contactRecoveryRequired(t, a) && time.Now().Before(deadline) {
-		time.Sleep(10 * time.Millisecond)
+	dispatch() // nobody is listening any more
+	if got := storedContact(t, a, other); got.full != "Grace Hopper" {
+		t.Fatalf("edit fetched with the save = %+v, want Grace Hopper mirrored from the session store", got)
 	}
 	if contactRecoveryRequired(t, a) {
-		t.Fatal("the recovery snapshot did not settle the contact debt")
+		t.Fatal("critical_unblock_low debt kept after the save mirrored the batch from the session store")
 	}
-	if got := storedContact(t, a, other); got.full != "Grace Hopper" {
-		t.Fatalf("edit fetched with the save = %+v, want Grace Hopper after recovery", got)
+	if got := recoveredCollections(f); len(got) != 0 {
+		t.Fatalf("recovery snapshots requested: %v", got)
+	}
+}
+
+// A one-shot save can exit after whatsmeow consumed the post-send batch and
+// before the save mirrored it; only the write-ahead debt survives. The pinned
+// whatsmeow ignores a recovery snapshot whose version the session already
+// holds (TestSDKIgnoresEqualVersionContactRecovery in internal/wa), so with
+// no later contact edit the phone can never answer that debt. The next start
+// must repair the mirror from the session contact store instead, and settle
+// the debt only once that succeeded.
+func TestContactDebtIsSettledFromTheSessionStoreWithoutASnapshot(t *testing.T) {
+	a, f := newContactSaveTestApp(t)
+	f.hasLocalAppState = true
+	other := types.NewJID("15550002222", types.DefaultUserServer)
+	f.saveContactAfterSend = func(fakeSaveContactCall) {
+		// Consumed into the session store; the events are never dispatched.
+		f.applyContactBatch(
+			contactEvent(testContactLID, "Ada Lovelace", "Ada"),
+			contactEvent(other, "Grace Hopper", "Grace"),
+		)
+	}
+	// The process dies between the send and the mirror.
+	f.getAllContactsErr = errors.New("process exited before the batch was mirrored")
+	remove, err := a.AddChatStatePersistenceHandler(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.SaveContact(t.Context(), testContactPN, "Ada Lovelace", "", false); err != nil {
+		t.Fatal(err)
+	}
+	remove()
+	if got := storedContact(t, a, other); got.found {
+		t.Fatalf("test setup: the batch was mirrored before the exit: %+v", got)
+	}
+	if !contactRecoveryRequired(t, a) {
+		t.Fatal("no durable critical_unblock_low debt after the cursor advanced past an unmirrored batch")
+	}
+
+	// Next start. The phone's snapshot is at the version the session already
+	// consumed, so whatsmeow would ignore it: model a request nobody answers.
+	f.getAllContactsErr = nil
+	f.onAppStateRecovery = func(string) {}
+	a.syncAppStateDeltas(t.Context(), &sync.Map{})
+	if err := a.appStatePersist.waitIdle(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if got := storedContact(t, a, other); got.full != "Grace Hopper" || got.first != "Grace" {
+		t.Fatalf("edit consumed with the save = %+v, want Grace Hopper from the session store", got)
+	}
+	if contactRecoveryRequired(t, a) {
+		t.Fatal("critical_unblock_low debt kept after the mirror was repaired from the session store")
+	}
+	if n := fullSyncFetches(f, contactCollection); n != 0 {
+		t.Fatalf("startup debt ran %d destructive full syncs of %s", n, contactCollection)
+	}
+}
+
+// An ordinary missing key is requested by whatsmeow when decoding fails and
+// usually arrives before the next fetch. A write must keep retrying the
+// (non-destructive) fetch until it does, as docs/sync.md promises, instead
+// of waiting for a recovery snapshot the phone may never send: on the contact
+// collection, which is never full-synced while local state exists, and on a
+// flagged collection, which keeps main's behaviour. (Reproduced by all three
+// round-1 reviewers.)
+func TestOrdinaryMissingKeyRetriesWithoutSnapshot(t *testing.T) {
+	cases := []struct {
+		name       string
+		collection appstate.WAPatchName
+		flagged    bool
+		debt       bool
+	}{
+		{name: "contacts", collection: contactCollection},
+		{name: "contacts with debt", collection: contactCollection, debt: true},
+		{name: "flagged regular_low", collection: appstate.WAPatchRegularLow, flagged: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			a, f := newContactSaveTestApp(t)
+			f.hasLocalAppState = true
+			if tc.flagged {
+				a.setAppStateFullSyncResult(tc.collection, true)
+			}
+			if tc.debt {
+				if _, err := a.db.MarkAppStateRecoveryGeneration(string(tc.collection)); err != nil {
+					t.Fatal(err)
+				}
+			}
+			f.appStateFetchErrs = []error{appstate.ErrKeyNotFound, nil}
+			ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+			defer cancel()
+			if err := a.syncChatStateBeforeWrite(ctx, tc.collection); err != nil {
+				t.Fatalf("the key available at the next fetch was never retried (recoveries %v): %v", recoveredCollections(f), err)
+			}
+			if got := recoveredCollections(f); len(got) != 0 {
+				t.Fatalf("recovery snapshots requested for an ordinary missing key: %v", got)
+			}
+			if tc.collection == contactCollection {
+				if n := fullSyncFetches(f, tc.collection); n != 0 {
+					t.Fatalf("missing key ran %d destructive full syncs of %s", n, tc.collection)
+				}
+			}
+		})
 	}
 }
 

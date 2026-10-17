@@ -1006,6 +1006,26 @@ func (f *fakeWA) saveContact(call fakeSaveContactCall, beforeApply func()) ([]an
 	return nil, nil
 }
 
+// applyContactBatch models whatsmeow applying one fetched batch of contact
+// mutations: dispatchAppState writes every name to the session contact store
+// synchronously, inside fetchAppState (so before SendAppState returns), and
+// only the events are handed to a goroutine. The store is written now; the
+// returned func dispatches the batch's events, whenever that goroutine runs.
+func (f *fakeWA) applyContactBatch(evts ...*events.Contact) func() {
+	f.mu.Lock()
+	batch := make([]any, 0, len(evts))
+	for _, evt := range evts {
+		info := f.contacts[evt.JID]
+		info.Found = true
+		info.FullName = evt.Action.GetFullName()
+		info.FirstName = evt.Action.GetFirstName()
+		f.contacts[evt.JID] = info
+		batch = append(batch, evt)
+	}
+	f.mu.Unlock()
+	return func() { f.dispatchAsync(batch...) }
+}
+
 // dispatchAsync delivers events from a goroutine, like whatsmeow's post-send
 // dispatch, and returns once every handler has been called.
 func (f *fakeWA) dispatchAsync(evts ...any) {
