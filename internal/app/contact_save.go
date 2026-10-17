@@ -185,7 +185,12 @@ func (a *App) settleContactDebtFromSessionStore(ctx context.Context, generation 
 	if err := a.mirrorContactsUnderTicket(ctx); err != nil {
 		return err
 	}
-	return a.clearCompletedAppStateRecovery(collection, generation)
+	// Newer generations belong to live events still being persisted; they
+	// clear themselves, and the mirror already reflects them.
+	if _, err := a.db.ClearAppStateRecoveryGeneration(string(collection), generation); err != nil {
+		return fmt.Errorf("clear settled %s debt: %w", collection, err)
+	}
+	return nil
 }
 
 // mirrorContactsUnderTicket runs mirrorContactsFromSessionStore as its own
