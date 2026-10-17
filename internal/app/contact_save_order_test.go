@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"errors"
 	"slices"
 	"sync"
 	"testing"
@@ -46,8 +45,9 @@ func fullSyncFetches(f *fakeWA, name appstate.WAPatchName) int {
 
 // whatsmeow's SendAppState fetches the collection after the send and
 // dispatches the fetched batch from a goroutine before it returns. When that
-// batch holds our save followed by a newer phone rename, the rename is the
-// authoritative state; the optimistic local name must not overwrite it.
+// batch holds our save (indexed by the phone number, as BuildSaveContact
+// emits it) followed by a newer phone rename (indexed by the LID), the rename
+// is the authoritative state; the optimistic local name must not overwrite it.
 func TestSaveContactSameBatchRenameWinsOverOptimisticMirror(t *testing.T) {
 	for _, handler := range []string{"sync-follow", "one-shot"} {
 		t.Run(handler, func(t *testing.T) {
@@ -61,9 +61,9 @@ func TestSaveContactSameBatchRenameWinsOverOptimisticMirror(t *testing.T) {
 				}
 				t.Cleanup(remove)
 			}
-			f.saveContactAfterSend = func(fakeSaveContactCall) {
+			f.saveContactAfterSend = func(call fakeSaveContactCall) {
 				f.applyContactBatch(
-					contactEvent(testContactLID, "Ada Lovelace", "Ada"),
+					contactEvent(call.target, call.fullName, call.firstName),
 					contactEvent(testContactLID, "Grace Hopper", "Grace"),
 				)()
 			}
@@ -130,6 +130,214 @@ func TestSaveContactDelayedOlderBatchDoesNotRegressTheMirror(t *testing.T) {
 			t.Fatalf("local mirror = %+v, but the server applied Grace Hopper last", got)
 		}
 	})
+}
+
+// whatsmeow keeps one contact store row per raw index: our save is indexed by
+// the phone number, a phone edit of the same contact may be indexed by its
+// LID. Both land on the one wacli.db row, so the mirror must follow the order
+// in which the SDK applied the writes across both indices, whatever order
+// the events are dispatched in. (Schedules reproduced by the round-2 review.)
+func TestSaveContactMixedIndexBatchesFollowApplicationOrder(t *testing.T) {
+	t.Run("409 conflict LID then retry PN", func(t *testing.T) {
+		a, f := newContactSaveTestApp(t)
+		f.hasLocalAppState = true
+		installBoundaryReplayHandler(t, a, f)
+		f.saveContactAfterSend = func(call fakeSaveContactCall) {
+			// The conflicting older phone rename (LID) is applied first, then
+			// the retry's own echo (PN); their goroutines run reversed.
+			dispatchConflict := f.applyContactBatch(contactEvent(call.lid, "Grace Hopper", "Grace"))
+			dispatchRetry := f.applyContactBatch(contactEvent(call.target, call.fullName, call.firstName))
+			dispatchRetry()
+			dispatchConflict()
+		}
+		if _, err := a.SaveContact(t.Context(), testContactPN, "Ada Lovelace", "", false); err != nil {
+			t.Fatal(err)
+		}
+		if got := storedContact(t, a, testContactPN); got.full != "Ada Lovelace" || got.first != "Ada" {
+			t.Fatalf("local mirror = %+v, but the retry the server accepted saved Ada Lovelace", got)
+		}
+	})
+	t.Run("phone LID rename then delayed PN echo", func(t *testing.T) {
+		a, f := newContactSaveTestApp(t)
+		f.hasLocalAppState = true
+		installBoundaryReplayHandler(t, a, f)
+		var dispatchEcho func()
+		f.saveContactAfterSend = func(call fakeSaveContactCall) {
+			dispatchEcho = f.applyContactBatch(contactEvent(call.target, call.fullName, call.firstName))
+		}
+		if _, err := a.SaveContact(t.Context(), testContactPN, "Ada Lovelace", "", false); err != nil {
+			t.Fatal(err)
+		}
+		f.applyContactBatch(contactEvent(testContactLID, "Grace Hopper", "Grace"))()
+		if got := storedContact(t, a, testContactPN); got.full != "Grace Hopper" {
+			t.Fatalf("phone rename not mirrored: %+v", got)
+		}
+		dispatchEcho()
+		if got := storedContact(t, a, testContactPN); got.full != "Grace Hopper" || got.first != "Grace" {
+			t.Fatalf("local mirror = %+v after the delayed echo of our save, but the phone renamed to Grace Hopper later", got)
+		}
+	})
+	t.Run("one-shot same batch PN echo then LID rename", func(t *testing.T) {
+		a, f := newContactSaveTestApp(t)
+		f.hasLocalAppState = true
+		remove, err := a.AddChatStatePersistenceHandler(t.Context())
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(remove)
+		f.saveContactAfterSend = func(call fakeSaveContactCall) {
+			// Consumed before SendAppState returns; the process exits before
+			// the dispatch goroutine runs.
+			f.applyContactBatch(
+				contactEvent(call.target, call.fullName, call.firstName),
+				contactEvent(call.lid, "Grace Hopper", "Grace"),
+			)
+		}
+		if _, err := a.SaveContact(t.Context(), testContactPN, "Ada Lovelace", "", false); err != nil {
+			t.Fatal(err)
+		}
+		remove()
+		got, debt := storedContact(t, a, testContactPN), contactRecoveryRequired(t, a)
+		if got.full != "Grace Hopper" || got.first != "Grace" {
+			t.Fatalf("local mirror = %+v, want the phone rename consumed with the save (debt=%v)", got, debt)
+		}
+		if debt {
+			t.Fatal("critical_unblock_low debt kept after the consumed batch was mirrored")
+		}
+	})
+}
+
+// A ContactAction without names is an authoritative clear: whatsmeow stores
+// empty names for the existing row. A clear consumed with a save, or left
+// unmirrored when the process exited, must reach wacli.db like any rename.
+// (Reproduced by the round-2 review.)
+func TestConsumedClearNameIsMirrored(t *testing.T) {
+	for _, path := range []string{"one-shot", "startup", "pre-write"} {
+		t.Run(path, func(t *testing.T) {
+			a, f := newContactSaveTestApp(t)
+			f.hasLocalAppState = true
+			remove, err := a.AddChatStatePersistenceHandler(t.Context())
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(remove)
+			other := types.NewJID("15550002222", types.DefaultUserServer)
+			f.applyContactBatch(contactEvent(other, "Grace Hopper", "Grace"))()
+			if got := storedContact(t, a, other); got.full != "Grace Hopper" {
+				t.Fatalf("test setup: %+v", got)
+			}
+			if path == "one-shot" {
+				f.saveContactAfterSend = func(call fakeSaveContactCall) {
+					f.applyContactBatch(contactEvent(call.target, call.fullName, call.firstName), contactEvent(other, "", ""))
+				}
+				if _, err := a.SaveContact(t.Context(), testContactPN, "Ada Lovelace", "", false); err != nil {
+					t.Fatal(err)
+				}
+				remove()
+			} else {
+				if _, err := a.db.MarkAppStateRecoveryGeneration(string(contactCollection)); err != nil {
+					t.Fatal(err)
+				}
+				f.applyContactBatch(contactEvent(other, "", ""))
+				f.onAppStateRecovery = func(string) {}
+				if path == "startup" {
+					a.syncAppStateDeltas(t.Context(), &sync.Map{})
+				} else if err := a.syncChatStateBeforeWrite(t.Context(), contactCollection); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if got := storedContact(t, a, other); got.full != "" || got.first != "" {
+				t.Fatalf("consumed clear not mirrored: %+v (debt=%v)", got, contactRecoveryRequired(t, a))
+			}
+		})
+	}
+}
+
+// Saving one contact must not touch other contacts' names: a clear already
+// mirrored from a LID-indexed action stays cleared even though the stale
+// phone-number row still exists in whatsmeow's store. (Round-2 review.)
+func TestSaveContactDoesNotResurrectAClearedAlias(t *testing.T) {
+	a, f := newContactSaveTestApp(t)
+	f.hasLocalAppState = true
+	installBoundaryReplayHandler(t, a, f)
+	other := types.NewJID("15550002222", types.DefaultUserServer)
+	lid := types.NewJID("222222222222222", types.HiddenUserServer)
+	f.lids[lid] = other
+	f.applyContactBatch(contactEvent(other, "Old Name", "Old"))()
+	f.applyContactBatch(contactEvent(lid, "", ""))()
+	if got := storedContact(t, a, other); got.full != "" || got.first != "" {
+		t.Fatalf("test setup: LID clear not mirrored: %+v", got)
+	}
+	f.saveContactAfterSend = func(call fakeSaveContactCall) {
+		f.applyContactBatch(contactEvent(call.target, call.fullName, call.firstName))()
+	}
+	if _, err := a.SaveContact(t.Context(), testContactPN, "Ada Lovelace", "", false); err != nil {
+		t.Fatal(err)
+	}
+	if got := storedContact(t, a, other); got.full != "" || got.first != "" {
+		t.Fatalf("saving an unrelated contact resurrected cleared names: %+v", got)
+	}
+}
+
+// A phone rename indexed by a LID, consumed alongside a save of another
+// contact and never dispatched (one-shot exit), must be mirrored under the
+// mapped phone number; the stale phone-number row in whatsmeow's store is
+// older and must not win. (Round-2 review.)
+func TestSaveContactMirrorsAnAliasRenameConsumedWithTheSave(t *testing.T) {
+	a, f := newContactSaveTestApp(t)
+	f.hasLocalAppState = true
+	remove, err := a.AddChatStatePersistenceHandler(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(remove)
+	other := types.NewJID("15550002222", types.DefaultUserServer)
+	lid := types.NewJID("222222222222222", types.HiddenUserServer)
+	f.lids[lid] = other
+	f.applyContactBatch(contactEvent(other, "Old Name", "Old"))()
+	f.saveContactAfterSend = func(call fakeSaveContactCall) {
+		f.applyContactBatch(
+			contactEvent(call.target, call.fullName, call.firstName),
+			contactEvent(lid, "Grace Hopper", "Grace"),
+		)
+	}
+	if _, err := a.SaveContact(t.Context(), testContactPN, "Ada Lovelace", "", false); err != nil {
+		t.Fatal(err)
+	}
+	remove()
+	got, debt := storedContact(t, a, other), contactRecoveryRequired(t, a)
+	if got.full != "Grace Hopper" || got.first != "Grace" {
+		t.Fatalf("alias rename consumed with the save not mirrored: %+v (debt=%v)", got, debt)
+	}
+	if debt {
+		t.Fatal("critical_unblock_low debt kept after the consumed batch was mirrored")
+	}
+}
+
+// whatsmeow's PutContactName can fail (a cancelled context, a busy store)
+// while dispatchAppState still emits the event and the collection cursor has
+// advanced: the decoded mutation is WhatsApp's state. The intended names must
+// reach wacli.db; the stale store row must not be mirrored instead, and the
+// event must not be dropped. (Round-2 review; the real-SDK behaviour is
+// pinned in internal/wa.)
+func TestContactEventSurvivesFailedSessionStoreWrite(t *testing.T) {
+	a, f := newContactSaveTestApp(t)
+	f.hasLocalAppState = true
+	installBoundaryReplayHandler(t, a, f)
+	f.applyContactBatch(contactEvent(testContactPN, "Old Name", "Old"))()
+	f.mu.Lock()
+	f.contactStoreErr[testContactPN] = context.Canceled
+	f.mu.Unlock()
+	f.applyContactBatch(contactEvent(testContactPN, "Grace Hopper", "Grace"))()
+	if info, _ := f.GetContact(t.Context(), testContactPN); info.FullName != "Old Name" {
+		t.Fatalf("test setup: the fake store write did not fail: %+v", info)
+	}
+	if got := storedContact(t, a, testContactPN); got.full != "Grace Hopper" || got.first != "Grace" {
+		t.Fatalf("local mirror = %+v after a failed session store write; the decoded mutation says Grace Hopper", got)
+	}
+	if contactRecoveryRequired(t, a) {
+		t.Fatal("debt left for a mutation that was mirrored")
+	}
 }
 
 // Two concurrent saves of the same contact (two delegated requests) must
@@ -223,18 +431,18 @@ func TestSaveContactSerializesWithAppStateWrites(t *testing.T) {
 
 // A one-shot save returns, disconnects and removes its persistence handler
 // before whatsmeow's dispatch goroutine runs, so the events of the post-send
-// batch never reach wacli.db. whatsmeow wrote that batch to the session
-// contact store before SendAppState returned, so the save mirrors the batch
-// from there, and the debt recorded before the send is settled without a
-// recovery snapshot.
-func TestSaveContactOneShotMirrorsTheBatchFromTheSessionStore(t *testing.T) {
+// batch never reach wacli.db. whatsmeow wrote that batch to its contact store
+// before SendAppState returned, so the save mirrors the journaled writes
+// before it returns, and the debt recorded before the send is settled without
+// a recovery snapshot.
+func TestSaveContactOneShotMirrorsThePostSendBatchBeforeExit(t *testing.T) {
 	a, f := newContactSaveTestApp(t)
 	f.hasLocalAppState = true
 	other := types.NewJID("15550002222", types.DefaultUserServer)
 	var dispatch func()
-	f.saveContactAfterSend = func(fakeSaveContactCall) {
+	f.saveContactAfterSend = func(call fakeSaveContactCall) {
 		dispatch = f.applyContactBatch(
-			contactEvent(testContactLID, "Ada Lovelace", "Ada"),
+			contactEvent(call.target, call.fullName, call.firstName),
 			contactEvent(other, "Grace Hopper", "Grace"),
 		)
 	}
@@ -248,67 +456,91 @@ func TestSaveContactOneShotMirrorsTheBatchFromTheSessionStore(t *testing.T) {
 	remove()
 	dispatch() // nobody is listening any more
 	if got := storedContact(t, a, other); got.full != "Grace Hopper" {
-		t.Fatalf("edit fetched with the save = %+v, want Grace Hopper mirrored from the session store", got)
+		t.Fatalf("edit fetched with the save = %+v, want Grace Hopper mirrored before the save returned", got)
 	}
 	if contactRecoveryRequired(t, a) {
-		t.Fatal("critical_unblock_low debt kept after the save mirrored the batch from the session store")
+		t.Fatal("critical_unblock_low debt kept after the save mirrored the batch")
 	}
 	if got := recoveredCollections(f); len(got) != 0 {
 		t.Fatalf("recovery snapshots requested: %v", got)
 	}
 }
 
-// A one-shot save can exit after whatsmeow consumed the post-send batch and
-// before the save mirrored it; only the write-ahead debt survives. The pinned
-// whatsmeow ignores a recovery snapshot whose version the session already
-// holds (TestSDKIgnoresEqualVersionContactRecovery in internal/wa), so with
-// no later contact edit the phone can never answer that debt. The next start
-// must repair the mirror from the session contact store instead, and settle
-// the debt only once that succeeded.
-func TestContactDebtIsSettledFromTheSessionStoreWithoutASnapshot(t *testing.T) {
+// The residual window: a save dies after whatsmeow consumed the post-send
+// batch (cursor and contact store persisted) and before the save mirrored
+// it. The in-memory journal dies with the process; only the write-ahead debt
+// survives. The next start must not settle that debt from the contact store
+// (its rows carry no order across a contact's phone-number and LID indices,
+// and cannot tell a cleared name from a never-saved one); it keeps the debt,
+// requests the primary's snapshot without a full sync, and settles when the
+// snapshot's mutations have been mirrored.
+func TestContactDebtLeftByAnInterruptedSaveWaitsForTheSnapshot(t *testing.T) {
 	a, f := newContactSaveTestApp(t)
 	f.hasLocalAppState = true
 	other := types.NewJID("15550002222", types.DefaultUserServer)
-	f.saveContactAfterSend = func(fakeSaveContactCall) {
-		// Consumed into the session store; the events are never dispatched.
-		f.applyContactBatch(
-			contactEvent(testContactLID, "Ada Lovelace", "Ada"),
-			contactEvent(other, "Grace Hopper", "Grace"),
-		)
+	// The dead process consumed this batch: the SDK store has it, the journal
+	// does not, and the debt its save recorded before the send remains.
+	f.applyContactBatch(contactEvent(testContactLID, "Ada Lovelace", "Ada"), contactEvent(other, "Grace Hopper", "Grace"))
+	f.journal.Ack(f.journal.HighWater())
+	if _, err := a.db.MarkAppStateRecoveryGeneration(string(contactCollection)); err != nil {
+		t.Fatal(err)
 	}
-	// The process dies between the send and the mirror.
-	f.getAllContactsErr = errors.New("process exited before the batch was mirrored")
-	remove, err := a.AddChatStatePersistenceHandler(t.Context())
+	answered := make(chan struct{})
+	f.onAppStateRecovery = func(name string) {
+		go func() {
+			// The primary's snapshot replays the collection: whatsmeow writes
+			// every contact to its store and dispatches the events.
+			f.applyContactBatch(contactEvent(testContactLID, "Ada Lovelace", "Ada"), contactEvent(other, "Grace Hopper", "Grace"))()
+			f.emit(&events.AppStateSyncComplete{Name: appstate.WAPatchName(name), Recovery: true})
+			close(answered)
+		}()
+	}
+	installBoundaryReplayHandler(t, a, f)
+	a.syncAppStateDeltas(t.Context(), &sync.Map{})
+	if n := fullSyncFetches(f, contactCollection); n != 0 {
+		t.Fatalf("startup debt ran %d destructive full syncs of %s", n, contactCollection)
+	}
+	if got := recoveredCollections(f); !slices.Equal(got, []string{string(contactCollection)}) {
+		t.Fatalf("recoveries = %v, want the primary's snapshot requested for the interrupted save", got)
+	}
+	<-answered
+	deadline := time.Now().Add(5 * time.Second)
+	for contactRecoveryRequired(t, a) && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if contactRecoveryRequired(t, a) {
+		t.Fatal("the mirrored snapshot did not settle the contact debt")
+	}
+	if got := storedContact(t, a, other); got.full != "Grace Hopper" || got.first != "Grace" {
+		t.Fatalf("edit consumed by the dead process = %+v, want Grace Hopper from the snapshot", got)
+	}
+}
+
+// Debt a dead process left (see above) is older than the next save's own
+// intent. That save settles only what it mirrored itself: its own intent,
+// never the older generation it cannot vouch for. (Round-2 review, P3-1.)
+func TestSaveContactKeepsOlderContactDebt(t *testing.T) {
+	a, f := newContactSaveTestApp(t)
+	f.hasLocalAppState = true
+	f.onAppStateRecovery = func(string) {}
+	older, err := a.db.MarkAppStateRecoveryGeneration(string(contactCollection))
 	if err != nil {
 		t.Fatal(err)
+	}
+	f.saveContactAfterSend = func(call fakeSaveContactCall) {
+		f.applyContactBatch(contactEvent(call.target, call.fullName, call.firstName))()
 	}
 	if _, err := a.SaveContact(t.Context(), testContactPN, "Ada Lovelace", "", false); err != nil {
 		t.Fatal(err)
 	}
-	remove()
-	if got := storedContact(t, a, other); got.found {
-		t.Fatalf("test setup: the batch was mirrored before the exit: %+v", got)
-	}
-	if !contactRecoveryRequired(t, a) {
-		t.Fatal("no durable critical_unblock_low debt after the cursor advanced past an unmirrored batch")
-	}
-
-	// Next start. The phone's snapshot is at the version the session already
-	// consumed, so whatsmeow would ignore it: model a request nobody answers.
-	f.getAllContactsErr = nil
-	f.onAppStateRecovery = func(string) {}
-	a.syncAppStateDeltas(t.Context(), &sync.Map{})
-	if err := a.appStatePersist.waitIdle(t.Context()); err != nil {
-		t.Fatal(err)
-	}
-	if got := storedContact(t, a, other); got.full != "Grace Hopper" || got.first != "Grace" {
-		t.Fatalf("edit consumed with the save = %+v, want Grace Hopper from the session store", got)
-	}
-	if contactRecoveryRequired(t, a) {
-		t.Fatal("critical_unblock_low debt kept after the mirror was repaired from the session store")
-	}
 	if n := fullSyncFetches(f, contactCollection); n != 0 {
-		t.Fatalf("startup debt ran %d destructive full syncs of %s", n, contactCollection)
+		t.Fatalf("the save ran %d destructive full syncs of %s", n, contactCollection)
+	}
+	if !recoveryIntentExists(t, a, string(contactCollection), older) {
+		t.Fatal("the save settled debt left by an interrupted process, which it did not mirror")
+	}
+	if got := storedContact(t, a, testContactPN); got.full != "Ada Lovelace" {
+		t.Fatalf("local mirror = %+v", got)
 	}
 }
 
@@ -348,7 +580,7 @@ func TestOrdinaryMissingKeyRetriesWithoutSnapshot(t *testing.T) {
 			if err := a.syncChatStateBeforeWrite(ctx, tc.collection); err != nil {
 				t.Fatalf("the key available at the next fetch was never retried (recoveries %v): %v", recoveredCollections(f), err)
 			}
-			if got := recoveredCollections(f); len(got) != 0 {
+			if got := recoveredCollections(f); !tc.debt && len(got) != 0 {
 				t.Fatalf("recovery snapshots requested for an ordinary missing key: %v", got)
 			}
 			if tc.collection == contactCollection {

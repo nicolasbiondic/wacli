@@ -40,7 +40,9 @@ func TestContactEventKeysByMappedPhoneNumberOrLID(t *testing.T) {
 	unmapped := types.NewJID("111222333444555", types.HiddenUserServer)
 	f.lids[mapped] = pn
 	for _, jid := range []types.JID{mapped, unmapped} {
-		if err := a.handleContactEvent(context.Background(), &events.Contact{JID: jid, Action: &waSyncAction.ContactAction{FullName: proto.String("Ada Lovelace"), FirstName: proto.String("Ada")}}); err != nil {
+		evt := &events.Contact{JID: jid, Action: &waSyncAction.ContactAction{FullName: proto.String("Ada Lovelace"), FirstName: proto.String("Ada")}}
+		f.applyContactBatch(evt) // whatsmeow writes its store before it dispatches
+		if err := a.handleContactEvent(context.Background(), evt); err != nil {
 			t.Fatal(err)
 		}
 	}

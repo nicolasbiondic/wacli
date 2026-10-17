@@ -46,7 +46,7 @@ func TestReview500ContactEchoThroughProductionHandlers(t *testing.T) {
 						wantFull = ""
 					}
 				}
-				f.emit(&events.Contact{JID: lid, Action: contact})
+				f.applyContactBatch(&events.Contact{JID: lid, Action: contact})()
 				if err := a.appStatePersist.waitIdle(t.Context()); err != nil {
 					t.Fatal(err)
 				}

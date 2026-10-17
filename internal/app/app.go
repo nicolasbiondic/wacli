@@ -97,6 +97,7 @@ type WAClient interface {
 	FetchAppStateEvents(ctx context.Context, name string, fullSync, onlyIfNotSynced bool) ([]any, error)
 	RequestAppStateRecovery(ctx context.Context, name string) (types.MessageID, error)
 	HasLocalAppState(ctx context.Context, name string) (bool, error)
+	ContactJournal() *wa.ContactStoreJournal
 	Logout(ctx context.Context) error
 	LinkedJID() string
 	LinkedLID() string
