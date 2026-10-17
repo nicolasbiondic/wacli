@@ -384,8 +384,9 @@ func (a *App) loadAppStateFullSyncResultsLocked() {
 	}
 }
 
-// degradedAppStateReplay handles pre-write replay debt on collections whose
-// full sync is known not to verify. Replaying there repeats the very full sync
+// degradedAppStateReplay handles pre-write replay debt on collections that
+// avoid destructive full syncs (see avoidsDestructiveFullSync), such as those
+// whose full sync is known not to verify. Replaying there repeats the very full sync
 // that already failed — destroying the local collection version with stock
 // whatsmeow — and then waits up to appStateRecoveryMaxWait for the primary,
 // which is often asleep. Instead, with local state present, an incremental
@@ -398,9 +399,10 @@ func (a *App) loadAppStateFullSyncResultsLocked() {
 // generation). One background recovery request per collection per 6h still
 // nudges the primary, since only it can repair the broken full sync.
 //
-// Returns handled=false (fall back to today's full replay + phone wait) when
-// the flag is not set, there is no local state, or the incremental fetch
-// fails.
+// Returns handled=false (fall back to replayRequiredAppState, which waits for
+// the primary's snapshot while local state exists and runs a full replay
+// otherwise) when the collection does not avoid full syncs, there is no local
+// state, or the incremental fetch fails.
 func (a *App) degradedAppStateReplay(ctx context.Context, collection appstate.WAPatchName, markerGeneration int64, tracker *appStatePersistenceTracker) (handled bool, err error) {
 	if !a.avoidsDestructiveFullSync(collection) {
 		return false, nil
@@ -421,8 +423,12 @@ func (a *App) degradedAppStateReplay(ctx context.Context, collection appstate.WA
 		// LTHash mismatch (or any other failure): today's behavior.
 		return false, nil
 	}
+	reason := "full sync is known not to verify on this account"
+	if !a.isAppStateFullSyncBroken(collection) {
+		reason = "this collection is repaired from the primary's snapshot, not a full sync"
+	}
 	a.emitWarning("app_state_degraded_replay",
-		fmt.Sprintf("app state %s: full sync is known not to verify on this account; proceeding after an incremental sync and keeping the durable replay debt", collection),
+		fmt.Sprintf("app state %s: %s; proceeding after an incremental sync and keeping the durable replay debt", collection, reason),
 		map[string]any{"name": string(collection), "generation": markerGeneration})
 	a.requestBackgroundAppStateRecovery(ctx, collection, markerGeneration)
 	// Clear only this attempt's own write-ahead marker; see the function
