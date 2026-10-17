@@ -434,3 +434,20 @@ func TestContactCollectionRecoveryKeepsLocalState(t *testing.T) {
 		}
 	})
 }
+
+// Only the contact collection skips the full sync on a live hash failure. A
+// chat collection flagged by #497 keeps main's recovery (one full replay,
+// then the snapshot); changing that is for #497's follow-ups, not for
+// contacts.
+func TestFlaggedChatCollectionLiveMismatchKeepsMainRecovery(t *testing.T) {
+	a, f := newContactSaveTestApp(t)
+	f.hasLocalAppState = true
+	a.setAppStateFullSyncResult(appstate.WAPatchRegularLow, true)
+	a.recoverAppStateCollection(t.Context(), string(appstate.WAPatchRegularLow), &sync.Map{}, 2*time.Second)
+	if n := fullSyncFetches(f, appstate.WAPatchRegularLow); n != 1 {
+		t.Fatalf("live LTHash mismatch on a flagged chat collection ran %d full syncs, want main's 1", n)
+	}
+	if got := recoveredCollections(f); len(got) != 0 {
+		t.Fatalf("recoveries = %v, want none after the full sync verified", got)
+	}
+}
