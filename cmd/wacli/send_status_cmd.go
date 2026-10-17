@@ -209,11 +209,20 @@ func sendStatusTextMessage(ctx context.Context, sender statusMessageSender, msg 
 	return sender.SendProtoMessage(ctx, types.StatusBroadcastJID, msg)
 }
 
+// delegatedStatusApp is what the daemon-side status post needs from the app,
+// narrow enough for tests to give it a fake WhatsApp client and a temp store.
+type delegatedStatusApp interface {
+	WA() app.WAClient
+	DB() *store.DB
+	StoreDir() string
+	Connect(context.Context, bool, func(string)) error
+}
+
 // executeDelegatedStatus posts a status for a CLI that lost the store lock to
 // the running sync process. It mirrors the direct path above: text goes out as
 // an ExtendedTextMessage to the status broadcast list and is stored in
 // status_messages, media goes through sendFile with the text as its caption.
-func executeDelegatedStatus(ctx context.Context, a *app.App, req sendDelegateRequest) (sendDelegateResponse, error) {
+func executeDelegatedStatus(ctx context.Context, a delegatedStatusApp, req sendDelegateRequest) (sendDelegateResponse, error) {
 	if strings.TrimSpace(req.Message) == "" && strings.TrimSpace(req.File) == "" {
 		return sendDelegateResponse{}, fmt.Errorf("--message or --file is required")
 	}
