@@ -252,6 +252,9 @@ func (a *App) syncChatStateBeforeWrite(ctx context.Context, collection appstate.
 func (a *App) replayRequiredAppState(ctx context.Context, collection appstate.WAPatchName, markerGeneration int64, tracker *appStatePersistenceTracker) error {
 	ctx, cancel := context.WithTimeout(ctx, appStateRecoveryMaxWait)
 	defer cancel()
+	if a.keepsLocalAppStateOnRecovery(ctx, collection) {
+		return a.recoverMismatchingAppState(ctx, collection, markerGeneration, tracker, nil)
+	}
 	retryDelay := appStateRetryInitialDelay
 	for {
 		fetchErr, persistenceErr := a.fetchAndPersistAppState(ctx, collection, true, tracker)
@@ -319,6 +322,37 @@ func (a *App) setAppStateFullSyncResult(collection appstate.WAPatchName, broken 
 	}
 }
 
+// avoidsDestructiveFullSync reports whether replay debt and hash failures of
+// the collection must be settled from the primary's recovery snapshot rather
+// than a full sync while local state exists. Stock whatsmeow deletes the
+// saved collection version before it decodes a full sync, so a snapshot that
+// does not verify leaves the collection empty until the primary answers.
+// That applies to collections whose full sync is known not to verify, and
+// always to `critical_unblock_low`: after a contact save the primary can
+// rewrite contact entries this companion never stored (for example rows
+// under a rotated-out key), which breaks the local hash, and stock whatsmeow
+// cannot send the removal that would avoid it.
+func (a *App) avoidsDestructiveFullSync(collection appstate.WAPatchName) bool {
+	return collection == appstate.WAPatchCriticalUnblockLow || a.isAppStateFullSyncBroken(collection)
+}
+
+// keepsLocalAppStateOnRecovery reports whether a recovery of the collection
+// must skip the full sync and wait for the primary's snapshot: the collection
+// avoids destructive full syncs and has local state to lose. Without local
+// state a full sync is the only way to get the collection and loses nothing.
+func (a *App) keepsLocalAppStateOnRecovery(ctx context.Context, collection appstate.WAPatchName) bool {
+	if !a.avoidsDestructiveFullSync(collection) {
+		return false
+	}
+	hasLocal, err := a.wa.HasLocalAppState(ctx, string(collection))
+	if err != nil {
+		// Unknown: keep whatever is there rather than risk deleting it.
+		a.warnAppStateRecovery(string(collection), fmt.Errorf("check local app state before recovery: %w", err))
+		return true
+	}
+	return hasLocal
+}
+
 func (a *App) isAppStateFullSyncBroken(collection appstate.WAPatchName) bool {
 	a.appStateDegradedMu.Lock()
 	defer a.appStateDegradedMu.Unlock()
@@ -368,7 +402,7 @@ func (a *App) loadAppStateFullSyncResultsLocked() {
 // the flag is not set, there is no local state, or the incremental fetch
 // fails.
 func (a *App) degradedAppStateReplay(ctx context.Context, collection appstate.WAPatchName, markerGeneration int64, tracker *appStatePersistenceTracker) (handled bool, err error) {
-	if !a.isAppStateFullSyncBroken(collection) {
+	if !a.avoidsDestructiveFullSync(collection) {
 		return false, nil
 	}
 	hasLocal, err := a.wa.HasLocalAppState(ctx, string(collection))

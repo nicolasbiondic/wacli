@@ -983,9 +983,8 @@ type fakeSaveContactCall struct {
 	phonebook           bool
 }
 
-func (f *fakeWA) SaveContact(ctx context.Context, target, lid types.JID, fullName, firstName string, phonebook bool) error {
-	_, err := f.saveContact(fakeSaveContactCall{target: target, lid: lid, fullName: fullName, firstName: firstName, phonebook: phonebook}, func() {})
-	return err
+func (f *fakeWA) SaveContact(ctx context.Context, target, lid types.JID, fullName, firstName string, phonebook bool, beforeApply func()) ([]any, error) {
+	return f.saveContact(fakeSaveContactCall{target: target, lid: lid, fullName: fullName, firstName: firstName, phonebook: phonebook}, beforeApply)
 }
 
 // saveContact models whatsmeow's SendAppState: the persistence boundary runs

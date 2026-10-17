@@ -319,8 +319,10 @@ func handleSendDelegateConn(ctx context.Context, conn net.Conn, execute sendDele
 		return
 	}
 	if req.Kind == chatStateKind || req.Kind == contactsSaveKind {
-		// App-state writes are serialized by the app and can wait minutes on
-		// recovery, so they must not hold the send queue.
+		// App-state writes (chat state and contacts save) are serialized by the
+		// app's app-state coordinator, which also owns their pre-write sync and
+		// recovery and can wait minutes on it, so they must not hold the send
+		// queue (#454).
 		if requestCtx.Err() != nil {
 			_ = json.NewEncoder(conn).Encode(sendDelegateResponse{OK: false, Error: "request deadline passed before dispatch; it was not sent"})
 			return

@@ -291,3 +291,21 @@ func TestContactCollectionRecoveryKeepsLocalState(t *testing.T) {
 		}
 	})
 }
+
+// A collection whose full sync is known not to verify keeps its local state
+// on a live hash failure too, not only at startup and before writes (#497).
+func TestKnownBrokenCollectionLiveMismatchKeepsLocalState(t *testing.T) {
+	a, f := newContactSaveTestApp(t)
+	f.hasLocalAppState = true
+	f.onAppStateRecovery = func(name string) {
+		go f.emit(&events.AppStateSyncComplete{Name: appstate.WAPatchName(name), Recovery: true})
+	}
+	a.setAppStateFullSyncResult(appstate.WAPatchRegularLow, true)
+	a.recoverAppStateCollection(t.Context(), string(appstate.WAPatchRegularLow), &sync.Map{}, 2*time.Second)
+	if n := fullSyncFetches(f, appstate.WAPatchRegularLow); n != 0 {
+		t.Fatalf("live LTHash mismatch on a known-broken collection ran %d full syncs", n)
+	}
+	if got := recoveredCollections(f); !slices.Equal(got, []string{string(appstate.WAPatchRegularLow)}) {
+		t.Fatalf("recoveries = %v", got)
+	}
+}

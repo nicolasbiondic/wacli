@@ -69,10 +69,12 @@ func ValidateContactName(name string) error {
 	return nil
 }
 
-func (c *Client) SaveContact(ctx context.Context, target, lid types.JID, fullName, firstName string, phonebook bool) error {
+// SaveContact sends the contact mutation. beforeApply runs before whatsmeow
+// can advance the collection, like the chat-state writes.
+func (c *Client) SaveContact(ctx context.Context, target, lid types.JID, fullName, firstName string, phonebook bool, beforeApply func()) ([]any, error) {
 	patch, err := BuildSaveContact(target, lid, fullName, firstName, phonebook)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return c.SendAppState(ctx, patch)
+	return c.sendAppStateWithBoundary(ctx, patch, beforeApply)
 }
