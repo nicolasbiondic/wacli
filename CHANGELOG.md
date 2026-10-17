@@ -5,6 +5,7 @@
 - Dependencies: update x/exp after the 48-hour cooldown while retaining the Go 1.27.0 source minimum and Go 1.27.2 build toolchain.
 - Sync: unarchive chats on eligible incoming messages when Keep chats archived is off, recover missing preferences on upgrade, and preserve newer unarchives across stale archive replays. Thanks @Luizssauro (#466).
 - Sync: settle the upgrade replay for Keep chats archived after one complete `regular_low` snapshot, so stores whose snapshot has no preference mutation or omits a locally archived chat no longer request a full replay (and, on known-broken collections, a phone snapshot) on every start. A snapshot whose mutation failed to persist does not settle; the kept replay applies the original action first.
+- Sync: recover the upgrade's missing **Keep chats archived** metadata from a background phone snapshot instead of a full `regular_low` replay, which with the SDK's full sync discards local collection state when the server's snapshot fails verification. No replay intent is recorded for it; until the phone answers with a newer snapshot, archived chats stay archived and incremental sync continues.
 
 ## 0.22.0 - 2026-10-16
 
