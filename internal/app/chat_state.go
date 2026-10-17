@@ -44,7 +44,8 @@ func (a *App) AddChatStatePersistenceHandler(ctx context.Context) (func(), error
 	handlerID := waClient.AddEventHandler(func(evt any) {
 		switch v := evt.(type) {
 		case *events.AppState, *events.Star, *events.DeleteForMe,
-			*events.Archive, *events.UnarchiveChatsSetting, *events.Pin, *events.Mute, *events.MarkChatAsRead:
+			*events.Archive, *events.UnarchiveChatsSetting, *events.Pin, *events.Mute, *events.MarkChatAsRead,
+			*events.Contact:
 			a.handleAppStatePersistenceEvent(ctx, evt, nil)
 		case *wa.AppStateKeyUnavailable:
 			a.warnEmptyAppStateKey(v)
@@ -880,6 +881,38 @@ func (a *App) handleChatStateEvent(ctx context.Context, evt any) error {
 			a.emitChatStateWarning("mark_read", v.JID, err)
 			return err
 		}
+	}
+	return nil
+}
+
+// handleContactEvent mirrors a `contact` app-state mutation (the echo of our
+// own `contacts save`, or an edit made on the phone or another linked device)
+// into wacli.db, so `contacts show` matches the whatsmeow contact store
+// without a `contacts refresh`. The action is authoritative for the full and
+// first name, as in whatsmeow's PutContactName: a name the action omits is
+// cleared. A LID-indexed mutation is stored under the mapped phone number;
+// without a mapping it is stored under the LID, as the whatsmeow store does.
+func (a *App) handleContactEvent(ctx context.Context, evt *events.Contact) error {
+	if evt == nil || evt.JID.IsEmpty() || evt.Action == nil {
+		return nil
+	}
+	contact := a.canonicalStoreJID(ctx, evt.JID)
+	if contact.Server != types.DefaultUserServer && contact.Server != types.HiddenUserServer {
+		return nil
+	}
+	phone := ""
+	if contact.Server == types.DefaultUserServer {
+		phone = contact.User
+	}
+	fullName := strings.TrimSpace(evt.Action.GetFullName())
+	firstName := strings.TrimSpace(evt.Action.GetFirstName())
+	if err := a.db.SetContactActionName(contact.String(), phone, fullName, firstName); err != nil {
+		a.emitWarning(
+			"contact_store_failed",
+			fmt.Sprintf("warning: failed to store contact name for %s: %v", evt.JID, err),
+			map[string]any{"jid": evt.JID.String(), "error": err.Error()},
+		)
+		return err
 	}
 	return nil
 }

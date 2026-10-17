@@ -84,6 +84,20 @@ func runContactsSave(flags *rootFlags, target types.JID, name, firstName string,
 	if err := a.EnsureAuthed(ctx); err != nil {
 		return err
 	}
+	// whatsmeow fetches the collection after the send and emits the echo of
+	// our mutation (and anything the phone changed meanwhile) as events;
+	// persist them like the `chats` state commands do instead of leaving
+	// wacli.db behind the session store.
+	removePersistenceHandler, err := a.AddChatStatePersistenceHandler(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		// Keep the handler active until the socket is closed, then let App.Close
+		// drain every persistence task before it closes the local database.
+		a.WA().Disconnect()
+		removePersistenceHandler()
+	}()
 	if err := a.Connect(ctx, false, nil); err != nil {
 		return err
 	}
