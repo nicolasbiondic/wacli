@@ -53,6 +53,10 @@ var schemaMigrations = []migration{
 	// guard, trigger rebuild only when the comparison is missing). The runner
 	// applies by version-set membership, so the numbering gap is harmless.
 	{version: 9033, name: "vendas: messages ad_referral (#480)", up: migrateMessagesAdReferralColumn},
+	// vendas: lists (upstream/read-chat-lists, proposed as 34) are not merged
+	// upstream either; local number like 9033. ensureCurrentSchema also re-runs
+	// migrateLists, so whichever number upstream assigns stays a no-op here.
+	{version: 9034, name: "WhatsApp lists and chat memberships", up: migrateLists},
 }
 
 func migratePlaceholderChatActivity(d *DB) error {
@@ -513,6 +517,9 @@ func (d *DB) ensureCurrentSchema() error {
 	}
 	if err := migrateUnavailableAppStateKeys(d); err != nil {
 		return fmt.Errorf("ensure unavailable app state keys: %w", err)
+	}
+	if err := migrateLists(d); err != nil {
+		return fmt.Errorf("ensure current lists schema: %w", err)
 	}
 	return nil
 }
