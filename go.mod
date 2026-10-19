@@ -77,4 +77,4 @@ require (
 
 tool github.com/sqlc-dev/sqlc/cmd/sqlc
 
-replace go.mau.fi/whatsmeow => ../whatsmeow-409-race
+replace go.mau.fi/whatsmeow => ../whatsmeow-409-contacts
