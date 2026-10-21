@@ -171,6 +171,9 @@ func registrationIdentity(r types.IsOnWhatsAppResponse) (pn, lid types.JID) {
 // A LID-indexed mutation is stored under the mapped phone number; without a
 // mapping it is stored under the LID, as the whatsmeow store does.
 func (a *App) handleContactEvent(ctx context.Context, evt *events.Contact) error {
+	// TODO: the pinned whatsmeow emits events.Contact only for SET mutations.
+	// Once it reports removals (whatsmeow#1247 adds events.Contact.Removed),
+	// clear the names here instead of returning early on a nil Action.
 	if evt == nil || evt.JID.IsEmpty() || evt.Action == nil {
 		return nil
 	}
