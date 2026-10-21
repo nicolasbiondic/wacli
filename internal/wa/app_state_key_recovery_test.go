@@ -77,11 +77,12 @@ func TestKnownEmptyAppStateKeyEmitsRealSDKSyncError(t *testing.T) {
 }
 
 // Background recovery on flagged collections retains the local cursor.
-// Only a newer phone snapshot is applied and emits the completion sentinel
-// that lets the app clear replay debt.
-func TestSDKIgnoresEqualVersionContactRecovery(t *testing.T) {
-	for _, snapshotVersion := range []uint64{80, 81} {
-		t.Run(map[uint64]string{80: "equal version", 81: "newer version"}[snapshotVersion], func(t *testing.T) {
+// The vendas fork also adopts an equal-version phone snapshot to repair
+// missing local mutations and emit the completion sentinel that clears replay
+// debt. Older snapshots must still be ignored without regressing the cursor.
+func TestSDKAdoptsEqualVersionContactRecovery(t *testing.T) {
+	for _, snapshotVersion := range []uint64{79, 80, 81} {
+		t.Run(map[uint64]string{79: "older version", 80: "equal version", 81: "newer version"}[snapshotVersion], func(t *testing.T) {
 			c, err := New(Options{StorePath: newPairedSessionStore(t), KeyStateStore: newTestKeyStateStore(t)})
 			if err != nil {
 				t.Fatal(err)
@@ -123,10 +124,14 @@ func TestSDKIgnoresEqualVersionContactRecovery(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			want := snapshotVersion > 80
+			want := snapshotVersion >= 80
 			if named != want || complete != want || stored.Found != want {
 				t.Fatalf("session cursor 80, snapshot %d: contact event %v, recovery sentinel %v, in session store %v; want all %v",
 					snapshotVersion, named, complete, stored.Found, want)
+			}
+			version, _, err := c.client.Store.AppState.GetAppStateVersion(ctx, string(name))
+			if err != nil || version != max(uint64(80), snapshotVersion) {
+				t.Fatalf("session cursor after snapshot %d = %d, %v", snapshotVersion, version, err)
 			}
 		})
 	}
