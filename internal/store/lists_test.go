@@ -195,7 +195,7 @@ func TestListsMigrationPopulatedOlderStoreAndReadOnly(t *testing.T) {
 }
 
 // listsMigrationVersion looks the number up by name so renumbering the
-// migration (for example after open PR #480 lands) does not break tests.
+// migration does not break tests.
 func listsMigrationVersion(t *testing.T) int {
 	t.Helper()
 	for _, m := range schemaMigrations {
@@ -208,17 +208,19 @@ func listsMigrationVersion(t *testing.T) int {
 }
 
 // A store upgraded by another branch can already record the version number
-// used here (#480 claims 33), or a local build can record the list tables
+// used here, or a local build can record the list tables
 // under a different number. Neither may skip or reset the list schema.
 func TestListsMigrationSurvivesForeignVersionRows(t *testing.T) {
-	const foreignName = "messages ad_referral column"
 	version := listsMigrationVersion(t)
 	for _, tc := range []struct {
 		name    string
 		foreign int
+		owner   string
 	}{
-		{"foreign 33 from PR 480", 33},
-		{"foreign row at the lists version", version},
+		{"main auto-unarchive at 33", 33, "ordered chat auto-unarchive"},
+		{"legacy ad-referral 33 from PR 480", 33, "messages ad_referral column"},
+		{"ad referrals at 34", 34, "messages ad_referral column"},
+		{"foreign row at the lists version", version, "messages ad_referral column"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "wacli.db")
@@ -228,7 +230,7 @@ func TestListsMigrationSurvivesForeignVersionRows(t *testing.T) {
 				t.Fatal(err)
 			}
 			if _, err := db.sql.Exec(`INSERT INTO schema_migrations(version, name, applied_at) VALUES(?, ?, 1)`,
-				tc.foreign, foreignName); err != nil {
+				tc.foreign, tc.owner); err != nil {
 				t.Fatal(err)
 			}
 			db.Close()
@@ -258,7 +260,7 @@ func TestListsMigrationSurvivesForeignVersionRows(t *testing.T) {
 				t.Fatal(err)
 			}
 			var name string
-			if err := db.sql.QueryRow(`SELECT name FROM schema_migrations WHERE version=?`, tc.foreign).Scan(&name); err != nil || name != foreignName {
+			if err := db.sql.QueryRow(`SELECT name FROM schema_migrations WHERE version=?`, tc.foreign).Scan(&name); err != nil || name != tc.owner {
 				t.Fatalf("foreign migration row = %q, %v", name, err)
 			}
 			if tc.foreign != version {
