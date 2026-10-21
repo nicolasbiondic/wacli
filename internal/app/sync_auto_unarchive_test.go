@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
@@ -109,6 +110,9 @@ func TestAutoUnarchiveRecoveryCompletesWithoutBrokenFullReplay(t *testing.T) {
 		}
 		if name == string(appstate.WAPatchRegularLow) && !full {
 			incremental++
+			// Keep this test on the primary-snapshot path, not the archive
+			// fallback after a successful incremental fetch.
+			return nil, errors.New("incremental unavailable")
 		}
 		return nil, nil
 	}
@@ -367,6 +371,130 @@ func archiveSettlementState(t *testing.T, a *App, jid string) (preferenceRows in
 	return preferenceRows, actionMS
 }
 
+func TestAutoUnarchiveBrokenCollectionSettlesWithoutSnapshot(t *testing.T) {
+	for _, tc := range []struct {
+		name            string
+		broken          bool
+		fetchFail       bool
+		persistenceFail bool
+		wantSettled     bool
+	}{
+		{name: "broken successful incremental", broken: true, wantSettled: true},
+		{name: "not broken"},
+		{name: "failed incremental", broken: true, fetchFail: true},
+		{name: "failed persistence", broken: true, persistenceFail: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a := newTestApp(t)
+			warnings := captureWarningCodes(t, a)
+			f := &appStateContextWA{fakeWA: newFakeWA()}
+			a.wa = f
+			chat := types.NewJID("15550000007", types.DefaultUserServer)
+			base := time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
+			settled := base.Add(time.Hour)
+			previousNowUTC := nowUTC
+			nowUTC = func() time.Time { return settled }
+			t.Cleanup(func() { nowUTC = previousNowUTC })
+			if err := a.db.UpsertChat(chat.String(), "dm", "Legacy", base); err != nil {
+				t.Fatal(err)
+			}
+			if err := a.db.SetChatArchived(chat.String(), true); err != nil {
+				t.Fatal(err)
+			}
+			// Existing replay debt must survive the archive-only settlement.
+			if _, _, err := a.db.BeginAppStateRecovery(string(appstate.WAPatchRegularLow)); err != nil {
+				t.Fatal(err)
+			}
+			a.setAppStateFullSyncResult(appstate.WAPatchRegularLow, tc.broken)
+			if tc.persistenceFail {
+				failArchiveWrites(t, a)
+			}
+			requests, fullReplays := 0, 0
+			f.requestAppStateRecovery = func(context.Context, string) (types.MessageID, error) {
+				requests++
+				return "snapshot", nil
+			}
+			f.fetchEvents = func(_ context.Context, name string, full, _ bool) ([]any, error) {
+				if name != string(appstate.WAPatchRegularLow) {
+					return nil, nil
+				}
+				if full {
+					fullReplays++
+				}
+				if tc.fetchFail {
+					return nil, errors.New("injected incremental failure")
+				}
+				if tc.persistenceFail {
+					return []any{&events.Archive{JID: chat, Timestamp: base,
+						Action: &waSyncAction.ArchiveChatAction{Archived: proto.Bool(false)}}}, nil
+				}
+				return nil, nil
+			}
+			f.fetchAppState = func(context.Context, string, bool, bool) error { return nil }
+			raw, err := sql.Open("sqlite3", filepath.Join(a.opts.StoreDir, "wacli.db"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer raw.Close()
+			var recoveries sync.Map
+			for cycle := 1; cycle <= 3; cycle++ {
+				a.syncAppStateDeltas(t.Context(), &recoveries)
+				if required, err := a.db.ChatArchiveRecoveryRequired(); err != nil || required == tc.wantSettled {
+					t.Fatalf("cycle %d: archive recovery required=%v, err=%v", cycle, required, err)
+				}
+				var intents int
+				if err := raw.QueryRow(`SELECT COUNT(*) FROM app_state_recovery_intents WHERE collection='regular_low'`).Scan(&intents); err != nil {
+					t.Fatal(err)
+				}
+				wantIntents := 0
+				if tc.broken {
+					wantIntents = 2 // Existing debt plus the snapshot request.
+				} else if cycle > 1 {
+					wantIntents = 1 // No completion sentinel supplied a preference.
+				}
+				if intents != wantIntents {
+					t.Fatalf("cycle %d: replay intents=%d, want %d", cycle, intents, wantIntents)
+				}
+			}
+			rows, boundary := archiveSettlementState(t, a, chat.String())
+			if tc.wantSettled {
+				var id, enabled int
+				var timestamp int64
+				if err := raw.QueryRow(`SELECT id,enabled,timestamp_ms FROM chat_archive_setting`).Scan(&id, &enabled, &timestamp); err != nil {
+					t.Fatal(err)
+				}
+				if id != 1 || enabled != 0 || timestamp != 0 || rows != 1 || boundary != settled.UnixMilli() {
+					t.Fatalf("setting=(%d,%d,%d), rows=%d, boundary=%d", id, enabled, timestamp, rows, boundary)
+				}
+			} else if rows != 0 || boundary != 0 {
+				t.Fatalf("unexpected settlement: rows=%d, boundary=%d", rows, boundary)
+			}
+			if got, err := a.db.GetChat(chat.String()); err != nil || !got.Archived {
+				t.Fatalf("legacy archive changed: %+v, %v", got, err)
+			}
+			settlementWarnings := 0
+			for _, code := range warnings() {
+				if code == "app_state_archive_settled_without_snapshot" {
+					settlementWarnings++
+				}
+			}
+			wantWarnings := 0
+			if tc.wantSettled {
+				wantWarnings = 1
+			}
+			if settlementWarnings != wantWarnings {
+				t.Fatalf("settlement warnings=%d, want %d", settlementWarnings, wantWarnings)
+			}
+			if tc.broken && (requests != 1 || fullReplays != 0) {
+				t.Fatalf("broken collection: requests=%d, full replays=%d", requests, fullReplays)
+			}
+			if !tc.broken && (requests != 0 || fullReplays != 1) {
+				t.Fatalf("healthy collection: requests=%d, full replays=%d", requests, fullReplays)
+			}
+		})
+	}
+}
+
 func failArchiveWrites(t *testing.T, a *App) (drop func()) {
 	t.Helper()
 	raw, err := sql.Open("sqlite3", filepath.Join(a.opts.StoreDir, "wacli.db"))
@@ -499,6 +627,11 @@ func TestAutoUnarchiveFailedSnapshotMutationDefersSettlement(t *testing.T) {
 		f.fetchEvents = func(_ context.Context, name string, full, _ bool) ([]any, error) {
 			if name == string(appstate.WAPatchRegularLow) && full {
 				t.Error("destructive full replay on known-broken collection")
+			}
+			// Exercise snapshot persistence failures without first settling
+			// through a successful incremental fetch.
+			if name == string(appstate.WAPatchRegularLow) {
+				return nil, errors.New("incremental unavailable")
 			}
 			return nil, nil
 		}

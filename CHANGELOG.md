@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Sync: settle the upgrade replay for Keep chats archived after one complete `regular_low` snapshot, so stores whose snapshot has no preference mutation or omits a locally archived chat no longer request a full replay (and, on known-broken collections, a phone snapshot) on every start. A snapshot whose mutation failed to persist does not settle; the kept replay applies the original action first. Thanks @nicolasbiondic (#502).
+- Sync: settle the upgrade replay for Keep chats archived after one complete `regular_low` snapshot, so stores whose snapshot has no preference mutation or omits a locally archived chat no longer request a full replay (and, on known-broken collections, a phone snapshot) on every start. A snapshot whose mutation failed to persist does not settle; the kept replay applies the original action first. When full sync is known broken and the primary does not answer, settle archive uncertainty after a successfully persisted incremental fetch without clearing snapshot debt or unarchiving chats, and stop adding duplicate recovery intents each delta cycle. Thanks @nicolasbiondic (#502).
 
 ## 0.25.0 - 2026-10-23
 
