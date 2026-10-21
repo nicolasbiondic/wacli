@@ -47,9 +47,9 @@ var schemaMigrations = []migration{
 	{version: 31, name: "content-free message change journal", up: migrateChanges},
 	{version: 32, name: "message receipt retrieval revisions", up: migrateReceiptRetrieval},
 	{version: 33, name: "ordered chat auto-unarchive", up: migrateChatAutoUnarchive},
-	// Version 34 is reserved for lists. Older ad-referral builds used 33;
+	// Older ad-referral builds used 33 or local migration 9033;
 	// both schema guards below repair stores whose version rows collide.
-	{version: 35, name: "messages ad_referral column", up: migrateMessagesAdReferralColumn},
+	{version: 34, name: "messages ad_referral column", up: migrateMessagesAdReferralColumn},
 }
 
 func migratePlaceholderChatActivity(d *DB) error {
