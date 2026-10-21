@@ -128,7 +128,33 @@ func (j *ContactStoreJournal) Coverage(name string, own types.JID, start Journal
 // every cursor write (NoteCursorWrite) in order with the contact writes.
 // Everything else passes through.
 func (j *ContactStoreJournal) AppStateStore(inner store.AppStateStore) store.AppStateStore {
-	return &journaledAppStateStore{AppStateStore: inner, journal: j}
+	wrapped := &journaledAppStateStore{AppStateStore: inner, journal: j}
+	if extended, ok := inner.(extendedAppStateStore); ok {
+		return &journaledExtendedAppStateStore{journaledAppStateStore: wrapped, extendedAppStateStore: extended}
+	}
+	return wrapped
+}
+
+// Preserve the vendas SQLStore's optional interfaces through the journal.
+// MAC enumeration backs LID writes and non-destructive full sync. Atomic
+// patch commits bypass PutAppStateVersion, so record their cursor here once,
+// only after the transaction succeeds. Plain stores keep the original path.
+type extendedAppStateStore interface {
+	store.AppStatePatchStore
+	GetAllAppStateMutationMACs(context.Context, string) ([]store.AppStateMutationMAC, error)
+}
+
+type journaledExtendedAppStateStore struct {
+	*journaledAppStateStore
+	extendedAppStateStore
+}
+
+func (s *journaledExtendedAppStateStore) PutAppStatePatch(ctx context.Context, name string, version uint64, hash [128]byte, removedIndexMACs [][]byte, addedMACs []store.AppStateMutationMAC) error {
+	err := s.extendedAppStateStore.PutAppStatePatch(ctx, name, version, hash, removedIndexMACs, addedMACs)
+	if err == nil {
+		s.journal.NoteCursorWrite(name)
+	}
+	return err
 }
 
 type journaledAppStateStore struct {

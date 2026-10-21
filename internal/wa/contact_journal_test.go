@@ -1,8 +1,10 @@
 package wa
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"go.mau.fi/whatsmeow/appstate"
@@ -130,6 +132,77 @@ func TestSDKContactStoreWritesAreJournaledInApplicationOrder(t *testing.T) {
 type failingAppStateStore struct {
 	waStore.AppStateStore
 	err error
+}
+
+// The fork's processor detects optional interfaces on the wrapped store, not
+// the underlying SQLStore. Hiding them disables atomic patches, LID handling
+// and the MAC backup needed by non-destructive full sync.
+func TestContactJournalPreservesForkAppStateStore(t *testing.T) {
+	c, err := New(Options{StorePath: newPairedSessionStore(t), KeyStateStore: newTestKeyStateStore(t)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	ctx := t.Context()
+	s := c.client.Store.AppState
+	patches, ok := s.(waStore.AppStatePatchStore)
+	if !ok {
+		t.Fatalf("journal wrapper %T hides atomic patch writes", s)
+	}
+	dumper, ok := s.(interface {
+		GetAllAppStateMutationMACs(context.Context, string) ([]waStore.AppStateMutationMAC, error)
+	})
+	if !ok {
+		t.Fatalf("journal wrapper %T hides mutation MAC enumeration", s)
+	}
+	name := string(appstate.WAPatchCriticalUnblockLow)
+	journal := c.ContactJournal()
+	start := journal.Mark(name)
+	index := bytes.Repeat([]byte{1}, 32)
+	value := bytes.Repeat([]byte{2}, 32)
+	hash := [128]byte{3}
+	mac := waStore.AppStateMutationMAC{IndexMAC: index, ValueMAC: value}
+	if err := patches.PutAppStatePatch(ctx, name, 1, hash, nil, []waStore.AppStateMutationMAC{mac}); err != nil {
+		t.Fatal(err)
+	}
+	if got := journal.Mark(name); got.CursorWrites != start.CursorWrites+1 || got.Seq != start.Seq+1 {
+		t.Fatalf("atomic commit must record exactly one cursor write: %+v -> %+v", start, got)
+	}
+	macs, err := dumper.GetAllAppStateMutationMACs(ctx, name)
+	if err != nil || len(macs) != 1 || !bytes.Equal(macs[0].IndexMAC, index) || !bytes.Equal(macs[0].ValueMAC, value) {
+		t.Fatalf("enumerated MACs = %+v, %v", macs, err)
+	}
+	own := types.NewJID("15550001111", types.DefaultUserServer)
+	if covered, _, _ := journal.Coverage(name, own, start); covered {
+		t.Fatal("committed cursor without applied contact must retain recovery debt")
+	}
+	if err := c.client.Store.Contacts.PutContactName(ctx, own, "First", "Full Name"); err != nil {
+		t.Fatal(err)
+	}
+	if covered, ownWritten, _ := journal.Coverage(name, own, start); !covered || !ownWritten {
+		t.Fatal("contact after exactly one atomic cursor commit must cover its patch")
+	}
+	beforeFailure := journal.Mark(name)
+	// Fail after the transaction updated the version and deleted the old MAC.
+	err = patches.PutAppStatePatch(ctx, name, 2, [128]byte{4}, [][]byte{index}, []waStore.AppStateMutationMAC{mac, mac})
+	if err == nil || !strings.Contains(err.Error(), "UNIQUE") {
+		t.Fatalf("expected duplicate MAC failure, got %v", err)
+	}
+	if after := journal.Mark(name); after != beforeFailure {
+		t.Fatalf("rolled-back patch advanced journal: %+v -> %+v", beforeFailure, after)
+	}
+	version, gotHash, err := s.GetAppStateVersion(ctx, name)
+	if err != nil || version != 1 || gotHash != hash {
+		t.Fatalf("failed patch changed version/hash: %d, %v", version, err)
+	}
+	gotMAC, err := s.GetAppStateMutationMAC(ctx, name, index)
+	if err != nil || !bytes.Equal(gotMAC, value) {
+		t.Fatalf("failed patch lost original MAC: %x, %v", gotMAC, err)
+	}
+	plain := journal.AppStateStore(failingAppStateStore{AppStateStore: s, err: errors.New("disk full")})
+	if _, ok := plain.(waStore.AppStatePatchStore); ok {
+		t.Fatal("wrapper advertises atomic writes on a store without them")
+	}
 }
 
 func (s failingAppStateStore) PutAppStateVersion(context.Context, string, uint64, [128]byte) error {
