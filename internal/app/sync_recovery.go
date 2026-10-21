@@ -157,6 +157,16 @@ func (a *App) syncAppStateDeltas(ctx context.Context, recoveries *sync.Map) {
 				fetchErr, persistenceErr := a.fetchAndPersistAppState(ctx, collection, false, &appStatePersistenceTracker{})
 				if err := errors.Join(fetchErr, persistenceErr); err != nil {
 					a.warnAppStateRecovery(name, err)
+				} else if archiveRecovery && collection == appstate.WAPatchRegularLow {
+					// A broken full replay cannot resolve legacy archive uncertainty.
+					// Settle only that requirement, never the pending snapshot debt.
+					if err := a.db.SettleChatArchiveRecovery(nowUTC()); err != nil {
+						a.warnAppStateRecovery(name, err)
+					} else {
+						a.emitWarning("app_state_archive_settled_without_snapshot",
+							"warning: settled legacy chat archive boundaries after incremental sync; full sync is broken and snapshot debt remains pending",
+							map[string]any{"name": name})
+					}
 				}
 				continue
 			}
