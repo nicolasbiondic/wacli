@@ -388,6 +388,7 @@ func (d *DB) PurgeMessage(chatJID, msgID string) error {
 			edited = 0,
 			edited_ts = 0,
 			buttons = NULL,
+			kind = NULL,
 			payload_purged_at = COALESCE(payload_purged_at, ?)
 		WHERE chat_jid = ? AND msg_id = ?
 	`, purgedAt, chatJID, msgID); err != nil {
@@ -630,11 +631,19 @@ func (d *DB) MessageContext(chatJID, msgID string, before, after int) ([]Message
 	}
 	beforeMessages := make([]Message, 0, len(beforeRows))
 	for _, row := range beforeRows {
-		beforeMessages = append(beforeMessages, messageFromBeforeRow(row))
+		m := messageFromBeforeRow(row)
+		if err := d.fillKind(&m); err != nil {
+			return nil, err
+		}
+		beforeMessages = append(beforeMessages, m)
 	}
 	afterMessages := make([]Message, 0, len(afterRows))
 	for _, row := range afterRows {
-		afterMessages = append(afterMessages, messageFromAfterRow(row))
+		m := messageFromAfterRow(row)
+		if err := d.fillKind(&m); err != nil {
+			return nil, err
+		}
+		afterMessages = append(afterMessages, m)
 	}
 
 	// Reverse before rows back to chronological order.
