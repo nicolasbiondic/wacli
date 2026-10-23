@@ -119,6 +119,7 @@ type Message struct {
 	EditedTs           int64
 	Buttons            sql.NullString
 	AdReferral         sql.NullString
+	Kind               sql.NullString
 }
 
 type MessageLocalMediaAlias struct {

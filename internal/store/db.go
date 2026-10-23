@@ -25,6 +25,7 @@ type DB struct {
 	receiptsEnabled bool
 	// Same for the ad referral column, which only a writable open adds.
 	adReferralEnabled bool
+	kindEnabled       bool
 	readRows          queryRows
 }
 
@@ -66,6 +67,7 @@ func open(path string, readOnly bool) (*DB, error) {
 		s.ftsEnabled = s.detectMessagesFTS()
 		s.receiptsEnabled = s.hasTable("message_receipts")
 		s.adReferralEnabled = s.hasMessagesColumn("ad_referral")
+		s.kindEnabled = s.hasMessagesColumn("kind")
 		return s, nil
 	}
 	if err := s.init(); err != nil {
@@ -74,6 +76,7 @@ func open(path string, readOnly bool) (*DB, error) {
 	}
 	s.receiptsEnabled = s.hasTable("message_receipts")
 	s.adReferralEnabled = s.hasMessagesColumn("ad_referral")
+	s.kindEnabled = s.hasMessagesColumn("kind")
 	if err := sqliteutil.ChmodFiles(path, 0o600); err != nil {
 		_ = db.Close()
 		return nil, err

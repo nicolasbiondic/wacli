@@ -50,6 +50,24 @@ var schemaMigrations = []migration{
 	// Older ad-referral builds used 33 or local migration 9033;
 	// both schema guards below repair stores whose version rows collide.
 	{version: 34, name: "messages ad_referral column", up: migrateMessagesAdReferralColumn},
+	{version: 9035, name: "messages semantic kind", up: migrateMessageKind},
+}
+
+func migrateMessageKind(d *DB) error {
+	exists, err := d.tableExists("messages")
+	if err != nil || !exists {
+		return err
+	}
+	has, err := d.tableHasColumn("messages", "kind")
+	if err != nil {
+		return err
+	}
+	if !has {
+		if _, err := d.sql.Exec(`ALTER TABLE messages ADD COLUMN kind TEXT`); err != nil {
+			return err
+		}
+	}
+	return refreshMessageChangeTriggers(d, "kind")
 }
 
 func migratePlaceholderChatActivity(d *DB) error {
@@ -517,7 +535,7 @@ func (d *DB) ensureCurrentSchema() error {
 	if err := migrateMessagesAdReferralColumn(d); err != nil {
 		return fmt.Errorf("ensure current messages ad_referral column: %w", err)
 	}
-	return nil
+	return migrateMessageKind(d)
 }
 
 func migrateGroupsLeftAt(d *DB) error {

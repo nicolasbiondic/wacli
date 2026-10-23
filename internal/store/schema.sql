@@ -93,6 +93,7 @@ CREATE TABLE IF NOT EXISTS messages (
     edited_ts INTEGER NOT NULL DEFAULT 0,
     buttons TEXT,
     ad_referral TEXT,
+    kind TEXT,
     UNIQUE(chat_jid, msg_id),
     FOREIGN KEY (chat_jid) REFERENCES chats(jid) ON DELETE CASCADE
 );

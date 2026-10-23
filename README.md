@@ -78,6 +78,23 @@ Write commands take a per-store lock. After a `sync --follow` process finishes s
 
 ## Commands
 
+### Vendas integration additions
+
+This fork accepts `profile_picture_info` on the follow owner's `.send.sock`:
+`{"version":1,"kind":"profile_picture_info","jid":"123@s.whatsapp.net","preview":false,"timeout_ms":15000}`.
+Omit `jid` to query the linked account. Only user/LID/group JIDs are accepted.
+The read bypasses send pacing/queueing and uses the existing connection; there
+is no standalone fallback. Success returns `ok:true` and `profile_picture` with
+`url`, `id`, `type`, `directPath`. Failures carry `error_code` (`not_set`, `hidden`,
+`invalid_jid`, `timeout`, `unavailable`, `lookup_failed`) and an error string.
+
+Local additive migration 9035 adds nullable `messages.kind`. Parsed/webhook
+messages emit `Kind`, stored JSON emits `kind`: `poll`, `poll_vote`,
+`poll_update`, `contact`, `contacts`, `event`; revoked projections use `revoked`.
+The existing `media_type` and body are preserved for older consumers. No
+historical types are inferred from text. Receipts already live in
+`message_receipts` (migration 29); this build does not change that schema.
+
 | Area | What it covers |
 | --- | --- |
 | [`auth`](docs/auth.md), [`accounts`](docs/accounts.md) | Pair a linked device and manage isolated account stores. |
