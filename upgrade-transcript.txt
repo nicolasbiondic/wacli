@@ -1,0 +1,102 @@
+== 1. Populated store written by stock v0.25.0
+
+$ python3 q.py store/wacli.db select count(*) from messages
+62
+migrations:
+33 ordered chat auto-unarchive
+32 message receipt retrieval revisions
+app_state_full_sync_broken             0  e3b0c44298fc1c14
+app_state_recovery_intents             0  e3b0c44298fc1c14
+call_events                            0  e3b0c44298fc1c14
+change_state                           1  3281d48a946874bb
+chat_archive_setting                   0  e3b0c44298fc1c14
+chats                                  3  5027282207cc3d62
+contact_aliases                        0  e3b0c44298fc1c14
+contact_tags                           0  e3b0c44298fc1c14
+contacts                               0  e3b0c44298fc1c14
+group_participants                     0  e3b0c44298fc1c14
+groups                                 0  e3b0c44298fc1c14
+message_changes                       62  4eab0c18592a0635
+message_local_media_aliases            0  e3b0c44298fc1c14
+message_locations                      1  6acbdc0b5b2dd420
+message_payload_purges                 1  24f0286933b58c93
+message_receipts                       1  ec2f2cfc50d27528
+messages                              62  e58423d06c34a45b
+poll_votes                             1  3422698cac9a8ccf
+polls                                  1  f97e1661c037f211
+retrieval_state                        1  bf1eb84628af14ff
+schema_migrations                     33  89ceda57ea405ca2
+starred                                1  a0f5eaa33773dfc7
+status_messages                        0  e3b0c44298fc1c14
+unavailable_app_state_keys             0  e3b0c44298fc1c14
+
+== 2. A paging cursor taken with v0.25.0
+More local messages: repeat this command with --cursor eyJ2IjoxLCJzIjoiNDZjODhjOTg2MjBhYTllOGE5Nzk0N2Q2OGViNzA5ZDAiLCJyIjo3MCwiZiI6IjY3ZWYxNDc0ODYxYTRkNDE3MjA1OTdlZGEyZjA5NzI5MDIyZjIxOTlhMjE5OGY0NmIwNjRmOGVmNDAxNGJkMmUiLCJiIjpmYWxzZSwidCI6MTc5MjUxMTY0MCwiaSI6NTUsImsiOjB9
+cursor: eyJ2IjoxLCJzIjoiNDZjODhj…
+
+== 3. Open with this branch (writable: runs migration 35)
+
+$ wacli-branch --store store --json messages list --chat 15550000001@s.whatsapp.net --limit 1
+More local messages: repeat this command with --cursor eyJ2IjoxLCJzIjoiNDZjODhjOTg2MjBhYTllOGE5Nzk0N2Q2OGViNzA5ZDAiLCJyIjo3MCwiZiI6IjY3ZWYxNDc0ODYxYTRkNDE3MjA1OTdlZGEyZjA5NzI5MDIyZjIxOTlhMjE5OGY0NmIwNjRmOGVmNDAxNGJkMmUiLCJiIjpmYWxzZSwidCI6MTc5MjUxNTYwMCwiaSI6NjEsImsiOjB9
+{"success":true,"data":{"messages":[{"ChatJID":"15550000001@s.whatsapp.net","ChatName":"Chat 1","MsgID":"poll1","SenderJID":"","SenderName":"","Timestamp":"2026-10-20T17:00:00Z","FromMe":false,"Text":"","DisplayText":"Poll: Pizza?","IsForwarded":false,"ForwardingScore":0,"ReactionToID":"","ReactionEmoji":"","MediaType":"","MediaCaption":"","Filename":"","MimeType":"","DirectPath":"","LocalPath":"","DownloadedAt":"0001-01-01T00:00:00Z","Starred":false,"StarredAt":"0001-01-01T00:00:00Z","Edited":false,"Revoked":false,"DeletedForMe":false,"DeliveredTo":0,"ReadBy":0,"Snippet":""}],"fts":false,"page":{"has_more":true,"next_cursor":"eyJ2IjoxLCJzIjoiNDZjODhjOTg2MjBhYTllOGE5Nzk0N2Q2OGViNzA5ZDAiLCJyIjo3MCwiZiI6IjY3ZWYxNDc0ODYxYTRkNDE3MjA1OTdlZGEyZjA5NzI5MDIyZjIxOTlhMjE5OGY0NmIwNjRmOGVmNDAxNGJkMmUiLCJiIjpmYWxzZSwidCI6MTc5MjUxNTYwMCwiaSI6NjEsImsiOjB9"},"source":{"last_sync_at":null,"scope":"local_archive"}},"error":null}
+migrations:
+35 messages semantic kind
+33 ordered chat auto-unarchive
+
+$ python3 q.py store/wacli.db select sql like '%kind%' from sqlite_master where name='retrieval_messages_update'
+1
+
+== 4. The v0.25.0 cursor resumes on this branch
+
+$ wacli-branch --store store --read-only messages list --chat 15550000001@s.whatsapp.net --limit 3 --cursor eyJ2IjoxLCJzIjoiNDZjODhjOTg2MjBhYTllOGE5Nzk0N2Q2OGViNzA5ZDAiLCJyIjo3MCwiZiI6IjY3ZWYxNDc0ODYxYTRkNDE3MjA1OTdlZGEyZjA5NzI5MDIyZjIxOTlhMjE5OGY0NmIwNjRmOGVmNDAxNGJkMmUiLCJiIjpmYWxzZSwidCI6MTc5MjUxMTY0MCwiaSI6NTUsImsiOjB9
+More local messages: repeat this command with --cursor eyJ2IjoxLCJzIjoiNDZjODhjOTg2MjBhYTllOGE5Nzk0N2Q2OGViNzA5ZDAiLCJyIjo3MCwiZiI6IjY3ZWYxNDc0ODYxYTRkNDE3MjA1OTdlZGEyZjA5NzI5MDIyZjIxOTlhMjE5OGY0NmIwNjRmOGVmNDAxNGJkMmUiLCJiIjpmYWxzZSwidCI6MTc5MjUxMTEwMCwiaSI6NDYsImsiOjB9
+TIME                 CHAT    FROM                        ID    TEXT
+2026-10-20 10:51:00  Chat 1  15550000009@s.whatsapp.net  m051  message 51 about the camera
+2026-10-20 10:48:00  Chat 1  me                          m048  message 48 about the camera
+2026-10-20 10:45:00  Chat 1  15550000009@s.whatsapp.net  m045  message 45 about the camera
+
+== 5. Every table unchanged (kind column excluded and reported)
+app_state_full_sync_broken             0  e3b0c44298fc1c14
+app_state_recovery_intents             0  e3b0c44298fc1c14
+call_events                            0  e3b0c44298fc1c14
+change_state                           1  3281d48a946874bb
+chat_archive_setting                   0  e3b0c44298fc1c14
+chats                                  3  5027282207cc3d62
+contact_aliases                        0  e3b0c44298fc1c14
+contact_tags                           0  e3b0c44298fc1c14
+contacts                               0  e3b0c44298fc1c14
+group_participants                     0  e3b0c44298fc1c14
+groups                                 0  e3b0c44298fc1c14
+message_changes                       62  4eab0c18592a0635
+message_local_media_aliases            0  e3b0c44298fc1c14
+message_locations                      1  6acbdc0b5b2dd420
+message_payload_purges                 1  24f0286933b58c93
+message_receipts                       1  ec2f2cfc50d27528
+messages                              62  e58423d06c34a45b  (+kind: 0 non-null)
+poll_votes                             1  3422698cac9a8ccf
+polls                                  1  f97e1661c037f211
+retrieval_state                        1  bf1eb84628af14ff
+schema_migrations                     34  4f7bd11839da7793
+starred                                1  a0f5eaa33773dfc7
+status_messages                        0  e3b0c44298fc1c14
+unavailable_app_state_keys             0  e3b0c44298fc1c14
+IDENTICAL to v0.25.0 (schema_migrations: +1 row, 35 message semantic kind)
+
+== 6. Back to stock v0.25.0 (read-only and writable)
+
+$ wacli-0.25.0 --store store --read-only messages list --chat 15550000001@s.whatsapp.net --limit 3
+More local messages: repeat this command with --cursor eyJ2IjoxLCJzIjoiNDZjODhjOTg2MjBhYTllOGE5Nzk0N2Q2OGViNzA5ZDAiLCJyIjo3MCwiZiI6IjY3ZWYxNDc0ODYxYTRkNDE3MjA1OTdlZGEyZjA5NzI5MDIyZjIxOTlhMjE5OGY0NmIwNjRmOGVmNDAxNGJkMmUiLCJiIjpmYWxzZSwidCI6MTc5MjUxMTY0MCwiaSI6NTUsImsiOjB9
+TIME                 CHAT    FROM                        ID     TEXT
+2026-10-20 12:00:00  Chat 1                              poll1  Poll: Pizza?
+2026-10-20 10:57:00  Chat 1  15550000009@s.whatsapp.net  m057   message 57 about the camera
+2026-10-20 10:54:00  Chat 1  15550000009@s.whatsapp.net  m054   message 54 about the camera
+
+$ wacli-0.25.0 --store store --json messages show --chat 15550000001@s.whatsapp.net --id poll1
+{"success":true,"data":{"ChatJID":"15550000001@s.whatsapp.net","ChatName":"Chat 1","MsgID":"poll1","SenderJID":"","SenderName":"","Timestamp":"2026-10-20T17:00:00Z","FromMe":false,"Text":"","DisplayText":"Poll: Pizza?","IsForwarded":false,"ForwardingScore":0,"ReactionToID":"","ReactionEmoji":"","MediaType":"","MediaCaption":"","Filename":"","MimeType":"","DirectPath":"","LocalPath":"","DownloadedAt":"0001-01-01T00:00:00Z","Starred":false,"StarredAt":"0001-01-01T00:00:00Z","Edited":false,"Revoked":false,"DeletedForMe":false,"DeliveredTo":0,"ReadBy":0,"Snippet":""},"error":null}
+
+$ wacli-0.25.0 --store store messages list --chat 15550000002@s.whatsapp.net --limit 2
+More local messages: repeat this command with --cursor eyJ2IjoxLCJzIjoiNDZjODhjOTg2MjBhYTllOGE5Nzk0N2Q2OGViNzA5ZDAiLCJyIjo3MCwiZiI6ImNjYTc1NjZmYTJkM2I2YjZhYmZmYWE2MjMxYTFiMzhmOTQ5YjIwYzU3YTZlMGY5YTk3NmNkZDQzZTQ4NjNmYjgiLCJiIjpmYWxzZSwidCI6MTc5MjUxMTg4MCwiaSI6NTksImsiOjB9
+TIME                 CHAT    FROM                        ID    TEXT
+2026-10-20 13:00:00  Chat 2                              loc1  Sent location
+2026-10-20 10:58:00  Chat 2  15550000009@s.whatsapp.net  m058  message 58 about the camera
+IDENTICAL after downgrade
