@@ -36,7 +36,7 @@ func TestSemanticKindMigrationAndLIDMerge(t *testing.T) {
 	db := mustOpen(t, path)
 	chat := "123@lid"
 	seedOutgoing(t, db, chat, "m1", time.Now())
-	if _, err := db.sql.Exec(`DROP TRIGGER retrieval_messages_update; ALTER TABLE messages DROP COLUMN kind; DELETE FROM schema_migrations WHERE version = 35`); err != nil {
+	if _, err := db.sql.Exec(`DROP TRIGGER retrieval_messages_update; ALTER TABLE messages DROP COLUMN kind; DELETE FROM schema_migrations WHERE version = 37`); err != nil {
 		t.Fatal(err)
 	}
 	tx, err := db.sql.Begin()
@@ -218,5 +218,100 @@ func TestPurgeClearsSemanticKind(t *testing.T) {
 	}
 	if kind := storedKind(t, db, pn, "vcard"); kind != nil {
 		t.Fatalf("stored kind after LID merge of a purged message = %v", kind)
+	}
+}
+
+// A store without the change journal (retrieval tables only) keeps working:
+// the kind migration must not install triggers that write to a missing table.
+func TestSemanticKindMigrationOnStoreWithoutChangeJournal(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "wacli.db")
+	db := mustOpen(t, path)
+	chat := "123@s.whatsapp.net"
+	seedOutgoing(t, db, chat, "m1", time.Now())
+	rows, err := db.sql.Query(`SELECT name FROM sqlite_master WHERE type='trigger' AND sql LIKE '%message_changes%'`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var triggers []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			t.Fatal(err)
+		}
+		triggers = append(triggers, name)
+	}
+	rows.Close()
+	for _, name := range triggers {
+		if _, err := db.sql.Exec(`DROP TRIGGER "` + name + `"`); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// What a retrieval-only store keeps: an update trigger that predates the
+	// journal and does not write to it.
+	if _, err := db.sql.Exec(`DROP TABLE message_changes; ALTER TABLE messages DROP COLUMN kind;
+		CREATE TRIGGER retrieval_messages_update AFTER UPDATE ON messages BEGIN SELECT 1; END`); err != nil {
+		t.Fatal(err)
+	}
+	if err := migrateMessageKind(db); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.UpsertMessage(UpsertMessageParams{ChatJID: chat, MsgID: "m2", Timestamp: time.Now(), Kind: "poll", DisplayText: "Poll: x?"}); err != nil {
+		t.Fatalf("write after migration on a journal-free store: %v", err)
+	}
+	if kind := storedKind(t, db, chat, "m2"); kind != "poll" {
+		t.Fatalf("kind = %v", kind)
+	}
+}
+
+// Another migration may hold version 37 in a store (open proposals renumber);
+// the writable open still adds the column through ensureCurrentSchema.
+func TestSemanticKindColumnRepairedWhenVersionRowIsTaken(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "wacli.db")
+	db := mustOpen(t, path)
+	if _, err := db.sql.Exec(`DROP TRIGGER retrieval_messages_update; ALTER TABLE messages DROP COLUMN kind; UPDATE schema_migrations SET name = 'some other proposal' WHERE version = 37`); err != nil {
+		t.Fatal(err)
+	}
+	tx, err := db.sql.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := createMessageChangeTriggers(tx); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	db = mustOpen(t, path)
+	if !db.kindEnabled {
+		t.Fatal("kind column not repaired on open")
+	}
+}
+
+// The opposite merge direction: the phone-number copy was purged and the LID
+// copy still carries the kind.
+func TestPurgedPhoneCopyKeepsKindClearedThroughLIDMerge(t *testing.T) {
+	db := mustOpen(t, filepath.Join(t.TempDir(), "wacli.db"))
+	base := time.Now().Add(-time.Hour)
+	pn, lid := "15551234567@s.whatsapp.net", "999123456789@lid"
+	for _, c := range []string{pn, lid} {
+		if err := db.UpsertChat(c, "dm", "Bob", base); err != nil {
+			t.Fatal(err)
+		}
+		if err := db.UpsertMessage(UpsertMessageParams{ChatJID: c, MsgID: "vcard", Timestamp: base, Kind: "contact", DisplayText: "Contact: Bob"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := db.MarkMessageDeletedForMe(pn, "vcard", "", false, base.Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.PurgeMessage(pn, "vcard"); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.MigrateLIDToPN(lid, pn); err != nil {
+		t.Fatal(err)
+	}
+	if kind := storedKind(t, db, pn, "vcard"); kind != nil {
+		t.Fatalf("stored kind = %v", kind)
 	}
 }
