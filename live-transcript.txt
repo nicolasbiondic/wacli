@@ -1,0 +1,54 @@
+== Live account: companion linked by phone code, running `sync --follow` on this branch (stock whatsmeow pin)
+
+$ wacli-528 version
+0.25.0
+
+$ wacli-528 --read-only messages list --chat CHAT --limit 4 --json   # a poll from another phone, then a vote, a contact card and an event sent from the primary
+2AE8D12330F1…  from_me=true   kind=event       media_type=        (message)
+2A6663295B82…  from_me=true   kind=contact     media_type=        Contact: REDACTED NAME (REDACTED)
+2A4B27CC33A6…  from_me=true   kind=poll_vote   media_type=        Poll vote
+3EB0B44DD451…  from_me=false  kind=poll        media_type=        Poll: Prueba técnica wacli: ¿llegó bien esta enc
+
+$ wacli-528 --read-only search 'Prueba técnica' --json
+3EB0B44DD451…  from_me=false  kind=poll        media_type=        Poll: Prueba técnica wacli: ¿llegó bien esta enc
+3EB07C74FD84…  from_me=true   kind=(absent)    media_type=        Prueba técnica 4 (gateway deps).
+3EB09669E513…  from_me=true   kind=(absent)    media_type=        Prueba técnica 3 (wacli settle).
+
+$ wacli-528 --read-only messages show --chat CHAT --id 3EB0B44DD4510598D19622 --json
+3EB0B44DD451…  from_me=false  kind=poll        media_type=        Poll: Prueba técnica wacli: ¿llegó bien esta enc
+
+$ wacli-528 --read-only messages context --chat CHAT --id 2A4B27CC33A63343C1D8 --before 1 --after 2 --json   # neighbors carry their kind
+3EB0B44DD451…  from_me=false  kind=poll        media_type=        Poll: Prueba técnica wacli: ¿llegó bien esta enc
+2A4B27CC33A6…  from_me=true   kind=poll_vote   media_type=        Poll vote
+2A6663295B82…  from_me=true   kind=contact     media_type=        Contact: REDACTED NAME (REDACTED)
+2AE8D12330F1…  from_me=true   kind=event       media_type=        (message)
+
+== Webhook payloads received by a local listener (sync --webhook), message events for those IDs
+3EB0B44DD451…  Kind=poll        MediaType=      
+2A4B27CC33A6…  Kind=poll_vote   MediaType=      
+2A6663295B82…  Kind=contact     MediaType=      
+2AE8D12330F1…  Kind=event       MediaType=      
+
+== Before this change: stock v0.25.0 reading the same store
+
+$ wacli-0.25.0 --read-only messages list --chat CHAT --limit 4 --json
+2AE8D12330F1…  from_me=true   kind=(absent)    media_type=        (message)
+2A6663295B82…  from_me=true   kind=(absent)    media_type=        Contact: REDACTED NAME (REDACTED)
+2A4B27CC33A6…  from_me=true   kind=(absent)    media_type=        Poll vote
+3EB0B44DD451…  from_me=false  kind=(absent)    media_type=        Poll: Prueba técnica wacli: ¿llegó bien esta enc
+
+== Purge: the kind goes with the payload
+
+$ # stop sync --follow: delete --for-me and purge take the store lock
+
+$ wacli-528 messages delete --for-me --chat CHAT --id 2A6663295B826F14514B
+Deleted message 2A6663295B826F14514B for me in REDACTED@s.whatsapp.net
+
+$ wacli-528 messages purge --chat CHAT --id 2A6663295B826F14514B --confirm
+Purged message 2A6663295B826F14514B in REDACTED@s.whatsapp.net.
+
+$ wacli-528 --read-only messages show --chat CHAT --id 2A6663295B826F14514B --json
+2A6663295B82…  from_me=true   kind=(absent)    media_type=        
+
+$ sqlite: SELECT kind, media_type, display_text, payload_purged_at IS NOT NULL FROM messages WHERE msg_id = CARD
+NULL|NULL|NULL|1
