@@ -1,0 +1,35 @@
+== 1. Latest stable daemon (v0.25.0) owns the store; the patched CLI explains the upgrade
+
+$ wacli-0.25.0 --store STORE sync --follow   # running
+
+$ wacli-527 --store STORE profile picture-info --jid PEER
+the running sync process does not support profile picture-info; restart `wacli sync` after upgrading, then run this again: unsupported send kind "profile_picture_info"
+
+$ wacli-0.25.0 --store STORE profile picture-info --jid PEER   # the stock CLI, for comparison
+store is locked (another wacli is running?): store locked: resource temporarily unavailable (pid=2745342 acquired_at=REDACTEDT14:02:01.REDACTED:00)
+
+== 2. Patched daemon owns the store; lookups are answered on its live connection
+
+$ wacli-527 --store STORE sync --follow   # running
+
+$ wacli-527 --store STORE profile picture-info --jid OWN   # the linked account, text output
+JID: REDACTED
+ID: REDACTED
+Type: image
+URL: REDACTED-URL
+Direct path: REDACTED
+
+$ wacli-527 --store STORE --json profile picture-info --jid PEER
+{"success":true,"data":{"jid":"REDACTED@s.whatsapp.net","id":"REDACTED","url":"REDACTED-URL","type":"image","direct_path":"REDACTED","hash":"REDACTED"},"error":null}
+
+$ wacli-527 --store STORE --json profile picture-info --jid PEER --existing-id ID   # same picture
+{"success":true,"data":{"jid":"REDACTED@s.whatsapp.net","unchanged":true},"error":null}
+
+$ wacli-527 --store STORE --json profile picture-info --jid status@broadcast
+{"success":false,"data":null,"error":"get profile picture info: jid must identify a user or group"}
+
+== 3. Same lookup without a daemon (direct connection): identical result
+
+$ wacli-527 --store STORE --json profile picture-info --jid PEER   # nothing running
+{"success":true,"data":{"jid":"REDACTED@s.whatsapp.net","id":"REDACTED","url":"REDACTED-URL","type":"image","direct_path":"REDACTED","hash":"REDACTED"},"error":null}
+delegated == direct: True
