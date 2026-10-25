@@ -18,9 +18,9 @@ import (
 )
 
 const (
-	// whatsmeow has no quick reply builder. Version 2 is what other WhatsApp
-	// Web implementations send; newer phones have been observed sending 3.
-	quickReplyActionVersion = 2
+	// Current Business clients send 3 (two observed accounts; another sent 2).
+	// events.AppState omits the action version, so we cannot follow each account.
+	quickReplyActionVersion = 3
 	maxLabelColor           = 19
 )
 
@@ -92,6 +92,12 @@ func (a *App) CreateLabel(ctx context.Context, in LabelInput) (store.List, error
 	if in.ID != id {
 		return store.List{}, fmt.Errorf("label ID must not have surrounding spaces")
 	}
+	if id != "" {
+		n, err := strconv.ParseInt(id, 10, 64)
+		if err != nil || n < 0 || strconv.FormatInt(n, 10) != id {
+			return store.List{}, fmt.Errorf("label ID must be a canonical nonnegative numeric ID")
+		}
+	}
 	var created store.List
 	err := a.writeRegularAppState(ctx, func(at time.Time) (appstate.PatchInfo, func() error, error) {
 		index, err := a.db.Lists()
@@ -114,7 +120,7 @@ func (a *App) CreateLabel(ctx context.Context, in LabelInput) (store.List, error
 			id = strconv.FormatInt(maxID+1, 10)
 		} else if existing, found, err := a.db.ListByID(id); err != nil {
 			return appstate.PatchInfo{}, nil, err
-		} else if found && !existing.Deleted {
+		} else if found {
 			return appstate.PatchInfo{}, nil, fmt.Errorf("label ID %s is already used by %q; use `lists edit`", id, existing.Name)
 		}
 		color := int32(0)
@@ -148,8 +154,8 @@ func (a *App) EditLabel(ctx context.Context, ref string, in LabelInput) (store.L
 	return a.rewriteLabel(ctx, ref, in, false)
 }
 
-// DeleteLabel deletes a label definition. WhatsApp clients drop its chat
-// associations with it.
+// DeleteLabel sends a label definition tombstone. Phone-side association
+// cleanup has not been verified.
 func (a *App) DeleteLabel(ctx context.Context, ref string) (store.List, error) {
 	return a.rewriteLabel(ctx, ref, LabelInput{}, true)
 }
@@ -173,12 +179,24 @@ func (a *App) rewriteLabel(ctx context.Context, ref string, in LabelInput, delet
 		}
 		if in.Name != nil {
 			name = *in.Name
+			index, err := a.db.Lists()
+			if err != nil {
+				return appstate.PatchInfo{}, nil, err
+			}
+			for _, other := range index.Lists {
+				if other.ID != current.ID && other.Name == name {
+					return appstate.PatchInfo{}, nil, fmt.Errorf("a label named %q already exists (ID %s)", name, other.ID)
+				}
+			}
 		}
 		if in.Color != nil {
 			color = *in.Color
 		}
 		patch := appstate.BuildLabelEdit(current.ID, name, color, deleted)
 		action := patch.Mutations[0].Value.GetLabelEditAction()
+		if in.Color == nil {
+			action.Color = current.Color
+		}
 		action.PredefinedID, action.OrderIndex = current.PredefinedID, current.OrderIndex
 		action.IsActive, action.IsImmutable = current.IsActive, current.IsImmutable
 		if current.Type != nil {
@@ -190,9 +208,15 @@ func (a *App) rewriteLabel(ctx context.Context, ref string, in LabelInput, delet
 	return result, err
 }
 
+// ChatLabelResult reports the definition and the exact patched chat identity.
+type ChatLabelResult struct {
+	Label store.List
+	Chat  string
+}
+
 // SetChatLabel adds a chat to, or removes it from, a label.
-func (a *App) SetChatLabel(ctx context.Context, chat types.JID, ref string, labeled bool) (store.List, error) {
-	var result store.List
+func (a *App) SetChatLabel(ctx context.Context, chat types.JID, ref string, labeled bool) (ChatLabelResult, error) {
+	var result ChatLabelResult
 	err := a.writeRegularAppState(ctx, func(at time.Time) (appstate.PatchInfo, func() error, error) {
 		label, err := a.db.ResolveListForWrite(ref)
 		if err != nil {
@@ -206,7 +230,7 @@ func (a *App) SetChatLabel(ctx context.Context, chat types.JID, ref string, labe
 			return appstate.PatchInfo{}, nil, fmt.Errorf("chat %s has no known phone number; labeling LID-only chats is not supported", target)
 		}
 		jid := canonicalJIDString(target)
-		result = label
+		result = ChatLabelResult{Label: label, Chat: jid}
 		patch := appstate.BuildLabelChat(target, label.ID, labeled)
 		return patch, func() error {
 			if labeled {
@@ -220,8 +244,8 @@ func (a *App) SetChatLabel(ctx context.Context, chat types.JID, ref string, labe
 	return result, err
 }
 
-// CreateQuickReply adds a quick reply under a time-based ID, as WhatsApp Web
-// does, so it cannot collide with replies the local index has not seen.
+// CreateQuickReply uses a Unix-seconds ID, as Baileys does, skipping known IDs.
+// An unseen reply created in the same second can still collide.
 func (a *App) CreateQuickReply(ctx context.Context, in QuickReplyInput) (store.QuickReply, error) {
 	if in.Shortcut == nil || in.Message == nil {
 		return store.QuickReply{}, fmt.Errorf("quick reply shortcut and message are required")
@@ -233,6 +257,8 @@ func (a *App) CreateQuickReply(ctx context.Context, in QuickReplyInput) (store.Q
 	err := a.writeRegularAppState(ctx, func(at time.Time) (appstate.PatchInfo, func() error, error) {
 		if _, err := a.db.ResolveQuickReply(*in.Shortcut); err == nil {
 			return appstate.PatchInfo{}, nil, fmt.Errorf("quick reply %q already exists; use `quick-replies edit`", *in.Shortcut)
+		} else if !errors.Is(err, store.ErrQuickReplyNotFound) {
+			return appstate.PatchInfo{}, nil, err
 		}
 		id := at.Unix()
 		for {
@@ -293,6 +319,8 @@ func (a *App) rewriteQuickReply(ctx context.Context, ref string, change func(*st
 		if !q.Deleted && q.Shortcut != oldShortcut {
 			if other, err := a.db.ResolveQuickReply(q.Shortcut); err == nil && other.ID != q.ID {
 				return appstate.PatchInfo{}, nil, fmt.Errorf("quick reply %q already exists (ID %s)", q.Shortcut, other.ID)
+			} else if err != nil && !errors.Is(err, store.ErrQuickReplyNotFound) {
+				return appstate.PatchInfo{}, nil, err
 			}
 		}
 		result = q

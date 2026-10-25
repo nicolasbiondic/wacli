@@ -1,8 +1,11 @@
 package app
 
 import (
+	"database/sql"
 	"errors"
+	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -184,8 +187,12 @@ func TestSetChatLabelSendsPhoneJIDAndUpdatesFilter(t *testing.T) {
 	lid := types.NewJID("999", types.HiddenUserServer)
 	pn := types.NewJID("123", types.DefaultUserServer)
 	f.lids[lid] = pn
-	if _, err := a.SetChatLabel(t.Context(), lid, "Ventas", true); err != nil {
+	result, err := a.SetChatLabel(t.Context(), lid, "Ventas", true)
+	if err != nil {
 		t.Fatal(err)
+	}
+	if result.Chat != pn.String() || result.Label.ID != "7" {
+		t.Fatalf("result = %+v, want the patched phone JID", result)
 	}
 	m := onlyPatch(t, f)
 	if !reflect.DeepEqual(m.Index, []string{appstate.IndexLabelAssociationChat, "7", pn.String()}) || !m.Value.GetLabelAssociationAction().GetLabeled() {
@@ -264,6 +271,22 @@ func TestQuickReplyEventsPersistFromSyncAndOneShot(t *testing.T) {
 		f.emit(quickReplyEvent("1700000000", "hola", "x", time.Unix(99, 0), false))
 		time.Sleep(50 * time.Millisecond)
 		waitQuickReplies(t, a, 0)
+		// A regular full sync can contain only quick replies (or no labels).
+		f.emit(&events.AppStateSyncComplete{Name: appstate.WAPatchRegular})
+		deadline := time.Now().Add(5 * time.Second)
+		for {
+			result, err := a.db.QuickReplies()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if result.Completeness == "complete" {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("full-sync completeness = %q", result.Completeness)
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
 	}
 }
 
@@ -296,7 +319,7 @@ func TestQuickReplyWritesBuildRegularPatches(t *testing.T) {
 	}
 	m := onlyPatch(t, f)
 	act := m.Value.GetQuickReplyAction()
-	if !reflect.DeepEqual(m.Index, []string{appstate.IndexQuickReply, "1700000000"}) || m.Version != quickReplyActionVersion ||
+	if !reflect.DeepEqual(m.Index, []string{appstate.IndexQuickReply, "1700000000"}) || m.Version != 3 ||
 		act.GetShortcut() != "prueba" || act.GetMessage() != "Mensaje de prueba" || act.GetDeleted() || !reflect.DeepEqual(act.GetKeywords(), []string{"test"}) {
 		t.Fatalf("create mutation = %v v%d %v", m.Index, m.Version, act)
 	}
@@ -332,6 +355,75 @@ func TestQuickReplyWritesBuildRegularPatches(t *testing.T) {
 	got, err := a.db.QuickReplies()
 	if err != nil || len(got.QuickReplies) != 1 || got.QuickReplies[0].Shortcut != "otra" {
 		t.Fatalf("local index after delete = %+v, %v", got, err)
+	}
+}
+
+func TestExplicitLabelIDRejectsTombstonesAndNonNumericIDs(t *testing.T) {
+	for _, id := range []string{"7", "abc", "7x", "-1", "+1", "1.5", "01"} {
+		t.Run(id, func(t *testing.T) {
+			a, f := newLabelWriteApp(t, labelEvent("7", "Gone", time.Unix(100, 0), true, func(l *waSyncAction.LabelEditAction) { l.Deleted = proto.Bool(true) }))
+			if _, err := a.CreateLabel(t.Context(), LabelInput{ID: id, Name: proto.String("New")}); err == nil {
+				t.Fatalf("accepted unsafe ID %q", id)
+			}
+			noPatch(t, f)
+		})
+	}
+}
+
+func TestEditLabelRejectsDuplicateName(t *testing.T) {
+	a, f := newLabelWriteApp(t, labelEvent("1", "First", time.Unix(100, 0), true, nil), labelEvent("2", "Second", time.Unix(100, 0), true, nil))
+	if _, err := a.EditLabel(t.Context(), "1", LabelInput{Name: proto.String("Second")}); err == nil || !strings.Contains(err.Error(), "already exists") {
+		t.Fatalf("duplicate rename: %v", err)
+	}
+	noPatch(t, f)
+	if _, err := a.EditLabel(t.Context(), "1", LabelInput{Name: proto.String("First")}); err != nil {
+		t.Fatalf("unchanged name: %v", err)
+	}
+}
+
+func TestLabelRewritePreservesAbsentColor(t *testing.T) {
+	for _, deleted := range []bool{false, true} {
+		t.Run(strconv.FormatBool(deleted), func(t *testing.T) {
+			a, f := newLabelWriteApp(t, labelEvent("1", "First", time.Unix(100, 0), true, func(l *waSyncAction.LabelEditAction) { l.Color = nil }))
+			var err error
+			if deleted {
+				_, err = a.DeleteLabel(t.Context(), "1")
+			} else {
+				_, err = a.EditLabel(t.Context(), "1", LabelInput{Name: proto.String("New")})
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if act := onlyPatch(t, f).Value.GetLabelEditAction(); act.Color != nil {
+				t.Fatalf("absent color became %v", act.Color)
+			}
+		})
+	}
+}
+
+func TestQuickReplyDuplicateCheckRejectsAmbiguityAndDatabaseErrors(t *testing.T) {
+	for _, brokenDB := range []bool{false, true} {
+		t.Run(strconv.FormatBool(brokenDB), func(t *testing.T) {
+			a, f := newLabelWriteApp(t, quickReplyEvent("1", "dup", "one", time.Unix(100, 0), false), quickReplyEvent("2", "/dup", "two", time.Unix(100, 0), false), quickReplyEvent("3", "other", "three", time.Unix(100, 0), false))
+			if brokenDB {
+				raw, err := sql.Open("sqlite3", filepath.Join(a.StoreDir(), "wacli.db"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer raw.Close()
+				if _, err := raw.Exec(`UPDATE quick_replies SET keywords='bad json' WHERE id='1'`); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if _, err := a.CreateQuickReply(t.Context(), QuickReplyInput{Shortcut: proto.String("dup"), Message: proto.String("x")}); err == nil {
+				t.Fatal("create ignored shortcut resolution error")
+			}
+			noPatch(t, f)
+			if _, err := a.EditQuickReply(t.Context(), "3", QuickReplyInput{Shortcut: proto.String("dup")}); err == nil {
+				t.Fatal("rename ignored shortcut resolution error")
+			}
+			noPatch(t, f)
+		})
 	}
 }
 

@@ -17,6 +17,7 @@ import (
 // `sync --follow`. A new kind makes older owners reject the request instead
 // of ignoring fields they do not know.
 const appStateWriteKind = "app_state_write"
+const appStateResyncKind = "app_state_resync"
 
 const (
 	labelCreateAction      = "label_create"
@@ -54,7 +55,7 @@ type appStateWriteApp interface {
 	CreateLabel(context.Context, app.LabelInput) (store.List, error)
 	EditLabel(context.Context, string, app.LabelInput) (store.List, error)
 	DeleteLabel(context.Context, string) (store.List, error)
-	SetChatLabel(context.Context, types.JID, string, bool) (store.List, error)
+	SetChatLabel(context.Context, types.JID, string, bool) (app.ChatLabelResult, error)
 	CreateQuickReply(context.Context, app.QuickReplyInput) (store.QuickReply, error)
 	EditQuickReply(context.Context, string, app.QuickReplyInput) (store.QuickReply, error)
 	DeleteQuickReply(context.Context, string) (store.QuickReply, error)
@@ -112,8 +113,9 @@ func executeAppStateWrite(ctx context.Context, a appStateWriteApp, req appStateW
 		if err != nil {
 			return appStateWriteResult{}, err
 		}
-		res.Chat = jid.String()
-		return label(a.SetChatLabel(ctx, jid, req.Ref, req.Action == chatLabelAddAction))
+		result, err := a.SetChatLabel(ctx, jid, req.Ref, req.Action == chatLabelAddAction)
+		res.Chat = result.Chat
+		return label(result.Label, err)
 	case quickReplyCreateAction:
 		return quickReply(a.CreateQuickReply(ctx, quickReplyInput))
 	case quickReplyEditAction:
@@ -270,7 +272,7 @@ func newListsEditCmd(flags *rootFlags) *cobra.Command {
 func newListsDeleteCmd(flags *rootFlags) *cobra.Command {
 	return &cobra.Command{
 		Use:   "delete ID_OR_NAME",
-		Short: "Delete a label; WhatsApp removes it from its chats",
+		Short: "Delete a label definition",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runAppStateWrite(flags, appStateWriteRequest{Action: labelDeleteAction, Ref: args[0]})
@@ -316,7 +318,7 @@ func newQuickRepliesCmd(flags *rootFlags) *cobra.Command {
 	}
 	cmd.AddCommand(&cobra.Command{
 		Use:   "list",
-		Short: "List observed quick replies; completeness is unknown",
+		Short: "List observed quick replies and full-sync completeness",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx, cancel := withTimeout(context.Background(), flags)
@@ -341,7 +343,9 @@ func newQuickRepliesCmd(flags *rootFlags) *cobra.Command {
 			if err := w.Flush(); err != nil {
 				return err
 			}
-			fmt.Fprintln(os.Stderr, "Completeness: unknown; only quick replies seen by sync are listed.")
+			if result.Completeness == "incomplete" {
+				fmt.Fprintln(os.Stderr, "Completeness: incomplete; no full regular sync observed. Run `wacli app-state resync regular` to fetch existing replies.")
+			}
 			return nil
 		},
 	})
@@ -413,4 +417,86 @@ func newQuickRepliesCmd(flags *rootFlags) *cobra.Command {
 		},
 	})
 	return cmd
+}
+
+type appStateResyncApp interface {
+	ResyncAppState(context.Context, string, bool) (app.AppStateResyncResult, error)
+}
+
+func executeDelegatedAppStateResync(ctx context.Context, a appStateResyncApp, req sendDelegateRequest) (sendDelegateResponse, error) {
+	if req.Collection != "regular" {
+		return sendDelegateResponse{}, fmt.Errorf("app-state resync supports only regular")
+	}
+	result, err := a.ResyncAppState(ctx, req.Collection, req.Force)
+	if err != nil {
+		return sendDelegateResponse{}, err
+	}
+	return sendDelegateResponse{OK: true, AppStateResync: &result}, nil
+}
+
+func newAppStateCmd(flags *rootFlags) *cobra.Command {
+	cmd := &cobra.Command{Use: "app-state", Short: "Manage WhatsApp app-state synchronization"}
+	var force bool
+	resync := &cobra.Command{
+		Use: "resync regular", Short: "Force a full regular sync using existing recovery", Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if args[0] != "regular" {
+				return fmt.Errorf("app-state resync supports only regular")
+			}
+			return runAppStateResync(flags, args[0], force)
+		},
+	}
+	resync.Flags().BoolVar(&force, "force", false, "accept loss of usable local app state when a known-broken full sync does not verify")
+	cmd.AddCommand(resync)
+	return cmd
+}
+
+func runAppStateResync(flags *rootFlags, collection string, force bool) error {
+	if err := flags.requireWritable(); err != nil {
+		return err
+	}
+	ctx, cancel := withTimeout(context.Background(), flags)
+	defer cancel()
+	a, lk, err := newApp(ctx, flags, true, false)
+	if err != nil {
+		resp, delegated, delegateErr := tryDelegateSend(ctx, flags, err, sendDelegateRequest{Kind: appStateResyncKind, Collection: collection, Force: force})
+		if !delegated {
+			return err
+		}
+		if delegateErr != nil {
+			if strings.Contains(delegateErr.Error(), "unsupported send kind") && strings.Contains(delegateErr.Error(), appStateResyncKind) {
+				return fmt.Errorf("the running sync process does not support app-state resync and changed nothing; restart `wacli sync` after upgrading, then run this again: %w", delegateErr)
+			}
+			return delegateErr
+		}
+		if resp.AppStateResync == nil {
+			return fmt.Errorf("the running sync process did not report the resync result; check before retrying")
+		}
+		return writeAppStateResyncResult(flags, *resp.AppStateResync)
+	}
+	defer closeApp(a, lk)
+	if err := a.EnsureAuthed(ctx); err != nil {
+		return err
+	}
+	remove, err := a.AddChatStatePersistenceHandler(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { a.WA().Disconnect(); remove() }()
+	if err := a.Connect(ctx, false, nil); err != nil {
+		return err
+	}
+	result, err := a.ResyncAppState(ctx, collection, force)
+	if err != nil {
+		return err
+	}
+	return writeAppStateResyncResult(flags, result)
+}
+
+func writeAppStateResyncResult(flags *rootFlags, result app.AppStateResyncResult) error {
+	if flags.asJSON {
+		return out.WriteJSON(os.Stdout, result)
+	}
+	fmt.Fprintf(os.Stdout, "%s resync: %s (%d quick replies, %d lists)\n", result.Collection, result.Completeness, result.QuickReplies, result.Lists)
+	return nil
 }

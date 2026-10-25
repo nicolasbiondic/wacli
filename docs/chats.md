@@ -126,26 +126,69 @@ restart `wacli sync` after upgrading. `--read-only` refuses every write.
 - `lists create` uses `appstate.BuildLabelEdit`. Without `--id` it takes the next
   numeric ID after every ID ever observed, deleted ones included, and refuses
   while `full_sync_events_seen` is false, because a label the index never saw
-  could be overwritten. Pass `--id` with an unused ID in that case. On accounts
+  could be overwritten. Pass `--id` with an unused, canonical nonnegative numeric
+  ID in that case; deleted IDs cannot be reused. On accounts
   whose observed lists use the `CUSTOM` type, the new definition is also sent as
-  `CUSTOM` and active. Duplicate names are refused.
+  `CUSTOM` and active. This account-model heuristic has not been verified on a
+  real phone. Duplicate names are refused on create and rename.
 - `lists edit` and `lists delete` resend every stored field (predefined ID, type,
   order, active and immutable flags), since WhatsApp replaces the whole value.
-  Immutable definitions and system list types are refused. Deleting a label makes
-  WhatsApp drop it from its chats.
+  An unobserved color stays unset rather than being replaced with color 0.
+  Immutable definitions and system list types are refused. Deleting sends a
+  definition tombstone; how each phone removes its chat associations is not yet
+  verified.
 - `chats label add|remove` uses `appstate.BuildLabelChat` with the chat's phone
   number JID. A LID-only chat with no known phone number is refused: LID label
-  associations have not been verified yet.
-- Quick replies use the `quick_reply` index, action version 2, under a
-  timestamp-based ID as WhatsApp Web does, so a new reply cannot collide with one
-  the index has not seen. Edits and deletes resend the stored shortcut, message,
+  associations have not been verified yet. Results report the patched phone JID.
+- Quick replies use the `quick_reply` index and action version **3**, the version
+  current WhatsApp Business clients send (observed on two of three accounts; the
+  third sent 2). whatsmeow's `events.AppState` does not expose the action version,
+  so wacli cannot follow the account's own version yet. IDs use Unix seconds, as
+  Baileys does, and skip locally known collisions; unseen same-second IDs can
+  still collide. Edits and deletes resend the stored shortcut, message,
   keywords, usage count and label IDs. Shortcuts are matched with or without the
   leading `/`.
 
-`quick-replies list` reads the replies observed during sync; like lists, its
-`completeness` is always `"unknown"`, and a reply deleted on the phone with a
-remove operation instead of a deletion flag stays listed until it is replaced.
+The local label and quick reply indexes order values by action timestamp, while
+WhatsApp orders app state by patch. A phone clock ahead of this machine can make
+a newer local write and its echo lose to an older timestamped value; a replay
+does not necessarily fix this clock-skew limitation. Each write keeps a durable
+`regular` recovery intent, so the next pre-write sync or `sync --follow` recovery
+normally performs a full `regular` replay. This is intentional but costs more
+than incremental sync; known-broken collections retain the existing degraded
+recovery behavior.
+
+`quick-replies list` reads replies observed during sync. Its JSON `completeness`
+is `"complete"` when `full_sync_events_seen` is true for `regular`, otherwise
+`"incomplete"`; text output warns when incomplete. This flag records that a full
+sync was observed, not that every phone feature or deletion was captured. A reply
+deleted on the phone with a REMOVE operation instead of a deletion flag stays
+listed until it is replaced. Full snapshots merge into the local index; absent
+rows are not pruned. `lists list` retains its `"unknown"` completeness contract.
 Only WhatsApp Business accounts show quick replies on the phone.
+
+### Resync the regular collection
+
+```bash
+wacli --json app-state resync regular
+# Only after understanding the risk on an account with a known-broken full sync:
+wacli --json app-state resync regular --force
+```
+
+This requests a full `regular` sync through the existing serialized recovery and
+durable replay-debt machinery. A running `sync --follow` owner handles the request
+using the separate `app_state_resync` delegate kind, outside the paced send queue.
+Older owners refuse it; upgrade and restart `wacli sync`. `--read-only` refuses it.
+The result is `{"collection":"regular","completeness":"complete"|"incomplete",
+"quick_replies":N,"lists":N}`, counting nondeleted local rows after recovery.
+
+A collection flagged in `app_state_full_sync_broken` is refused unless `--force`
+is explicit. Stock whatsmeow discards the saved collection version before a full
+sync verifies; if verification fails, usable local app state can be lost until
+the primary provides a recovery snapshot. `--force` accepts that risk; it does
+not bypass verification or guarantee recovery. Failed fetches or persistence
+leave recovery debt for the existing recovery path. No live-phone proof has been
+completed yet.
 
 ## Read receipts
 

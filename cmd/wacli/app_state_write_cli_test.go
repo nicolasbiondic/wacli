@@ -127,6 +127,8 @@ func TestLabelAndQuickReplyCommandsValidateBeforeOpeningStore(t *testing.T) {
 		{[]string{"quick-replies", "edit", "x", "--keyword", "a", "--clear-keywords"}, "mutually exclusive"},
 		{[]string{"--read-only", "lists", "create", "--name", "x"}, "read-only"},
 		{[]string{"--read-only", "quick-replies", "delete", "x"}, "read-only"},
+		{[]string{"--read-only", "app-state", "resync", "regular"}, "read-only"},
+		{[]string{"app-state", "resync", "regular_low"}, "only regular"},
 	} {
 		dir := t.TempDir()
 		var err error
@@ -172,8 +174,69 @@ func TestQuickRepliesListCLIReadOnlyJSON(t *testing.T) {
 	if err := json.Unmarshal([]byte(raw), &result); err != nil {
 		t.Fatal(err)
 	}
-	if !result.Success || result.Data.Completeness != "unknown" || len(result.Data.QuickReplies) != 1 ||
+	if !result.Success || result.Data.Completeness != "incomplete" || len(result.Data.QuickReplies) != 1 ||
 		result.Data.QuickReplies[0]["shortcut"] != "hola" || !reflect.DeepEqual(result.Data.QuickReplies[0]["keywords"], []any{"k"}) {
 		t.Fatalf("quick-replies list = %s", raw)
+	}
+}
+
+func TestAppStateResyncCLIUsesSeparateDelegateKind(t *testing.T) {
+	skipPresenceDelegateSocketTestOnUnsupportedOS(t)
+	dir := shortPresenceDelegateStoreDir(t)
+	lk, err := lock.Acquire(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lk.Release()
+	ln, err := delegate.Listen(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	requests := make(chan map[string]any, 1)
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		var req map[string]any
+		_ = json.NewDecoder(conn).Decode(&req)
+		requests <- req
+		_ = json.NewEncoder(conn).Encode(map[string]any{"ok": true, "app_state_resync": map[string]any{"collection": "regular", "completeness": "complete", "quick_replies": 2, "lists": 1}})
+	}()
+	stdout, stderr, err := runPresenceDelegateHelper(t, []string{"--store", dir, "--json", "--timeout", "5s", "app-state", "resync", "regular", "--force"})
+	if err != nil {
+		t.Fatalf("resync: %v stdout=%q stderr=%q", err, stdout, stderr)
+	}
+	select {
+	case req := <-requests:
+		if req["kind"] != "app_state_resync" || req["collection"] != "regular" || req["force"] != true {
+			t.Fatalf("request = %v", req)
+		}
+	case <-contextWithTestTimeout(t).Done():
+		t.Fatal("no resync request")
+	}
+	if !strings.Contains(stdout, `"data":{"collection":"regular","completeness":"complete","quick_replies":2,"lists":1}`) {
+		t.Fatalf("resync result = %s", stdout)
+	}
+}
+
+func TestQuickRepliesTextReportsIncomplete(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "wacli.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	stderr := captureRootStderr(t, func() {
+		captureRootStdout(t, func() {
+			if err := execute([]string{"--store", dir, "--read-only", "quick-replies", "list"}); err != nil {
+				t.Fatal(err)
+			}
+		})
+	})
+	if !strings.Contains(stderr, "incomplete") || !strings.Contains(stderr, "app-state resync regular") {
+		t.Fatalf("hint = %q", stderr)
 	}
 }

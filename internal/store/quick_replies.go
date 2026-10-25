@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -20,7 +21,7 @@ func migrateQuickReplies(d *DB) error {
 }
 
 // QuickReply is one observed WhatsApp Business quick reply. Like lists, the
-// local index only knows what sync has delivered, so completeness is unknown.
+// local index only knows what sync has delivered.
 type QuickReply struct {
 	ID       string   `json:"id"`
 	Shortcut string   `json:"shortcut"`
@@ -35,6 +36,8 @@ type QuickRepliesResult struct {
 	QuickReplies []QuickReply `json:"quick_replies"`
 	Completeness string       `json:"completeness"`
 }
+
+var ErrQuickReplyNotFound = errors.New("quick reply not found")
 
 // UpsertQuickReply stores a whole quick reply value: WhatsApp replaces the
 // complete action on every change, so absent fields are not merged.
@@ -63,7 +66,14 @@ func (d *DB) UpsertQuickReply(q QuickReply, at time.Time) error {
 
 // QuickReplies returns the observed, not deleted quick replies.
 func (d *DB) QuickReplies() (QuickRepliesResult, error) {
-	result := QuickRepliesResult{QuickReplies: []QuickReply{}, Completeness: "unknown"}
+	result := QuickRepliesResult{QuickReplies: []QuickReply{}, Completeness: "incomplete"}
+	lists, err := d.Lists()
+	if err != nil {
+		return result, err
+	}
+	if lists.FullSyncEventsSeen {
+		result.Completeness = "complete"
+	}
 	// Read-only opens never migrate, so tolerate a store without the table.
 	exists, err := d.tableExists("quick_replies")
 	if err != nil || !exists {
@@ -115,7 +125,7 @@ func (d *DB) ResolveQuickReply(value string) (QuickReply, error) {
 		}
 	}
 	if len(matches) == 0 {
-		return QuickReply{}, fmt.Errorf("quick reply %q is not in the local index; sync first", value)
+		return QuickReply{}, fmt.Errorf("quick reply %q is not in the local index; sync first: %w", value, ErrQuickReplyNotFound)
 	}
 	if len(matches) > 1 {
 		return QuickReply{}, fmt.Errorf("quick reply shortcut %q is ambiguous; use an ID", value)

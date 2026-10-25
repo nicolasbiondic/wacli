@@ -82,6 +82,9 @@ type sendDelegateRequest struct {
 	RetryOnPhone         bool     `json:"retry_on_phone,omitempty"`
 	// AppState carries label and quick reply writes (kind app_state_write).
 	AppState *appStateWriteRequest `json:"app_state,omitempty"`
+
+	Collection string `json:"collection,omitempty"`
+	Force      bool   `json:"force,omitempty"`
 }
 
 type sendDelegateResponse struct {
@@ -109,6 +112,8 @@ type sendDelegateResponse struct {
 	Presence       *app.PresenceState   `json:"presence,omitempty"`
 	Media          *mediaDownloadResult `json:"media,omitempty"`
 	AppState       *appStateWriteResult `json:"app_state,omitempty"`
+
+	AppStateResync *app.AppStateResyncResult `json:"app_state_resync,omitempty"`
 }
 
 type sendDelegateExecutor func(context.Context, sendDelegateRequest) (sendDelegateResponse, error)
@@ -293,7 +298,7 @@ func handleSendDelegateConn(ctx context.Context, conn net.Conn, execute sendDele
 		_ = json.NewEncoder(conn).Encode(resp)
 		return
 	}
-	if req.Kind == chatStateKind || req.Kind == contactsSaveKind || req.Kind == appStateWriteKind {
+	if req.Kind == chatStateKind || req.Kind == contactsSaveKind || req.Kind == appStateWriteKind || req.Kind == appStateResyncKind {
 		// The app-state coordinator owns these writes; recovery must not hold
 		// the message-send queue (#454).
 		if requestCtx.Err() != nil {
@@ -426,6 +431,8 @@ func executeDelegatedSend(parent context.Context, a *app.App, req sendDelegateRe
 		return executeDelegatedContactsSave(ctx, a, req)
 	case appStateWriteKind:
 		return executeDelegatedAppStateWrite(ctx, a, req)
+	case appStateResyncKind:
+		return executeDelegatedAppStateResync(ctx, a, req)
 	default:
 		return sendDelegateResponse{}, fmt.Errorf("unsupported send kind %q", req.Kind)
 	}

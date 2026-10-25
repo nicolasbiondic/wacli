@@ -16,7 +16,8 @@ import (
 )
 
 type fakeAppStateWriteApp struct {
-	calls chan string
+	calls       chan string
+	patchedChat string
 }
 
 func (f *fakeAppStateWriteApp) DB() *store.DB { return nil }
@@ -47,9 +48,26 @@ func (f *fakeAppStateWriteApp) DeleteLabel(_ context.Context, ref string) (store
 	return store.List{ID: ref}, nil
 }
 
-func (f *fakeAppStateWriteApp) SetChatLabel(_ context.Context, chat types.JID, ref string, labeled bool) (store.List, error) {
+func (f *fakeAppStateWriteApp) SetChatLabel(_ context.Context, chat types.JID, ref string, labeled bool) (app.ChatLabelResult, error) {
 	f.record("label %s %s %t", chat, ref, labeled)
-	return store.List{ID: ref}, nil
+	target := chat.String()
+	if f.patchedChat != "" {
+		target = f.patchedChat
+	}
+	return app.ChatLabelResult{Label: store.List{ID: ref}, Chat: target}, nil
+}
+
+func (f *fakeAppStateWriteApp) ResyncAppState(_ context.Context, collection string, force bool) (app.AppStateResyncResult, error) {
+	f.record("resync %s force=%t", collection, force)
+	return app.AppStateResyncResult{Collection: collection, Completeness: "complete", QuickReplies: 2, Lists: 1}, nil
+}
+
+func TestChatLabelResultReportsPatchedJID(t *testing.T) {
+	f := &fakeAppStateWriteApp{calls: make(chan string, 1), patchedChat: "123@s.whatsapp.net"}
+	result, err := executeAppStateWrite(t.Context(), f, appStateWriteRequest{Action: chatLabelAddAction, Ref: "7", Chat: "999@lid"})
+	if err != nil || result.Chat != "123@s.whatsapp.net" || result.Label == nil || result.Label.ID != "7" {
+		t.Fatalf("result = %+v, %v", result, err)
+	}
 }
 
 func (f *fakeAppStateWriteApp) CreateQuickReply(_ context.Context, in app.QuickReplyInput) (store.QuickReply, error) {
@@ -77,6 +95,9 @@ func TestAppStateWritesThroughProductionServerWhenStoreLocked(t *testing.T) {
 	defer lk.Release()
 	fake := &fakeAppStateWriteApp{calls: make(chan string, 1)}
 	stop, err := startSendDelegateServerForStore(context.Background(), storeDir, sendSpacing{}, func(ctx context.Context, req sendDelegateRequest) (sendDelegateResponse, error) {
+		if req.Kind == appStateResyncKind {
+			return executeDelegatedAppStateResync(ctx, fake, req)
+		}
 		if req.Kind != appStateWriteKind {
 			return sendDelegateResponse{}, fmt.Errorf("unexpected kind %q", req.Kind)
 		}
@@ -98,6 +119,8 @@ func TestAppStateWritesThroughProductionServerWhenStoreLocked(t *testing.T) {
 		{[]string{"quick-replies", "create", "--shortcut", "prueba", "--message", "Hola"}, "qr create prueba Hola <nil>"},
 		{[]string{"quick-replies", "edit", "prueba", "--keyword", "k"}, "qr edit prueba <nil> <nil> [k]"},
 		{[]string{"quick-replies", "delete", "prueba"}, "qr delete prueba"},
+		{[]string{"app-state", "resync", "regular"}, "resync regular force=false"},
+		{[]string{"app-state", "resync", "regular", "--force"}, "resync regular force=true"},
 	} {
 		stdout, stderr, err := runPresenceDelegateHelper(t, append([]string{"--store", storeDir, "--timeout", "5s"}, tt.args...))
 		if err != nil {
@@ -133,9 +156,11 @@ func TestAppStateWriteOldOwnerRejectionNamesRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer stop()
-	stdout, stderr, err := runPresenceDelegateHelper(t, []string{"--store", storeDir, "--timeout", "5s", "lists", "create", "--name", "x"})
-	if err == nil || stdout != "" || !strings.Contains(stderr, "changed nothing") || !strings.Contains(stderr, "restart `wacli sync`") {
-		t.Fatalf("err=%v stdout=%q stderr=%q", err, stdout, stderr)
+	for _, args := range [][]string{{"lists", "create", "--name", "x"}, {"app-state", "resync", "regular"}} {
+		stdout, stderr, err := runPresenceDelegateHelper(t, append([]string{"--store", storeDir, "--timeout", "5s"}, args...))
+		if err == nil || stdout != "" || !strings.Contains(stderr, "changed nothing") || !strings.Contains(stderr, "restart `wacli sync`") {
+			t.Fatalf("%v: err=%v stdout=%q stderr=%q", args, err, stdout, stderr)
+		}
 	}
 }
 
@@ -159,24 +184,37 @@ func TestExecuteDelegatedAppStateWriteRejectsBadRequestsBeforeAppUse(t *testing.
 }
 
 func TestDelegatedAppStateWriteDoesNotWaitForSendQueue(t *testing.T) {
-	serverConn, clientConn := net.Pipe()
-	defer clientConn.Close()
-	if err := clientConn.SetDeadline(time.Now().Add(2 * time.Second)); err != nil {
-		t.Fatal(err)
-	}
-	sendSlot := make(chan struct{}, 1) // empty: an earlier send owns the queue
-	go handleSendDelegateConn(context.Background(), serverConn, func(_ context.Context, req sendDelegateRequest) (sendDelegateResponse, error) {
-		return sendDelegateResponse{OK: true, Action: req.AppState.Action, AppState: &appStateWriteResult{Action: req.AppState.Action}}, nil
-	}, sendSlot, newSendPacer(sendSpacing{}))
-	req := sendDelegateRequest{Version: sendDelegateVersion, Kind: appStateWriteKind, TimeoutMS: 1000, AppState: &appStateWriteRequest{Action: labelDeleteAction, Ref: "7"}}
-	if err := json.NewEncoder(clientConn).Encode(req); err != nil {
-		t.Fatal(err)
-	}
-	var resp sendDelegateResponse
-	if err := json.NewDecoder(clientConn).Decode(&resp); err != nil {
-		t.Fatal(err)
-	}
-	if !resp.OK || resp.AppState == nil || resp.AppState.Action != labelDeleteAction {
-		t.Fatalf("resp = %+v", resp)
+	for _, kind := range []string{appStateWriteKind, appStateResyncKind} {
+		t.Run(kind, func(t *testing.T) {
+			serverConn, clientConn := net.Pipe()
+			defer clientConn.Close()
+			if err := clientConn.SetDeadline(time.Now().Add(2 * time.Second)); err != nil {
+				t.Fatal(err)
+			}
+			sendSlot := make(chan struct{}, 1) // empty: an earlier send owns the queue
+			go handleSendDelegateConn(context.Background(), serverConn, func(_ context.Context, req sendDelegateRequest) (sendDelegateResponse, error) {
+				if req.Kind == appStateResyncKind {
+					return sendDelegateResponse{OK: true, AppStateResync: &app.AppStateResyncResult{Collection: req.Collection}}, nil
+				}
+				return sendDelegateResponse{OK: true, Action: req.AppState.Action, AppState: &appStateWriteResult{Action: req.AppState.Action}}, nil
+			}, sendSlot, newSendPacer(sendSpacing{}))
+			req := sendDelegateRequest{Version: sendDelegateVersion, Kind: kind, Collection: "regular", TimeoutMS: 1000, AppState: &appStateWriteRequest{Action: labelDeleteAction, Ref: "7"}}
+			raw, err := json.Marshal(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// net.Pipe is unbuffered: a trailing encoder newline can deadlock
+			// the writer when Decode finishes at its exact buffer boundary.
+			if _, err := clientConn.Write(raw); err != nil {
+				t.Fatal(err)
+			}
+			var resp sendDelegateResponse
+			if err := json.NewDecoder(clientConn).Decode(&resp); err != nil {
+				t.Fatal(err)
+			}
+			if !resp.OK || (kind == appStateWriteKind && (resp.AppState == nil || resp.AppState.Action != labelDeleteAction)) || (kind == appStateResyncKind && (resp.AppStateResync == nil || resp.AppStateResync.Collection != "regular")) {
+				t.Fatalf("resp = %+v", resp)
+			}
+		})
 	}
 }

@@ -66,6 +66,12 @@ func recordListFullSync(tx *sql.Tx, full bool) error {
 	return err
 }
 
+// MarkRegularFullSyncEventsSeen also records verified empty regular snapshots.
+func (d *DB) MarkRegularFullSyncEventsSeen() error {
+	_, err := d.sql.Exec(`UPDATE list_sync_state SET full_sync_events_seen=1 WHERE id=1`)
+	return err
+}
+
 func (d *DB) UpsertList(p ListUpdate) error {
 	if strings.TrimSpace(p.ID) == "" {
 		return fmt.Errorf("list ID is required")

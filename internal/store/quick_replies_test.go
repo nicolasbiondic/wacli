@@ -18,7 +18,7 @@ func TestQuickRepliesUpsertOrderingAndResolution(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err := db.QuickReplies()
-	if err != nil || len(got.QuickReplies) != 1 || got.Completeness != "unknown" {
+	if err != nil || len(got.QuickReplies) != 1 || got.Completeness != "incomplete" {
 		t.Fatalf("QuickReplies = %+v, %v", got, err)
 	}
 	if want := (QuickReply{ID: q.ID, Shortcut: "hola", Message: "Hola", Keywords: []string{"saludo"}, LabelIDs: []string{}, Count: listPtr(int32(2))}); !reflect.DeepEqual(got.QuickReplies[0], want) {
@@ -54,6 +54,21 @@ func TestQuickRepliesUpsertOrderingAndResolution(t *testing.T) {
 	}
 	if _, err := db.ResolveQuickReply("dup"); err == nil {
 		t.Fatal("ambiguous shortcut resolved")
+	}
+}
+
+func TestQuickRepliesCompletenessFollowsRegularFullSyncEvents(t *testing.T) {
+	db := openTestDB(t)
+	got, err := db.QuickReplies()
+	if err != nil || got.Completeness != "incomplete" {
+		t.Fatalf("initial = %+v, %v", got, err)
+	}
+	if err := db.UpsertList(ListUpdate{ID: "1", Name: listPtr("Seen"), FromFullSync: true}); err != nil {
+		t.Fatal(err)
+	}
+	got, err = db.QuickReplies()
+	if err != nil || got.Completeness != "complete" {
+		t.Fatalf("after full sync = %+v, %v", got, err)
 	}
 }
 

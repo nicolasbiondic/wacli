@@ -92,6 +92,7 @@ func execute(args []string) error {
 	rootCmd.AddCommand(newChatsCmd(&flags))
 	rootCmd.AddCommand(newListsCmd(&flags))
 	rootCmd.AddCommand(newQuickRepliesCmd(&flags))
+	rootCmd.AddCommand(newAppStateCmd(&flags))
 	rootCmd.AddCommand(newGroupsCmd(&flags))
 	rootCmd.AddCommand(newChannelsCmd(&flags))
 	rootCmd.AddCommand(newHistoryCmd(&flags))
