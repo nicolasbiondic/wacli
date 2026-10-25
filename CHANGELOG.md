@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Lists: persist WhatsApp List/Business label definitions and chat membership events; add read-only `lists list` (`labels list`) and `chats list --list ID_OR_NAME`, with explicit unknown completeness and LID/phone membership reconciliation. Message memberships and favorites/system-list filtering remain out of scope.
+- Labels and quick replies: add `lists create|edit|delete` (`labels ...`), `chats label add|remove` and `quick-replies list|create|edit|delete`, sent as `regular` app-state patches after a pre-write sync and delegated to a running `sync --follow` like archiving. Quick replies seen during sync are now stored (migration 38). New label IDs are only guessed after a full sync was observed (otherwise pass `--id`); LID-only chats cannot be labeled yet.
 
 ## 0.25.0 - 2026-10-23
 

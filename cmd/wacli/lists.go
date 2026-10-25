@@ -12,7 +12,7 @@ import (
 func newListsCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use: "lists", Aliases: []string{"labels"},
-		Short: "Read synced WhatsApp Lists and Business labels (local index)",
+		Short: "Read and manage WhatsApp Lists and Business labels",
 	}
 	cmd.AddCommand(&cobra.Command{
 		Use: "list", Short: "List observed definitions; membership completeness is unknown",
@@ -51,5 +51,6 @@ func newListsCmd(flags *rootFlags) *cobra.Command {
 			return nil
 		},
 	})
+	cmd.AddCommand(newListsCreateCmd(flags), newListsEditCmd(flags), newListsDeleteCmd(flags))
 	return cmd
 }

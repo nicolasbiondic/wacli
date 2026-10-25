@@ -50,6 +50,10 @@ var schemaMigrations = []migration{
 	// Stickers use 34 and ad referrals use 35. The schema guard repairs stores whose
 	// version rows collide with older list or referral builds.
 	{version: 36, name: "WhatsApp lists and chat memberships", up: migrateLists},
+	// 37 is claimed by message kinds (#528). Like lists, the table is also ensured
+	// by ensureCurrentSchema, so a store whose row 38 belongs to another
+	// migration still gets it.
+	{version: 38, name: "WhatsApp Business quick replies", up: migrateQuickReplies},
 }
 
 func migratePlaceholderChatActivity(d *DB) error {
@@ -516,6 +520,9 @@ func (d *DB) ensureCurrentSchema() error {
 	}
 	if err := migrateLists(d); err != nil {
 		return fmt.Errorf("ensure current lists schema: %w", err)
+	}
+	if err := migrateQuickReplies(d); err != nil {
+		return fmt.Errorf("ensure current quick replies schema: %w", err)
 	}
 	return nil
 }
