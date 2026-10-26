@@ -50,6 +50,13 @@ var schemaMigrations = []migration{
 	// Older ad-referral builds used 33 or local migration 9033;
 	// both schema guards below repair stores whose version rows collide.
 	{version: 34, name: "messages ad_referral column", up: migrateMessagesAdReferralColumn},
+	// Upstream reserves 34 (stickers), 35 (ad referrals) and 37 (message kinds);
+	// this fork keeps ad referrals at 34 and message kinds at 9035. Lists (36)
+	// and quick replies (38) keep their upstream numbers so a store migrated by
+	// either build carries the same rows; both tables are also ensured by
+	// ensureCurrentSchema, so a colliding row never hides them.
+	{version: 36, name: "WhatsApp lists and chat memberships", up: migrateLists},
+	{version: 38, name: "WhatsApp Business quick replies", up: migrateQuickReplies},
 	{version: 9035, name: "messages semantic kind", up: migrateMessageKind},
 }
 
@@ -534,6 +541,12 @@ func (d *DB) ensureCurrentSchema() error {
 	}
 	if err := migrateMessagesAdReferralColumn(d); err != nil {
 		return fmt.Errorf("ensure current messages ad_referral column: %w", err)
+	}
+	if err := migrateLists(d); err != nil {
+		return fmt.Errorf("ensure current lists schema: %w", err)
+	}
+	if err := migrateQuickReplies(d); err != nil {
+		return fmt.Errorf("ensure current quick replies schema: %w", err)
 	}
 	return migrateMessageKind(d)
 }

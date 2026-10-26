@@ -109,9 +109,9 @@ func (a *App) addSyncEventHandler(ctx context.Context, opts SyncOptions, message
 			*events.CallOfferNotice, *events.CallRelayLatency, *events.CallTerminate, *events.CallReject:
 			lastEvent.Store(nowUTC().UnixNano())
 			a.handleLiveCallEvent(ctx, v)
-		case *events.AppState, *events.Star, *events.DeleteForMe,
+		case *events.AppState, *events.AppStateSyncComplete, *events.Star, *events.DeleteForMe,
 			*events.Archive, *events.UnarchiveChatsSetting, *events.Pin, *events.Mute, *events.MarkChatAsRead,
-			*events.Contact:
+			*events.Contact, *events.LabelEdit, *events.LabelAssociationChat:
 			lastEvent.Store(nowUTC().UnixNano())
 			if limits != nil {
 				limits.appStatePending.Add(1)
@@ -398,8 +398,16 @@ func (a *App) clearLiveAppStateRecovery(markers []appStateRecoveryMarker) {
 func (a *App) persistAppStateEvent(ctx context.Context, evt any, tracker *appStatePersistenceTracker) error {
 	var err error
 	switch v := evt.(type) {
+	case *events.AppStateSyncComplete:
+		if v != nil && v.Name == appstate.WAPatchRegular {
+			err = a.db.MarkRegularFullSyncEventsSeen()
+		}
 	case *events.AppState:
-		err = a.handleLiveCallEvent(ctx, v)
+		if isQuickReplyEvent(v) {
+			err = a.handleQuickReplyEvent(v)
+		} else {
+			err = a.handleLiveCallEvent(ctx, v)
+		}
 	case *events.Star:
 		err = a.handleStarEvent(ctx, v)
 	case *events.DeleteForMe:
@@ -409,6 +417,8 @@ func (a *App) persistAppStateEvent(ctx context.Context, evt any, tracker *appSta
 		err = a.handleChatStateEvent(ctx, v)
 	case *events.Contact:
 		err = a.handleContactEvent(ctx, v)
+	case *events.LabelEdit, *events.LabelAssociationChat:
+		err = a.handleListEvent(ctx, v)
 	}
 	if tracker != nil {
 		tracker.record(err)
@@ -421,6 +431,13 @@ func (a *App) persistAppStateEvent(ctx context.Context, evt any, tracker *appSta
 
 func appStateCollectionsForEvent(evt any) []appstate.WAPatchName {
 	switch v := evt.(type) {
+	case *events.AppStateSyncComplete:
+		if v != nil && v.Name == appstate.WAPatchRegular {
+			return []appstate.WAPatchName{appstate.WAPatchRegular}
+		}
+		return nil
+	case *events.LabelEdit, *events.LabelAssociationChat:
+		return []appstate.WAPatchName{appstate.WAPatchRegular}
 	case *events.Archive, *events.UnarchiveChatsSetting, *events.Pin, *events.MarkChatAsRead:
 		return []appstate.WAPatchName{appstate.WAPatchRegularLow}
 	case *events.Mute, *events.Star, *events.DeleteForMe:
@@ -428,6 +445,9 @@ func appStateCollectionsForEvent(evt any) []appstate.WAPatchName {
 	case *events.Contact:
 		return []appstate.WAPatchName{appstate.WAPatchCriticalUnblockLow}
 	case *events.AppState:
+		if isQuickReplyEvent(v) {
+			return []appstate.WAPatchName{appstate.WAPatchRegular}
+		}
 		if v == nil || v.SyncActionValue == nil || (v.GetCallLogAction() == nil && v.GetDeleteIndividualCallLog() == nil) {
 			return nil
 		}
