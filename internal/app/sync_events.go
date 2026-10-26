@@ -109,9 +109,29 @@ func (a *App) addSyncEventHandler(ctx context.Context, opts SyncOptions, message
 			*events.CallOfferNotice, *events.CallRelayLatency, *events.CallTerminate, *events.CallReject:
 			lastEvent.Store(nowUTC().UnixNano())
 			a.handleLiveCallEvent(ctx, v)
-		case *events.AppState, *events.AppStateSyncComplete, *events.Star, *events.DeleteForMe,
+		case *events.AppState, *events.Star, *events.DeleteForMe,
 			*events.Archive, *events.UnarchiveChatsSetting, *events.Pin, *events.Mute, *events.MarkChatAsRead,
 			*events.Contact, *events.LabelEdit, *events.LabelAssociationChat:
+			lastEvent.Store(nowUTC().UnixNano())
+			if limits != nil {
+				limits.appStatePending.Add(1)
+			}
+			a.handleAppStatePersistenceEvent(ctx, v, func(err error) {
+				if limits != nil {
+					if err != nil {
+						limits.persistenceFailed.Store(true)
+					}
+					limits.appStatePending.Add(-1)
+				}
+			})
+		case *events.AppStateSyncComplete:
+			// Only the live `regular` sentinel is persisted: it marks the
+			// quick reply/list index complete. `regular_low` sentinels settle
+			// the archive recovery only at their captured snapshot position
+			// (see settleChatArchiveRecovery), never from live dispatch.
+			if !isRegularFullSyncSentinel(v) {
+				return
+			}
 			lastEvent.Store(nowUTC().UnixNano())
 			if limits != nil {
 				limits.appStatePending.Add(1)
@@ -399,8 +419,10 @@ func (a *App) persistAppStateEvent(ctx context.Context, evt any, tracker *appSta
 	var err error
 	switch v := evt.(type) {
 	case *events.AppStateSyncComplete:
-		if v != nil && v.Name == appstate.WAPatchRegular {
+		if isRegularFullSyncSentinel(v) {
 			err = a.db.MarkRegularFullSyncEventsSeen()
+		} else {
+			err = a.handleChatStateEvent(ctx, v)
 		}
 	case *events.AppState:
 		if isQuickReplyEvent(v) {
@@ -412,7 +434,7 @@ func (a *App) persistAppStateEvent(ctx context.Context, evt any, tracker *appSta
 		err = a.handleStarEvent(ctx, v)
 	case *events.DeleteForMe:
 		err = a.handleDeleteForMeEvent(ctx, v)
-	case *events.Archive, *events.UnarchiveChatsSetting, *events.AppStateSyncComplete,
+	case *events.Archive, *events.UnarchiveChatsSetting,
 		*events.Pin, *events.Mute, *events.MarkChatAsRead:
 		err = a.handleChatStateEvent(ctx, v)
 	case *events.Contact:
@@ -429,10 +451,16 @@ func (a *App) persistAppStateEvent(ctx context.Context, evt any, tracker *appSta
 	return err
 }
 
+// isRegularFullSyncSentinel reports whether evt closes a full sync of the
+// `regular` collection (labels, quick replies).
+func isRegularFullSyncSentinel(evt *events.AppStateSyncComplete) bool {
+	return evt != nil && evt.Name == appstate.WAPatchRegular
+}
+
 func appStateCollectionsForEvent(evt any) []appstate.WAPatchName {
 	switch v := evt.(type) {
 	case *events.AppStateSyncComplete:
-		if v != nil && v.Name == appstate.WAPatchRegular {
+		if isRegularFullSyncSentinel(v) {
 			return []appstate.WAPatchName{appstate.WAPatchRegular}
 		}
 		return nil

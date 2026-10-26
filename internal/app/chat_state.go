@@ -43,10 +43,16 @@ func (a *App) AddChatStatePersistenceHandler(ctx context.Context) (func(), error
 	waClient := a.WA()
 	handlerID := waClient.AddEventHandler(func(evt any) {
 		switch v := evt.(type) {
-		case *events.AppState, *events.AppStateSyncComplete, *events.Star, *events.DeleteForMe,
+		case *events.AppState, *events.Star, *events.DeleteForMe,
 			*events.Archive, *events.UnarchiveChatsSetting, *events.Pin, *events.Mute, *events.MarkChatAsRead,
 			*events.Contact, *events.LabelEdit, *events.LabelAssociationChat:
 			a.handleAppStatePersistenceEvent(ctx, evt, nil)
+		case *events.AppStateSyncComplete:
+			// Live `regular` sentinels mark the quick reply index complete;
+			// `regular_low` sentinels only settle at their captured position.
+			if isRegularFullSyncSentinel(v) {
+				a.handleAppStatePersistenceEvent(ctx, evt, nil)
+			}
 		case *wa.AppStateKeyUnavailable:
 			a.warnEmptyAppStateKey(v)
 		}

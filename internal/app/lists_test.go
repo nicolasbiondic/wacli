@@ -120,8 +120,14 @@ func TestListsRecoverySnapshotAndFetchedReplay(t *testing.T) {
 		if err != nil || capture != nil {
 			t.Fatalf("snapshot: %v, %v", capture, err)
 		}
-		if len(evts) != 2 {
-			t.Fatalf("snapshot omitted labels: %v", evts)
+		// This fork's capture appends the recovery sentinel after the
+		// snapshot's mutations (#502), so the snapshot settles only once
+		// every label event is persisted.
+		if len(evts) != 3 {
+			t.Fatalf("snapshot omitted labels or sentinel: %v", evts)
+		}
+		if sentinel, ok := evts[2].(*events.AppStateSyncComplete); !ok || sentinel.Name != appstate.WAPatchRegular || !sentinel.Recovery {
+			t.Fatalf("snapshot must end with the regular recovery sentinel: %#v", evts[2])
 		}
 		if err := a.persistFetchedAppStateEvents(ctx, evts, &appStatePersistenceTracker{}); err != nil {
 			t.Fatal(err)
