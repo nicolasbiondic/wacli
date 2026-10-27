@@ -135,6 +135,7 @@ type App struct {
 	chatStateSync           chan struct{}
 	appStatePersist         appStatePersistenceSequencer
 	regularFullSyncFailed   bool // Accessed only by the ordered app-state writer.
+	regularSnapshotsOpen    int  // A close cannot complete a different, still-open snapshot.
 	archiveObservationMu    sync.Mutex
 	archiveObserved         map[string]int64
 	archiveSettingObserved  *events.UnarchiveChatsSetting

@@ -425,9 +425,12 @@ func (a *App) clearLiveAppStateRecovery(markers []appStateRecoveryMarker) {
 func (a *App) persistAppStateEvent(ctx context.Context, evt any, tracker *appStatePersistenceTracker) error {
 	var err error
 	if start, ok := evt.(*events.AppStateSyncStart); ok && start != nil && start.Name == appstate.WAPatchRegular {
-		// Only an explicit new snapshot starts a new live attempt. Mutations
-		// must not clear failures accumulated earlier in this same snapshot.
-		a.regularFullSyncFailed = false
+		// SDK fetch/recovery dispatches can overlap. A new opening must not
+		// erase a failure or let another snapshot's close complete this one.
+		if a.regularSnapshotsOpen == 0 {
+			a.regularFullSyncFailed = false
+		}
+		a.regularSnapshotsOpen++
 	}
 	if isRegularFullSyncEvent(evt) {
 		err = a.db.InvalidateRegularFullSync()
@@ -436,6 +439,12 @@ func (a *App) persistAppStateEvent(ctx context.Context, evt any, tracker *appSta
 		switch v := evt.(type) {
 		case *events.AppStateSyncComplete:
 			if isRegularFullSyncSentinel(v) {
+				if a.regularSnapshotsOpen > 0 {
+					a.regularSnapshotsOpen--
+				}
+				if a.regularSnapshotsOpen > 0 {
+					break
+				}
 				if a.regularFullSyncFailed {
 					err = fmt.Errorf("regular full sync has unpersisted events; completeness remains incomplete")
 				} else {

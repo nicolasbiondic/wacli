@@ -180,6 +180,10 @@ an abrupt exit after the first reply reopens as incomplete. Only the ordered,
 successfully persisted closing sentinel restores completeness. A failed opening
 invalidation prevents snapshot mutations from being written. Incremental updates
 do not open a new snapshot.
+If live full/recovery batches overlap, the index stays incomplete until all
+open snapshots close successfully. Recovery captures keep opening/closing
+boundaries balanced rather than replaying an unrelated full-fetch opening
+whose close they do not capture.
 This boundary does not prove that every phone feature or deletion was captured. A reply
 deleted on the phone with a REMOVE operation instead of a deletion flag stays
 listed until it is replaced. Full snapshots merge into the local index; absent

@@ -158,6 +158,9 @@ func TestRegularSnapshotStartIsDurableAndMustSucceedBeforeMutations(t *testing.T
 			if err := emit(collectedQuickReplySnapshot(t, "new-first", "new-second")[0]); err == nil {
 				t.Fatal("mutation ran without durable invalidation")
 			}
+			if err := emit(&events.AppStateSyncComplete{Name: appstate.WAPatchRegular, Recovery: recovery}); err == nil {
+				t.Fatal("failed snapshot unexpectedly completed")
+			}
 			if got, err := a.db.QuickReplies(); err != nil || len(got.QuickReplies) != 1 || got.QuickReplies[0].Message != "old" {
 				t.Fatalf("failed opening boundary changed the old snapshot: %+v %v", got, err)
 			}
@@ -193,4 +196,116 @@ func TestRegularSnapshotStartIsDurableAndMustSucceedBeforeMutations(t *testing.T
 			assertRegularCompleteness(t, a, "complete")
 		})
 	}
+}
+
+func TestRegularOverlappingSnapshotsWaitForBothCloses(t *testing.T) {
+	for _, failed := range []bool{false, true} {
+		t.Run(fmt.Sprint(failed), func(t *testing.T) {
+			a := newTestApp(t)
+			a.wa = newFakeWA()
+			emit := func(evt any) error {
+				var persistErr error
+				a.handleAppStatePersistenceEvent(t.Context(), evt, func(err error) { persistErr = err })
+				return persistErr
+			}
+			if err := emit(&events.AppStateSyncComplete{Name: appstate.WAPatchRegular}); err != nil {
+				t.Fatal(err)
+			}
+			start := &events.AppStateSyncStart{Name: appstate.WAPatchRegular}
+			end := &events.AppStateSyncComplete{Name: appstate.WAPatchRegular}
+			if err := emit(start); err != nil {
+				t.Fatal(err)
+			}
+			if failed {
+				// Inject a real storage failure for snapshot A, then recover SQLite.
+				raw, err := sql.Open("sqlite3", filepath.Join(a.StoreDir(), "wacli.db"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer raw.Close()
+				if _, err := raw.Exec(`CREATE TRIGGER fail_overlap BEFORE INSERT ON quick_replies BEGIN SELECT RAISE(FAIL, 'injected overlap failure'); END`); err != nil {
+					t.Fatal(err)
+				}
+				if err := emit(collectedQuickReplySnapshot(t, "failed-A")[0]); err == nil {
+					t.Fatal("storage failure ignored")
+				}
+				if _, err := raw.Exec("DROP TRIGGER fail_overlap"); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := emit(&events.AppStateSyncStart{Name: appstate.WAPatchRegular, Recovery: true}); err != nil {
+				t.Fatal(err)
+			}
+			if err := emit(collectedQuickReplySnapshot(t, "partial-B")[0]); err != nil {
+				t.Fatal(err)
+			}
+			if err := emit(end); err != nil {
+				t.Fatal(err)
+			}
+			assertRegularCompleteness(t, a, "incomplete")
+			err := emit(&events.AppStateSyncComplete{Name: appstate.WAPatchRegular, Recovery: true})
+			if failed {
+				if err == nil {
+					t.Fatal("second opening erased the first snapshot's failure")
+				}
+				assertRegularCompleteness(t, a, "incomplete")
+				if err := emit(start); err != nil {
+					t.Fatal(err)
+				}
+				if err := emit(end); err != nil {
+					t.Fatal(err)
+				}
+			} else if err != nil {
+				t.Fatal(err)
+			}
+			assertRegularCompleteness(t, a, "complete")
+		})
+	}
+}
+
+func TestRegularRecoveryCaptureKeepsSnapshotBoundariesBalanced(t *testing.T) {
+	a := newTestApp(t)
+	f := newFakeWA()
+	a.wa = f
+	capture := a.newAppStateRecoveryCapture(appstate.WAPatchRegular)
+	defer capture.stop()
+	// A concurrent ordinary full fetch must not contribute an opening whose
+	// non-recovery close the recovery capture deliberately ignores.
+	f.emit(&events.AppStateSyncStart{Name: appstate.WAPatchRegular})
+	for _, evt := range collectedQuickReplySnapshot(t, "prefix") {
+		f.emit(evt)
+	}
+	for range 2 {
+		f.emit(&events.AppStateSyncStart{Name: appstate.WAPatchRegular, Recovery: true})
+	}
+	f.emit(&events.AppStateSyncComplete{Name: appstate.WAPatchRegular, Recovery: true})
+	select {
+	case <-capture.completed:
+		t.Fatal("capture closed while a recovery snapshot was still open")
+	default:
+	}
+	f.emit(&events.AppStateSyncComplete{Name: appstate.WAPatchRegular})
+	f.emit(&events.AppStateSyncComplete{Name: appstate.WAPatchRegular, Recovery: true})
+	completion := <-capture.completed
+	starts, closes := 0, 0
+	for _, evt := range completion.events {
+		switch evt.(type) {
+		case *events.AppStateSyncStart:
+			starts++
+		case *events.AppStateSyncComplete:
+			closes++
+		}
+	}
+	if starts != 2 || closes != 2 {
+		t.Fatalf("captured starts/closes = %d/%d", starts, closes)
+	}
+	frontier := a.appStatePersist.complete(completion.ticket, func() {
+		if err := a.persistFetchedAppStateEvents(t.Context(), completion.events, &appStatePersistenceTracker{}); err != nil {
+			t.Error(err)
+		}
+	})
+	if err := a.appStatePersist.waitThrough(t.Context(), frontier); err != nil {
+		t.Fatal(err)
+	}
+	assertRegularCompleteness(t, a, "complete")
 }

@@ -512,13 +512,14 @@ func (a *App) recoverMismatchingAppState(ctx context.Context, collection appstat
 // appends to a slice and signals a buffered channel, so whatsmeow's dispatch
 // never blocks on persistence.
 type appStateRecoveryCapture struct {
-	app        *App
-	collection appstate.WAPatchName
-	handlerID  uint32
-	mu         sync.Mutex
-	captured   []any
-	finished   bool
-	completed  chan appStateRecoveryCompletion
+	app           *App
+	collection    appstate.WAPatchName
+	handlerID     uint32
+	mu            sync.Mutex
+	captured      []any
+	snapshotsOpen int
+	finished      bool
+	completed     chan appStateRecoveryCompletion
 }
 
 // appStateRecoveryCompletion carries the captured snapshot events together
@@ -546,8 +547,24 @@ func (c *appStateRecoveryCapture) handle(evt any) {
 	if c.finished {
 		return
 	}
+	if start, ok := evt.(*events.AppStateSyncStart); ok {
+		// Only recovery closes are captured below. Do not replay an opening
+		// from an unrelated full fetch without its matching close.
+		if start != nil && start.Recovery && start.Name == c.collection {
+			c.snapshotsOpen++
+			c.captured = append(c.captured, evt)
+		}
+		return
+	}
 	if syncComplete, ok := evt.(*events.AppStateSyncComplete); ok {
 		if syncComplete != nil && syncComplete.Recovery && syncComplete.Name == c.collection {
+			if c.snapshotsOpen > 0 {
+				c.snapshotsOpen--
+			}
+			if c.snapshotsOpen > 0 {
+				c.captured = append(c.captured, evt)
+				return
+			}
 			c.finished = true
 			// Reserve the snapshot's ordered write position here, at the
 			// dispatch boundary. reserve only increments a counter under a
@@ -864,7 +881,9 @@ func (a *App) persistFetchedAppStateEvents(ctx context.Context, eventsToPersist 
 	// this batch, never an inferred consequence of a successful fetch call.
 	for _, evt := range eventsToPersist {
 		if sentinel, ok := evt.(*events.AppStateSyncComplete); ok && isRegularFullSyncSentinel(sentinel) {
-			a.regularFullSyncFailed = false
+			if a.regularSnapshotsOpen == 0 {
+				a.regularFullSyncFailed = false
+			}
 			if err := a.db.InvalidateRegularFullSync(); err != nil {
 				return err
 			}
@@ -879,7 +898,12 @@ func (a *App) persistFetchedAppStateEvents(ctx context.Context, eventsToPersist 
 			// recovery stay armed, so the retried snapshot applies the
 			// original action instead of meeting a boundary stamped here.
 			if isRegularFullSyncSentinel(evt.(*events.AppStateSyncComplete)) {
-				a.regularFullSyncFailed = false
+				if a.regularSnapshotsOpen > 0 {
+					a.regularSnapshotsOpen--
+				}
+				if a.regularSnapshotsOpen == 0 {
+					a.regularFullSyncFailed = false
+				}
 			}
 			continue
 		}
