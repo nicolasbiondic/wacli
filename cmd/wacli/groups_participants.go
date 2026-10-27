@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/openclaw/wacli/internal/out"
+	"github.com/openclaw/wacli/internal/store"
 	"github.com/openclaw/wacli/internal/wa"
 	"github.com/spf13/cobra"
 	"go.mau.fi/whatsmeow/types"
@@ -79,6 +80,7 @@ func newGroupsParticipantsActionCmd(flags *rootFlags, action string) *cobra.Comm
 	cmd := &cobra.Command{
 		Use:   action,
 		Short: action + " participants",
+		Long:  action + " participants. Delegates to the running sync process when the store is locked.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if strings.TrimSpace(group) == "" || len(users) == 0 {
 				return fmt.Errorf("--jid and at least one --user are required")
@@ -91,6 +93,16 @@ func newGroupsParticipantsActionCmd(flags *rootFlags, action string) *cobra.Comm
 
 			a, lk, err := newApp(ctx, flags, true, false)
 			if err != nil {
+				resp, delegated, delegateErr := tryDelegateSend(ctx, flags, err, sendDelegateRequest{Kind: groupParticipantsKind, JID: group, Users: users, GroupAction: action})
+				if delegated {
+					if delegateErr != nil {
+						return explainGroupDelegateError(delegateErr, groupParticipantsKind, "participants "+action)
+					}
+					if resp.GroupParticipants == nil {
+						return fmt.Errorf("the running sync process did not report participant results; restart `wacli sync` after upgrading")
+					}
+					return writeGroupParticipantsResult(flags, resp.GroupParticipants.Updated)
+				}
 				return err
 			}
 			defer closeApp(a, lk)
@@ -102,35 +114,65 @@ func newGroupsParticipantsActionCmd(flags *rootFlags, action string) *cobra.Comm
 				return err
 			}
 
-			gjid, err := types.ParseJID(group)
+			updated, err := executeGroupParticipants(ctx, a.DB(), a.WA(), sendDelegateRequest{JID: group, Users: users, GroupAction: action})
 			if err != nil {
 				return err
 			}
-			var jids []types.JID
-			for _, u := range users {
-				j, err := wa.ParseUserOrJID(u)
-				if err != nil {
-					return err
-				}
-				jids = append(jids, j)
-			}
-
-			updated, err := a.WA().UpdateGroupParticipants(ctx, gjid, jids, wa.GroupParticipantAction(action))
-			if err != nil {
-				return err
-			}
-			if info, err := a.WA().GetGroupInfo(ctx, gjid); err == nil && info != nil {
-				_ = persistGroupInfo(ctx, a.DB(), a.WA(), info)
-			}
-
-			if flags.asJSON {
-				return out.WriteJSON(os.Stdout, updated)
-			}
-			fmt.Fprintln(os.Stdout, "OK")
-			return nil
+			return writeGroupParticipantsResult(flags, updated)
 		},
 	}
 	cmd.Flags().StringVar(&group, "jid", "", "group JID (…@g.us)")
 	cmd.Flags().StringSliceVar(&users, "user", nil, "user phone number (+E164 and formatting ok) or JID (repeatable)")
 	return cmd
+}
+
+type groupParticipantsResult struct {
+	Updated []types.GroupParticipant `json:"updated"`
+}
+
+type groupParticipantsClient interface {
+	groupJIDResolver
+	UpdateGroupParticipants(context.Context, types.JID, []types.JID, wa.GroupParticipantAction) ([]types.GroupParticipant, error)
+	GetGroupInfo(context.Context, types.JID) (*types.GroupInfo, error)
+}
+
+// Both paths preserve WhatsApp's per-participant errors and refresh the snapshot
+// best-effort, just as the standalone command does.
+func executeGroupParticipants(ctx context.Context, db *store.DB, client groupParticipantsClient, req sendDelegateRequest) ([]types.GroupParticipant, error) {
+	switch wa.GroupParticipantAction(req.GroupAction) {
+	case wa.GroupParticipantAdd, wa.GroupParticipantRemove, wa.GroupParticipantPromote, wa.GroupParticipantDemote:
+	default:
+		return nil, fmt.Errorf("unknown participant action: %s", req.GroupAction)
+	}
+	if strings.TrimSpace(req.JID) == "" || len(req.Users) == 0 {
+		return nil, fmt.Errorf("--jid and at least one --user are required")
+	}
+	gjid, err := types.ParseJID(req.JID)
+	if err != nil {
+		return nil, err
+	}
+	var jids []types.JID
+	for _, user := range req.Users {
+		jid, err := wa.ParseUserOrJID(user)
+		if err != nil {
+			return nil, err
+		}
+		jids = append(jids, jid)
+	}
+	updated, err := client.UpdateGroupParticipants(ctx, gjid, jids, wa.GroupParticipantAction(req.GroupAction))
+	if err != nil {
+		return nil, err
+	}
+	if info, err := client.GetGroupInfo(ctx, gjid); err == nil && info != nil {
+		_ = persistGroupInfo(ctx, db, client, info)
+	}
+	return updated, nil
+}
+
+func writeGroupParticipantsResult(flags *rootFlags, updated []types.GroupParticipant) error {
+	if flags.asJSON {
+		return out.WriteJSON(os.Stdout, updated)
+	}
+	fmt.Fprintln(os.Stdout, "OK")
+	return nil
 }

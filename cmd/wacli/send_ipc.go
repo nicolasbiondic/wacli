@@ -77,6 +77,8 @@ type sendDelegateRequest struct {
 	Phonebook            bool     `json:"phonebook,omitempty"`
 	ChatStateAction      string   `json:"chat_state_action,omitempty"`
 	MuteDurationMS       int64    `json:"mute_duration_ms,omitempty"`
+	GroupAction          string   `json:"group_action,omitempty"`
+	Users                []string `json:"users,omitempty"`
 	PostSendWaitMS       int64    `json:"post_send_wait_ms,omitempty"`
 	TimeoutMS            int64    `json:"timeout_ms,omitempty"`
 	DeadlineUnixMS       int64    `json:"deadline_unix_ms,omitempty"`
@@ -116,7 +118,9 @@ type sendDelegateResponse struct {
 	Media          *mediaDownloadResult `json:"media,omitempty"`
 	AppState       *appStateWriteResult `json:"app_state,omitempty"`
 
-	AppStateResync *app.AppStateResyncResult `json:"app_state_resync,omitempty"`
+	AppStateResync    *app.AppStateResyncResult `json:"app_state_resync,omitempty"`
+	GroupParticipants *groupParticipantsResult  `json:"group_participants,omitempty"`
+	GroupInviteLink   *groupInviteLinkResult    `json:"group_invite_link,omitempty"`
 }
 
 type sendDelegateExecutor func(context.Context, sendDelegateRequest) (sendDelegateResponse, error)
@@ -301,9 +305,8 @@ func handleSendDelegateConn(ctx context.Context, conn net.Conn, execute sendDele
 		_ = json.NewEncoder(conn).Encode(resp)
 		return
 	}
-	if req.Kind == chatStateKind || req.Kind == contactsSaveKind || req.Kind == appStateWriteKind || req.Kind == appStateResyncKind {
-		// The app-state coordinator owns these writes; recovery must not hold
-		// the message-send queue (#454).
+	if req.Kind == chatStateKind || req.Kind == contactsSaveKind || req.Kind == appStateWriteKind || req.Kind == appStateResyncKind || req.Kind == groupParticipantsKind || req.Kind == groupInviteLinkKind {
+		// State operations must not hold the message-send queue (#454).
 		if requestCtx.Err() != nil {
 			_ = json.NewEncoder(conn).Encode(sendDelegateResponse{OK: false, Error: "request deadline passed before dispatch; it was not sent"})
 			return
@@ -432,6 +435,12 @@ func executeDelegatedSend(parent context.Context, a *app.App, req sendDelegateRe
 		return executeDelegatedContactsCheck(ctx, a.WA(), req)
 	case chatStateKind:
 		return executeDelegatedChatState(ctx, a, req)
+	case groupParticipantsKind:
+		updated, err := executeGroupParticipants(ctx, a.DB(), a.WA(), req)
+		return sendDelegateResponse{OK: err == nil, GroupParticipants: &groupParticipantsResult{Updated: updated}}, err
+	case groupInviteLinkKind:
+		result, err := executeGroupInviteLink(ctx, a.WA(), req)
+		return sendDelegateResponse{OK: err == nil, GroupInviteLink: result}, err
 	case contactsSaveKind:
 		return executeDelegatedContactsSave(ctx, a, req)
 	case appStateWriteKind:

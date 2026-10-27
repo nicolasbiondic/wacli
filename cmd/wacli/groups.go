@@ -1,6 +1,23 @@
 package main
 
-import "github.com/spf13/cobra"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/spf13/cobra"
+)
+
+const (
+	groupParticipantsKind = "group_participants"
+	groupInviteLinkKind   = "group_invite_link"
+)
+
+func explainGroupDelegateError(err error, kind, action string) error {
+	if err == nil || !strings.Contains(err.Error(), "unsupported send kind") || !strings.Contains(err.Error(), kind) {
+		return err
+	}
+	return fmt.Errorf("the running sync process does not support delegated groups %s; restart `wacli sync` after upgrading, then run this again: %w", action, err)
+}
 
 func newGroupsCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
