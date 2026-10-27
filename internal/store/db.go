@@ -28,6 +28,7 @@ type DB struct {
 	adReferralEnabled bool
 	kindEnabled       bool
 	readRows          queryRows
+	readOnly          bool // Only OpenReadOnly connections may retry read views.
 }
 
 func Open(path string) (*DB, error) {
@@ -59,7 +60,7 @@ func open(path string, readOnly bool) (*DB, error) {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
 
-	s := &DB{path: path, sql: db, q: storedb.New(db)}
+	s := &DB{path: path, sql: db, q: storedb.New(db), readOnly: readOnly}
 	if readOnly {
 		if err := s.validateReadable(); err != nil {
 			_ = db.Close()

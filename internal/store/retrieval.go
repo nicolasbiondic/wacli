@@ -284,16 +284,28 @@ type queryRows interface {
 }
 
 // ReadView shares a single SQLite snapshot across rows, cursors, names and context.
+// The callback must only read; on OpenReadOnly connections it may be rerun after
+// SQLITE_READONLY_RECOVERY, always in a fresh transaction after rollback.
 func (d *DB) ReadView(read func(*DB) error) error {
 	if d.readRows != nil {
 		return read(d)
 	}
+	for attempt := 0; ; attempt++ {
+		err := d.readView(read)
+		if !d.readOnly || attempt == 3 || !isReadonlyRecovery(err) {
+			return err
+		}
+		time.Sleep(time.Duration(attempt+1) * 5 * time.Millisecond)
+	}
+}
+
+func (d *DB) readView(read func(*DB) error) error {
 	tx, err := d.sql.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	view := &DB{path: d.path, sql: d.sql, q: d.q.WithTx(tx), ftsEnabled: d.ftsEnabled, receiptsEnabled: d.receiptsEnabled, adReferralEnabled: d.adReferralEnabled, readRows: tx}
+	view := &DB{path: d.path, sql: d.sql, q: d.q.WithTx(tx), ftsEnabled: d.ftsEnabled, receiptsEnabled: d.receiptsEnabled, adReferralEnabled: d.adReferralEnabled, readRows: tx, readOnly: d.readOnly}
 	if err = read(view); err != nil {
 		return err
 	}

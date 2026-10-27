@@ -3,7 +3,7 @@
 ## Unreleased
 
 - Lists: resolve active definitions, exact-ID tombstones and filtered chat memberships in one SQLite read view, so concurrent undeletes cannot redirect an ID to another list's name.
-- Store: retry only `SQLITE_READONLY_RECOVERY` during read-only opening validation, with four attempts and 5/10/15 ms backoff. Mutations and other SQLite errors are not retried.
+- Store: retry only `SQLITE_READONLY_RECOVERY` during read-only opening validation and read views, with four attempts and 5/10/15 ms backoff. Read views roll back and restart as a whole. Writable connections, mutations and other SQLite errors are not retried.
 - Quick replies/lists: read rows and completeness metadata in one SQLite WAL snapshot, including related label-ID selection and resync counts. A deterministic concurrent-writer regression passes 20 race runs.
 - App state: full conflict snapshots now carry boundaries/provenance; rejected recovery dispatches receive failed closing boundaries, keeping partial data incomplete while allowing a later retry to complete.
 - Groups: reject non-group and malformed targets before delegation/execution, and use one canonical target for mutations, refreshes and invite results.

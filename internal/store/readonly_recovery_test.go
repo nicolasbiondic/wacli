@@ -57,3 +57,49 @@ func TestReadOnlyOpenRetriesOnlyReadonlyRecovery(t *testing.T) {
 		})
 	}
 }
+
+func TestReadOnlyRecoveryRestartsWholeReadViewOnly(t *testing.T) {
+	writer := openTestDB(t)
+	ro, err := OpenReadOnly(writer.path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ro.Close()
+	recovery := sqlite3.Error{Code: sqlite3.ErrReadonly, ExtendedCode: sqlite3.ErrReadonlyRecovery}
+	for _, tc := range []struct {
+		name                string
+		db                  *DB
+		failures, wantCalls int
+		injected            error
+	}{
+		{"readonly transient", ro, 3, 4, recovery},
+		{"readonly exhausted", ro, 100, 4, recovery},
+		{"readonly other error", ro, 1, 1, sqlite3.Error{Code: sqlite3.ErrReadonly}},
+		{"writable never retries", writer, 1, 1, recovery},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			calls := 0
+			var previous queryRows
+			err := tc.db.ReadView(func(view *DB) error {
+				return view.ReadView(func(nested *DB) error {
+					calls++
+					if nested.readRows == nil || nested.readRows == previous {
+						t.Fatal("retry did not start a fresh transaction")
+					}
+					previous = nested.readRows
+					if _, err := nested.Lists(); err != nil {
+						return err
+					}
+					if calls <= tc.failures {
+						return fmt.Errorf("injected after opening: %w", tc.injected)
+					}
+					return nil
+				})
+			})
+			wantError := tc.failures >= tc.wantCalls
+			if (err != nil) != wantError || calls != tc.wantCalls {
+				t.Fatalf("error=%v calls=%d; want error=%t calls=%d", err, calls, wantError, tc.wantCalls)
+			}
+		})
+	}
+}
