@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -17,6 +18,118 @@ var completenessDriverID atomic.Uint64
 type completenessReadBarrier struct {
 	seen, written chan struct{}
 	once          atomic.Bool
+}
+
+func TestListResolutionAndMembershipsShareOneWALSnapshot(t *testing.T) {
+	t.Run("deleted ID precedes reused name", func(t *testing.T) {
+		writer := openTestDB(t)
+		for _, l := range []ListUpdate{
+			{ID: "7", Name: listPtr("original"), Deleted: listPtr(true)},
+			{ID: "8", Name: listPtr("7")},
+		} {
+			if err := writer.UpsertList(l); err != nil {
+				t.Fatal(err)
+			}
+		}
+		// Pause the active-definition SELECT while another WAL connection
+		// reactivates ID 7. A later tombstone SELECT must retain the old view.
+		if _, err := writer.sql.Exec(`ALTER TABLE lists RENAME TO resolution_lists;
+			CREATE VIEW lists AS SELECT id,round4_name(name) AS name,color,predefined_id,type,
+			order_index,is_active,is_immutable,deleted,updated_at FROM resolution_lists`); err != nil {
+			t.Fatal(err)
+		}
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+		defer cancel()
+		gate := &completenessReadBarrier{seen: make(chan struct{}), written: make(chan struct{})}
+		driver := fmt.Sprintf("sqlite3-list-resolution-%d", completenessDriverID.Add(1))
+		sql.Register(driver, &sqlite3.SQLiteDriver{ConnectHook: func(conn *sqlite3.SQLiteConn) error {
+			return conn.RegisterFunc("round4_name", func(name string) (string, error) {
+				if name == "7" && gate.once.CompareAndSwap(false, true) {
+					close(gate.seen)
+					select {
+					case <-gate.written:
+					case <-ctx.Done():
+						return "", ctx.Err()
+					}
+				}
+				return name, nil
+			}, false)
+		}})
+		raw, err := sql.Open(driver, sqliteURI(writer.path, true))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer raw.Close()
+		raw.SetMaxOpenConns(1)
+		reader := &DB{path: writer.path, sql: raw, q: storedb.New(raw)}
+		written := make(chan error, 1)
+		go func() {
+			select {
+			case <-gate.seen:
+			case <-ctx.Done():
+				written <- ctx.Err()
+				return
+			}
+			_, err := writer.sql.ExecContext(ctx, `UPDATE resolution_lists SET deleted=0 WHERE id='7'`)
+			written <- err
+			close(gate.written)
+		}()
+		id, resolveErr := reader.ResolveList("7")
+		if err := <-written; err != nil {
+			t.Fatal(err)
+		}
+		if id != "" || resolveErr == nil || !strings.Contains(resolveErr.Error(), "was deleted") {
+			t.Fatalf("mixed definitions/tombstones: id=%q error=%v; want deleted ID, never name ID 8", id, resolveErr)
+		}
+		if id, err := reader.ResolveList("7"); err != nil || id != "7" {
+			t.Fatalf("next snapshot = %q, %v", id, err)
+		}
+	})
+	t.Run("membership load retains resolution view", func(t *testing.T) {
+		writer := openTestDB(t)
+		at := time.Unix(100, 0)
+		if err := writer.UpsertList(ListUpdate{ID: "7", Name: listPtr("chosen")}); err != nil {
+			t.Fatal(err)
+		}
+		for _, jid := range []string{"old@s.whatsapp.net", "new@s.whatsapp.net"} {
+			if err := writer.UpsertChat(jid, "dm", jid, at); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if err := writer.SetChatList("old@s.whatsapp.net", "7", true, at, false); err != nil {
+			t.Fatal(err)
+		}
+		reader, err := OpenReadOnly(writer.path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer reader.Close()
+		err = reader.ReadView(func(view *DB) error {
+			id, err := view.ResolveList("chosen")
+			if err != nil {
+				return err
+			}
+			if _, err := writer.sql.Exec(`UPDATE chat_lists SET labeled=0 WHERE list_id='7';
+				INSERT INTO chat_lists(chat_jid,list_id,labeled,updated_at) VALUES('new@s.whatsapp.net','7',1,200)`); err != nil {
+				return err
+			}
+			chats, err := view.ListChatsFiltered(ChatListFilter{ListID: id})
+			if err != nil {
+				return err
+			}
+			if len(chats) != 1 || chats[0].JID != "old@s.whatsapp.net" {
+				return fmt.Errorf("membership escaped read view: %+v", chats)
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		chats, err := reader.ListChatsFiltered(ChatListFilter{ListID: "7"})
+		if err != nil || len(chats) != 1 || chats[0].JID != "new@s.whatsapp.net" {
+			t.Fatalf("next snapshot memberships = %+v, %v", chats, err)
+		}
+	})
 }
 
 // The view's scalar function pauses the actual flag SELECT after SQLite has

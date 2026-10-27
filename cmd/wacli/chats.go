@@ -80,14 +80,18 @@ func newChatsListCmd(flags *rootFlags) *cobra.Command {
 				Muted:    boolFilter(muted, noMuted),
 				Unread:   boolFilter(unread, noUnread),
 			}
-			if cmd.Flags().Changed("list") {
-				filter.ListID, err = a.DB().ResolveList(list)
-				if err != nil {
-					return err
+			var chats []store.Chat
+			err = a.DB().ReadView(func(view *store.DB) error {
+				if cmd.Flags().Changed("list") {
+					filter.ListID, err = view.ResolveList(list)
+					if err != nil {
+						return err
+					}
+					fmt.Fprintln(os.Stderr, "List filter uses observed memberships only; completeness is unknown (see `wacli lists list --json`).")
 				}
-				fmt.Fprintln(os.Stderr, "List filter uses observed memberships only; completeness is unknown (see `wacli lists list --json`).")
-			}
-			chats, err := a.DB().ListChatsFiltered(filter)
+				chats, err = view.ListChatsFiltered(filter)
+				return err
+			})
 			if err != nil {
 				return err
 			}

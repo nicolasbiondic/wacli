@@ -70,6 +70,9 @@ case-sensitive names. Duplicate names require an ID. Deleted definitions report
 `list "ID_OR_NAME" is not in the local index; sync first`. Unsupported membership
 types also return an error rather than an empty list. Other chat filters can be
 combined with `--list`.
+Resolution, exact-ID tombstone checks and membership loading share one SQLite
+read view. An undelete concurrent with `--list 7` cannot redirect the filter to
+another list named `7`; a deleted exact ID still takes precedence over names.
 
 The list JSON envelope contains `data.lists`, `data.full_sync_events_seen`, and
 `data.completeness`. Definitions include `id`, `name`, `color` (the protocol color

@@ -197,6 +197,16 @@ func (d *DB) listsView() (ListsResult, error) {
 // ResolveList accepts an exact ID first, then an exact, case-sensitive name.
 // Duplicate names require an ID; system lists must not look like empty lists.
 func (d *DB) ResolveList(value string) (string, error) {
+	var id string
+	err := d.ReadView(func(view *DB) error {
+		var err error
+		id, err = view.resolveListView(value)
+		return err
+	})
+	return id, err
+}
+
+func (d *DB) resolveListView(value string) (string, error) {
 	result, err := d.Lists()
 	if err != nil {
 		return "", err
@@ -209,7 +219,7 @@ func (d *DB) ResolveList(value string) (string, error) {
 	}
 	if exists {
 		var deleted bool
-		err := d.sql.QueryRow(`SELECT deleted FROM lists WHERE id=? OR name=?
+		err := d.readQuery().QueryRow(`SELECT deleted FROM lists WHERE id=? OR name=?
 			ORDER BY (id=?) DESC,deleted ASC LIMIT 1`, value, value, value).Scan(&deleted)
 		if err != nil && err != sql.ErrNoRows {
 			return "", err

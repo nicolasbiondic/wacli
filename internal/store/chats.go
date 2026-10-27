@@ -100,7 +100,7 @@ func (d *DB) ListChatsFiltered(f ChatListFilter) ([]Chat, error) {
 	q += ` ORDER BY pinned DESC, last_message_ts DESC LIMIT ?`
 	args = append(args, f.Limit)
 
-	rows, err := d.sql.Query(q, args...)
+	rows, err := d.readQuery().Query(q, args...)
 	if err != nil {
 		return nil, err
 	}
