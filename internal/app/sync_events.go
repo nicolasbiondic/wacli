@@ -439,6 +439,11 @@ func (a *App) persistAppStateEvent(ctx context.Context, evt any, tracker *appSta
 		switch v := evt.(type) {
 		case *events.AppStateSyncComplete:
 			if isRegularFullSyncSentinel(v) {
+				if v.Failed {
+					// Balance the opening without certifying a rejected batch.
+					a.regularFullSyncFailed = true
+					err = errors.Join(fmt.Errorf("regular recovery dispatch failed; completeness remains incomplete"), a.db.InvalidateRegularFullSync())
+				}
 				if a.regularSnapshotsOpen > 0 {
 					a.regularSnapshotsOpen--
 				}
@@ -446,11 +451,13 @@ func (a *App) persistAppStateEvent(ctx context.Context, evt any, tracker *appSta
 					break
 				}
 				if a.regularFullSyncFailed {
-					err = fmt.Errorf("regular full sync has unpersisted events; completeness remains incomplete")
+					err = errors.Join(err, fmt.Errorf("regular full sync has unpersisted events; completeness remains incomplete"))
 				} else {
 					err = a.db.MarkRegularFullSyncComplete()
 				}
 				a.regularFullSyncFailed = false
+			} else if v != nil && v.Failed {
+				err = fmt.Errorf("app state %s recovery dispatch failed", v.Name)
 			} else {
 				err = a.handleChatStateEvent(ctx, v)
 			}

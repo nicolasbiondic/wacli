@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Quick replies/lists: read rows and completeness metadata in one SQLite WAL snapshot, including related label-ID selection and resync counts. A deterministic concurrent-writer regression passes 20 race runs.
+- App state: full conflict snapshots now carry boundaries/provenance; rejected recovery dispatches receive failed closing boundaries, keeping partial data incomplete while allowing a later retry to complete.
+- Groups: reject non-group and malformed targets before delegation/execution, and use one canonical target for mutations, refreshes and invite results.
 - Quick replies: durably invalidate later live full/recovery snapshots before their first mutation, including quick-reply-only snapshots. The pinned SDK now preserves generic-event provenance and emits opening boundaries; overlapping batches wait for all closes and recovery captures keep boundaries balanced. Crash regressions cover follow and one-shot handlers against the real SDK collector.
 - Groups: canonicalize JIDs before taking per-group slots, so `123@g.us` and `123:0@g.us` cannot race their participant snapshot refreshes.
 - Quick replies: only mark a regular snapshot complete after its ordered completion sentinel and successful preceding writes; keep the legacy event-seen bit informational and invalidate incomplete/failed snapshots. Regular label/quick-reply writes and manual resync now require explicit `WACLI_REGULAR_WRITES=1` in both CLI and sync owner.

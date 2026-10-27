@@ -1017,6 +1017,9 @@ func (a *App) settleChatArchiveRecovery(evt *events.AppStateSyncComplete) error 
 	if evt == nil || evt.Name != appstate.WAPatchRegularLow {
 		return nil
 	}
+	if evt.Failed {
+		return fmt.Errorf("regular_low recovery dispatch failed; archive recovery remains pending")
+	}
 	return a.db.SettleChatArchiveRecovery(nowUTC())
 }
 

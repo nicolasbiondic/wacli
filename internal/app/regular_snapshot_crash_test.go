@@ -309,3 +309,61 @@ func TestRegularRecoveryCaptureKeepsSnapshotBoundariesBalanced(t *testing.T) {
 	}
 	assertRegularCompleteness(t, a, "complete")
 }
+
+func TestRegularFailedRecoveryCloseAllowsRetryWithoutCompletingPartialData(t *testing.T) {
+	for _, mode := range []string{"follow", "one-shot", "capture"} {
+		t.Run(mode, func(t *testing.T) {
+			a := newTestApp(t)
+			f := newFakeWA()
+			a.wa = f
+			if mode == "one-shot" {
+				remove, err := a.AddChatStatePersistenceHandler(t.Context())
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer remove()
+			} else if mode == "follow" {
+				var messages, last atomic.Int64
+				a.addSyncEventHandler(t.Context(), SyncOptions{}, &messages, &last, make(chan struct{}, 1), make(chan struct{}, 1),
+					make(chan staleReconnectRequest, 1), nil, nil, nil, &syncPresence{}, nil)
+			}
+			if err := a.db.MarkRegularFullSyncComplete(); err != nil {
+				t.Fatal(err)
+			}
+			for _, failed := range []bool{true, false} {
+				var capture *appStateRecoveryCapture
+				if mode == "capture" {
+					capture = a.newAppStateRecoveryCapture(appstate.WAPatchRegular)
+				}
+				f.emit(&events.AppStateSyncStart{Name: appstate.WAPatchRegular, Recovery: true})
+				f.emit(collectedQuickReplySnapshot(t, "partial")[0])
+				f.emit(&events.AppStateSyncComplete{Name: appstate.WAPatchRegular, Recovery: true, Failed: failed})
+				if capture != nil {
+					completion := <-capture.completed
+					var persistErr error
+					frontier := a.appStatePersist.complete(completion.ticket, func() {
+						persistErr = a.persistFetchedAppStateEvents(t.Context(), completion.events, &appStatePersistenceTracker{})
+					})
+					if err := a.appStatePersist.waitThrough(t.Context(), frontier); err != nil {
+						t.Fatal(err)
+					}
+					capture.stop()
+					if (persistErr != nil) != failed {
+						t.Fatalf("failed=%t persistence=%v", failed, persistErr)
+					}
+				}
+				if err := a.appStatePersist.waitIdle(t.Context()); err != nil {
+					t.Fatal(err)
+				}
+				if a.regularSnapshotsOpen != 0 {
+					t.Fatalf("opening leaked: %d", a.regularSnapshotsOpen)
+				}
+				want := "complete"
+				if failed {
+					want = "incomplete"
+				}
+				assertRegularCompleteness(t, a, want)
+			}
+		})
+	}
+}

@@ -78,5 +78,5 @@ require (
 
 tool github.com/sqlc-dev/sqlc/cmd/sqlc
 
-// aa93c65 app-state fixes plus full/recovery snapshot boundaries and generic provenance.
-replace go.mau.fi/whatsmeow => github.com/nicolasbiondic/whatsmeow v0.0.0-20261027060249-339cd8f8aa7d
+// vendas/024: snapshot boundaries/provenance, conflict snapshots and failed recovery closes.
+replace go.mau.fi/whatsmeow => github.com/nicolasbiondic/whatsmeow v0.0.0-20261027081841-579078a41ce7

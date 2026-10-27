@@ -173,6 +173,9 @@ text output warns when incomplete. `full_sync_events_seen` remains informational
 and is not evidence of completion. Legacy indexes start incomplete on upgrade,
 and a partial or failed full replay cannot mark them complete. The new
 `list_sync_state.full_sync_complete` bit is independent of the legacy flag.
+Readers load completeness and rows in one deferred SQLite read transaction, so
+a concurrent WAL writer cannot combine an old complete flag with new partial
+rows. List metadata, label-ID selection and resync counts also share read views.
 This applies to later live snapshots too: the pinned SDK emits an opening
 boundary for full/recovery snapshots and preserves `FromFullSync` on generic
 quick-reply events. Both live handlers persist invalidation before mutations;
@@ -184,6 +187,12 @@ If live full/recovery batches overlap, the index stays incomplete until all
 open snapshots close successfully. Recovery captures keep opening/closing
 boundaries balanced rather than replaying an unrelated full-fetch opening
 whose close they do not capture.
+Conflict-response snapshots also carry full provenance and start/end boundaries;
+actual patches remain incremental. If a recovery dispatch is rejected, the SDK
+sends a failed closing boundary only to handlers with unmatched openings.
+Wacli balances its counter but keeps partial data incomplete; a successful retry
+can complete without restarting the App. A failed close cannot settle archive
+recovery either.
 This boundary does not prove that every phone feature or deletion was captured. A reply
 deleted on the phone with a REMOVE operation instead of a deletion flag stays
 listed until it is replaced. Full snapshots merge into the local index; absent
