@@ -59,6 +59,7 @@ wacli groups prune [--days N] [--left-only=false|--include-active] [--dry-run] [
 - Invite `get` also requires writable mode because it opens the linked-device store with write access; `--read-only` never delegates it.
 - Same-group participant and invite operations serialize through their snapshot refresh, without blocking other groups or the message-send queue. Waiting uses the same request deadline. Lost IPC replies (including EOF after dispatch) are uncertain, not proof of a clean failure; inspect the group before retrying.
 - Group slot keys use parsed non-device JIDs: `123@g.us` and `123:0@g.us` share a slot rather than racing their snapshot refreshes.
+- Participant mutations and invite links require a valid numeric group JID with a non-empty user and the `g.us` server. Phone/LID targets, malformed strings and overflowing device/agent aliases are rejected before slot acquisition or client calls. Mutation, refresh and invite results use the same non-device target.
 
 ## Examples
 

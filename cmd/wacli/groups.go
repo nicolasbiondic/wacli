@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -22,8 +24,35 @@ type groupDelegateSlot struct {
 	refs  int
 }
 
+var groupTargetPattern = regexp.MustCompile(`^[0-9]+(-[0-9]+)?(\.[0-9]+:[0-9]+|:[0-9]+)?@g\.us$`)
+
+// ParseJID alone accepts empty users, extra @ parts and overflowing device IDs.
+// Accept modern and legacy numeric group IDs, with bounded optional AD aliases.
+func parseGroupTarget(raw string) (types.JID, error) {
+	invalid := fmt.Errorf("invalid group JID %q: expected a non-empty numeric group @g.us", raw)
+	if !groupTargetPattern.MatchString(raw) {
+		return types.JID{}, invalid
+	}
+	user, _, _ := strings.Cut(raw, "@")
+	if base, device, ok := strings.Cut(user, ":"); ok {
+		if _, err := strconv.ParseUint(device, 10, 16); err != nil {
+			return types.JID{}, invalid
+		}
+		if _, agent, ok := strings.Cut(base, "."); ok {
+			if _, err := strconv.ParseUint(agent, 10, 8); err != nil {
+				return types.JID{}, invalid
+			}
+		}
+	}
+	jid, err := types.ParseJID(raw)
+	if err != nil || jid.User == "" || jid.Server != types.GroupServer {
+		return types.JID{}, invalid
+	}
+	return jid.ToNonAD(), nil
+}
+
 func (o *groupDelegateOrder) acquire(ctx context.Context, group string) (func(), error) {
-	jid, err := types.ParseJID(group)
+	jid, err := parseGroupTarget(group)
 	if err != nil {
 		return nil, err
 	}

@@ -19,14 +19,15 @@ import (
 )
 
 type fakeGroupDelegateClient struct {
-	group   types.JID
-	users   []types.JID
-	action  wa.GroupParticipantAction
-	reset   bool
-	calls   int
-	updated []types.GroupParticipant
-	info    *types.GroupInfo
-	err     error
+	group     types.JID
+	refreshed types.JID
+	users     []types.JID
+	action    wa.GroupParticipantAction
+	reset     bool
+	calls     int
+	updated   []types.GroupParticipant
+	info      *types.GroupInfo
+	err       error
 }
 
 func (f *fakeGroupDelegateClient) ResolveLIDToPN(_ context.Context, jid types.JID) types.JID {
@@ -39,8 +40,51 @@ func (f *fakeGroupDelegateClient) UpdateGroupParticipants(_ context.Context, gro
 	return f.updated, f.err
 }
 
-func (f *fakeGroupDelegateClient) GetGroupInfo(context.Context, types.JID) (*types.GroupInfo, error) {
+func (f *fakeGroupDelegateClient) GetGroupInfo(_ context.Context, jid types.JID) (*types.GroupInfo, error) {
+	f.refreshed = jid
 	return f.info, nil
+}
+
+func TestGroupTargetValidationAndCanonicalExecution(t *testing.T) {
+	for _, raw := range []string{"", "123", "123@s.whatsapp.net", "123@lid", "@g.us", "123@g.us@evil", "123@@g.us", "a@g.us", " 123@g.us", "123@g.us ", "123:bad@g.us", "123:-1@g.us", "123:65536@g.us", "123.256:0@g.us", "123.:0@g.us", "123.0@g.us", "123_0:0@g.us", "123:0:1@g.us", "123--4@g.us"} {
+		t.Run(raw, func(t *testing.T) {
+			var order groupDelegateOrder
+			if release, err := order.acquire(t.Context(), raw); err == nil {
+				release()
+				t.Fatal("invalid target acquired a slot")
+			}
+			if len(order.groups) != 0 {
+				t.Fatal("invalid target allocated slot")
+			}
+			for _, req := range groupDelegateTestRequests() {
+				req.JID = raw
+				client := &fakeGroupDelegateClient{}
+				if _, err := executeGroupDelegateTest(t.Context(), nil, client, req); err == nil || client.calls != 0 {
+					t.Fatalf("invalid target reached client: %+v, %v", req, err)
+				}
+			}
+		})
+	}
+	for _, raw := range []string{"123@g.us", "123:0@g.us", "123.0:65535@g.us", "123.255:1@g.us", "123-456:0@g.us"} {
+		want := "123@g.us"
+		if strings.HasPrefix(raw, "123-456") {
+			want = "123-456@g.us"
+		}
+		for _, req := range groupDelegateTestRequests() {
+			req.JID = raw
+			client := &fakeGroupDelegateClient{}
+			resp, err := executeGroupDelegateTest(t.Context(), nil, client, req)
+			if err != nil || client.group.String() != want {
+				t.Fatalf("target %s = %+v, %v", raw, client, err)
+			}
+			if req.Kind == groupParticipantsKind && client.refreshed.String() != want {
+				t.Fatal("refresh used a different target")
+			}
+			if req.Kind == groupInviteLinkKind && resp.GroupInviteLink.JID != want {
+				t.Fatal("result was not canonical")
+			}
+		}
+	}
 }
 
 func (f *fakeGroupDelegateClient) GetGroupInviteLink(_ context.Context, group types.JID, reset bool) (string, error) {

@@ -43,6 +43,11 @@ func newGroupsInviteLinkGetCmd(flags *rootFlags) *cobra.Command {
 			if err := flags.requireWritable(); err != nil {
 				return err
 			}
+			gjid, err := parseGroupTarget(jidStr)
+			if err != nil {
+				return err
+			}
+			jidStr = gjid.String()
 			ctx, cancel := withTimeout(context.Background(), flags)
 			defer cancel()
 
@@ -89,6 +94,11 @@ func newGroupsInviteLinkRevokeCmd(flags *rootFlags) *cobra.Command {
 			if err := flags.requireWritable(); err != nil {
 				return err
 			}
+			gjid, err := parseGroupTarget(jidStr)
+			if err != nil {
+				return err
+			}
+			jidStr = gjid.String()
 			ctx, cancel := withTimeout(context.Background(), flags)
 			defer cancel()
 
@@ -139,7 +149,7 @@ func executeGroupInviteLink(ctx context.Context, client groupInviteLinkClient, r
 	if strings.TrimSpace(req.JID) == "" {
 		return nil, fmt.Errorf("--jid is required")
 	}
-	gjid, err := types.ParseJID(req.JID)
+	gjid, err := parseGroupTarget(req.JID)
 	if err != nil {
 		return nil, err
 	}

@@ -88,6 +88,11 @@ func newGroupsParticipantsActionCmd(flags *rootFlags, action string) *cobra.Comm
 			if err := flags.requireWritable(); err != nil {
 				return err
 			}
+			gjid, err := parseGroupTarget(group)
+			if err != nil {
+				return err
+			}
+			group = gjid.String()
 			ctx, cancel := withTimeout(context.Background(), flags)
 			defer cancel()
 
@@ -147,7 +152,7 @@ func executeGroupParticipants(ctx context.Context, db *store.DB, client groupPar
 	if strings.TrimSpace(req.JID) == "" || len(req.Users) == 0 {
 		return nil, fmt.Errorf("--jid and at least one --user are required")
 	}
-	gjid, err := types.ParseJID(req.JID)
+	gjid, err := parseGroupTarget(req.JID)
 	if err != nil {
 		return nil, err
 	}
