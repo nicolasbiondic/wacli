@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Quick replies: only mark a regular snapshot complete after its ordered completion sentinel and successful preceding writes; keep the legacy event-seen bit informational and invalidate incomplete/failed snapshots. Regular label/quick-reply writes and manual resync now require explicit `WACLI_REGULAR_WRITES=1` in both CLI and sync owner.
+- Groups: serialize same-group participant/invite operations through the snapshot refresh; preserve post-dispatch uncertainty when an IPC reply is lost, including EOF.
+- Build: pin the exact vendas whatsmeow SDK to a public, checksummed module revision instead of an unversioned sibling directory.
 - Groups: delegate participant add/remove/promote/demote and invite link get/revoke to the running sync owner, preserving participant error codes and invite JSON; older owners return an upgrade/restart hint.
 - Sync: settle the upgrade replay for Keep chats archived after one complete `regular_low` snapshot, so stores whose snapshot has no preference mutation or omits a locally archived chat no longer request a full replay (and, on known-broken collections, a phone snapshot) on every start. A snapshot whose mutation failed to persist does not settle; the kept replay applies the original action first. Thanks @nicolasbiondic (#502).
 - Messages: keep Click-to-WhatsApp ad referrals (ad ID, source, headline, media type, click ID) and expose them as `ad_referral` in message JSON, sync webhook payloads, and a `messages show` line. Each text field is capped at 1024 bytes and thumbnails are not stored. Thanks @nicolasbiondic (#473).

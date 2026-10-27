@@ -347,3 +347,81 @@ func TestGroupsDelegateMissingResultsAndHelp(t *testing.T) {
 		})
 	}
 }
+
+func TestGroupDelegateOrderCancellationAndCleanup(t *testing.T) {
+	var order groupDelegateOrder
+	release, err := order.acquire(t.Context(), "123@g.us")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if _, err := order.acquire(ctx, "123@g.us"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled group waiter = %v", err)
+	}
+	other, err := order.acquire(t.Context(), "456@g.us")
+	if err != nil {
+		t.Fatal(err)
+	}
+	other()
+	release()
+	if len(order.groups) != 0 {
+		t.Fatalf("unused group slots leaked: %d", len(order.groups))
+	}
+}
+
+func TestGroupCommandsSerializeSameGroupButNotOtherGroups(t *testing.T) {
+	skipPresenceDelegateSocketTestOnUnsupportedOS(t)
+	storeDir := shortPresenceDelegateStoreDir(t)
+	started := make(chan string, 3)
+	finishFirst := make(chan struct{})
+	stop, err := startSendDelegateServerForStore(t.Context(), storeDir, sendSpacing{}, func(ctx context.Context, req sendDelegateRequest) (sendDelegateResponse, error) {
+		started <- req.ID
+		if req.ID == "first" {
+			select {
+			case <-finishFirst:
+			case <-ctx.Done():
+				return sendDelegateResponse{}, ctx.Err()
+			}
+		}
+		return sendDelegateResponse{OK: true}, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stop()
+	request := func(id, group, kind string) <-chan error {
+		done := make(chan error, 1)
+		go func() {
+			_, err := delegateSend(t.Context(), &rootFlags{storeDir: storeDir, timeout: 2 * time.Second}, sendDelegateRequest{Kind: kind, JID: group, ID: id})
+			done <- err
+		}()
+		return done
+	}
+	first := request("first", "123@g.us", groupParticipantsKind)
+	if id := <-started; id != "first" {
+		t.Fatal(id)
+	}
+	second := request("second", "123@g.us", groupInviteLinkKind)
+	other := request("other", "456@g.us", groupParticipantsKind)
+	if err := <-other; err != nil {
+		t.Fatal(err)
+	}
+	if id := <-started; id != "other" {
+		t.Fatalf("same-group invite overtook the in-flight snapshot refresh: %s", id)
+	}
+	select {
+	case id := <-started:
+		t.Fatalf("same-group operation started before refresh completed: %s", id)
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(finishFirst)
+	for _, done := range []<-chan error{first, second} {
+		if err := <-done; err != nil {
+			t.Fatal(err)
+		}
+	}
+	if id := <-started; id != "second" {
+		t.Fatal(id)
+	}
+}

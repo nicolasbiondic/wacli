@@ -169,7 +169,7 @@ func delegateSend(ctx context.Context, flags *rootFlags, req sendDelegateRequest
 			// before the deadline. Say so, because a blind retry can send twice.
 			return sendDelegateResponse{}, fmt.Errorf("no reply from the running sync process before the timeout; the %s may still have gone through, so check before retrying: %w", req.Kind, err)
 		}
-		return sendDelegateResponse{}, err
+		return sendDelegateResponse{}, fmt.Errorf("lost reply from the running sync process after dispatch; the %s may still have gone through, so check before retrying: %w", req.Kind, err)
 	}
 	if !resp.OK {
 		return sendDelegateResponse{}, errors.New(resp.Error)
@@ -217,6 +217,17 @@ func startSendDelegateServerForStore(ctx context.Context, storeDir string, spaci
 	// sends so a burst of `wacli send` processes delegating to this daemon
 	// leaves the wire paced instead of back-to-back. Disabled = no-op.
 	pacer := newSendPacer(spacing)
+	var groupOrder groupDelegateOrder
+	orderedExecute := func(ctx context.Context, req sendDelegateRequest) (sendDelegateResponse, error) {
+		if req.Kind == groupParticipantsKind || req.Kind == groupInviteLinkKind {
+			release, err := groupOrder.acquire(ctx, req.JID)
+			if err != nil {
+				return sendDelegateResponse{}, err
+			}
+			defer release()
+		}
+		return execute(ctx, req)
+	}
 	go func() {
 		defer close(done)
 		for {
@@ -224,7 +235,7 @@ func startSendDelegateServerForStore(ctx context.Context, storeDir string, spaci
 			if err != nil {
 				return
 			}
-			go handleSendDelegateConn(ctx, conn, execute, sendSlot, pacer, mediaSlot)
+			go handleSendDelegateConn(ctx, conn, orderedExecute, sendSlot, pacer, mediaSlot)
 		}
 	}()
 

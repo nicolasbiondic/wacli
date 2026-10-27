@@ -57,6 +57,7 @@ func startRawAppStateOwner(t *testing.T, storeDir string) <-chan map[string]any 
 }
 
 func TestLabelAndQuickReplyCommandsDelegateToSyncOwner(t *testing.T) {
+	t.Setenv("WACLI_REGULAR_WRITES", "1")
 	skipPresenceDelegateSocketTestOnUnsupportedOS(t)
 	storeDir := shortPresenceDelegateStoreDir(t)
 	lk, err := lock.Acquire(storeDir)
@@ -181,6 +182,7 @@ func TestQuickRepliesListCLIReadOnlyJSON(t *testing.T) {
 }
 
 func TestAppStateResyncCLIUsesSeparateDelegateKind(t *testing.T) {
+	t.Setenv("WACLI_REGULAR_WRITES", "1")
 	skipPresenceDelegateSocketTestOnUnsupportedOS(t)
 	dir := shortPresenceDelegateStoreDir(t)
 	lk, err := lock.Acquire(dir)

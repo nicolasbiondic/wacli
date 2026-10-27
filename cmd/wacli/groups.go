@@ -1,11 +1,60 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/spf13/cobra"
 )
+
+// Hold one slot through the mutation and its snapshot refresh. Different
+// groups remain independent; canceled waiters share the IPC deadline budget.
+type groupDelegateOrder struct {
+	mu     sync.Mutex
+	groups map[string]*groupDelegateSlot
+}
+
+type groupDelegateSlot struct {
+	ready chan struct{}
+	refs  int
+}
+
+func (o *groupDelegateOrder) acquire(ctx context.Context, group string) (func(), error) {
+	o.mu.Lock()
+	if o.groups == nil {
+		o.groups = make(map[string]*groupDelegateSlot)
+	}
+	slot := o.groups[group]
+	if slot == nil {
+		slot = &groupDelegateSlot{ready: make(chan struct{}, 1)}
+		slot.ready <- struct{}{}
+		o.groups[group] = slot
+	}
+	slot.refs++
+	o.mu.Unlock()
+	drop := func() {
+		o.mu.Lock()
+		defer o.mu.Unlock()
+		slot.refs--
+		if slot.refs == 0 {
+			delete(o.groups, group)
+		}
+	}
+	select {
+	case <-ctx.Done():
+		drop()
+		return nil, ctx.Err()
+	case <-slot.ready:
+	}
+	release := func() { slot.ready <- struct{}{}; drop() }
+	if err := ctx.Err(); err != nil {
+		release()
+		return nil, err
+	}
+	return release, nil
+}
 
 const (
 	groupParticipantsKind = "group_participants"

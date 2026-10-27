@@ -70,6 +70,31 @@ func TestChatLabelResultReportsPatchedJID(t *testing.T) {
 	}
 }
 
+func TestRegularWritesAndResyncDefaultOffBeforeAppUse(t *testing.T) {
+	t.Setenv("WACLI_REGULAR_WRITES", "")
+	for _, req := range []sendDelegateRequest{
+		{Kind: appStateWriteKind, AppState: &appStateWriteRequest{Action: quickReplyDeleteAction, Ref: "1"}},
+		{Kind: appStateResyncKind, Collection: "regular"},
+	} {
+		var err error
+		if req.Kind == appStateWriteKind {
+			_, err = executeDelegatedAppStateWrite(t.Context(), nil, req)
+		} else {
+			_, err = executeDelegatedAppStateResync(t.Context(), nil, req)
+		}
+		if err == nil || !strings.Contains(err.Error(), "enable WACLI_REGULAR_WRITES=1") {
+			t.Fatalf("disabled owner accessed app: %v", err)
+		}
+	}
+	for _, args := range [][]string{{"quick-replies", "delete", "1"}, {"lists", "delete", "1"}, {"app-state", "resync", "regular"}} {
+		var err error
+		captureRootStderr(t, func() { err = execute(append([]string{"--store", t.TempDir()}, args...)) })
+		if err == nil || !strings.Contains(err.Error(), "enable WACLI_REGULAR_WRITES=1") {
+			t.Fatalf("disabled CLI opened store: %v", err)
+		}
+	}
+}
+
 func (f *fakeAppStateWriteApp) CreateQuickReply(_ context.Context, in app.QuickReplyInput) (store.QuickReply, error) {
 	f.record("qr create %v %v %v", deref(in.Shortcut), deref(in.Message), deref(in.Keywords))
 	return store.QuickReply{ID: "1", Shortcut: *in.Shortcut}, nil
@@ -86,6 +111,7 @@ func (f *fakeAppStateWriteApp) DeleteQuickReply(_ context.Context, ref string) (
 }
 
 func TestAppStateWritesThroughProductionServerWhenStoreLocked(t *testing.T) {
+	t.Setenv("WACLI_REGULAR_WRITES", "1")
 	skipPresenceDelegateSocketTestOnUnsupportedOS(t)
 	storeDir := shortPresenceDelegateStoreDir(t)
 	lk, err := lock.Acquire(storeDir)
@@ -141,6 +167,7 @@ func TestAppStateWritesThroughProductionServerWhenStoreLocked(t *testing.T) {
 }
 
 func TestAppStateWriteOldOwnerRejectionNamesRestart(t *testing.T) {
+	t.Setenv("WACLI_REGULAR_WRITES", "1")
 	skipPresenceDelegateSocketTestOnUnsupportedOS(t)
 	storeDir := shortPresenceDelegateStoreDir(t)
 	lk, err := lock.Acquire(storeDir)
@@ -165,6 +192,7 @@ func TestAppStateWriteOldOwnerRejectionNamesRestart(t *testing.T) {
 }
 
 func TestExecuteDelegatedAppStateWriteRejectsBadRequestsBeforeAppUse(t *testing.T) {
+	t.Setenv("WACLI_REGULAR_WRITES", "1")
 	fake := &fakeAppStateWriteApp{calls: make(chan string, 1)}
 	for _, req := range []sendDelegateRequest{
 		{Kind: appStateWriteKind},

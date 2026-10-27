@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -13,10 +14,41 @@ import (
 	"time"
 
 	"github.com/openclaw/wacli/internal/app"
+	"github.com/openclaw/wacli/internal/delegate"
 	"github.com/openclaw/wacli/internal/lock"
 	"github.com/openclaw/wacli/internal/store"
 	"go.mau.fi/whatsmeow/types"
 )
+
+func TestDelegateEOFDispatchedResultIsUncertain(t *testing.T) {
+	skipPresenceDelegateSocketTestOnUnsupportedOS(t)
+	storeDir := shortPresenceDelegateStoreDir(t)
+	ln, err := delegate.Listen(storeDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	received := make(chan sendDelegateRequest, 1)
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		var req sendDelegateRequest
+		if json.NewDecoder(conn).Decode(&req) == nil {
+			received <- req
+		}
+		// Model owner death after request acceptance, before any response.
+	}()
+	_, delegated, err := tryDelegateSend(t.Context(), &rootFlags{storeDir: storeDir, timeout: time.Second}, lock.ErrLocked, sendDelegateRequest{Kind: groupParticipantsKind})
+	if !delegated || !errors.Is(err, io.EOF) || !strings.Contains(err.Error(), "may still have gone through, so check before retrying") {
+		t.Fatalf("owner EOF lost uncertainty or triggered fallback: delegated=%t err=%v", delegated, err)
+	}
+	if req := <-received; req.Kind != groupParticipantsKind {
+		t.Fatalf("request not dispatched: %+v", req)
+	}
+}
 
 func TestTryDelegateSendFallsBackWhenSocketUnavailable(t *testing.T) {
 	dir := t.TempDir()

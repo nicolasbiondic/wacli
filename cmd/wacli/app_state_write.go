@@ -19,6 +19,15 @@ import (
 const appStateWriteKind = "app_state_write"
 const appStateResyncKind = "app_state_resync"
 
+// These operations share the archive/pin coordinator. Keep them off unless
+// explicitly enabled in both the calling CLI and the store owner's environment.
+func requireRegularWrites() error {
+	if os.Getenv("WACLI_REGULAR_WRITES") != "1" {
+		return fmt.Errorf("regular app-state writes and resync are disabled; enable WACLI_REGULAR_WRITES=1 explicitly in the CLI and sync owner only after approval")
+	}
+	return nil
+}
+
 const (
 	labelCreateAction      = "label_create"
 	labelEditAction        = "label_edit"
@@ -126,6 +135,9 @@ func executeAppStateWrite(ctx context.Context, a appStateWriteApp, req appStateW
 }
 
 func executeDelegatedAppStateWrite(ctx context.Context, a appStateWriteApp, req sendDelegateRequest) (sendDelegateResponse, error) {
+	if err := requireRegularWrites(); err != nil {
+		return sendDelegateResponse{}, err
+	}
 	if req.AppState == nil {
 		return sendDelegateResponse{}, fmt.Errorf("app state write request is missing its payload")
 	}
@@ -150,6 +162,9 @@ func runAppStateWrite(flags *rootFlags, req appStateWriteRequest) error {
 		return err
 	}
 	if err := flags.requireWritable(); err != nil {
+		return err
+	}
+	if err := requireRegularWrites(); err != nil {
 		return err
 	}
 	ctx, cancel := withTimeout(context.Background(), flags)
@@ -424,6 +439,9 @@ type appStateResyncApp interface {
 }
 
 func executeDelegatedAppStateResync(ctx context.Context, a appStateResyncApp, req sendDelegateRequest) (sendDelegateResponse, error) {
+	if err := requireRegularWrites(); err != nil {
+		return sendDelegateResponse{}, err
+	}
 	if req.Collection != "regular" {
 		return sendDelegateResponse{}, fmt.Errorf("app-state resync supports only regular")
 	}
@@ -453,6 +471,9 @@ func newAppStateCmd(flags *rootFlags) *cobra.Command {
 
 func runAppStateResync(flags *rootFlags, collection string, force bool) error {
 	if err := flags.requireWritable(); err != nil {
+		return err
+	}
+	if err := requireRegularWrites(); err != nil {
 		return err
 	}
 	ctx, cancel := withTimeout(context.Background(), flags)

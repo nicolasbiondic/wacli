@@ -57,6 +57,7 @@ wacli groups prune [--days N] [--left-only=false|--include-active] [--dry-run] [
 - `participants add|remove|promote|demote` and `invite link get|revoke` delegate to the running sync owner when the store is locked, using the same local IPC and timeout budget as `chats archive|pin|mute`. Without an owner they retain the standalone connection path. A missing owner socket retains the lock error; an older owner that does not support these operations returns an upgrade/restart hint. Other live group commands do not delegate yet.
 - Participant mutation JSON keeps the WhatsApp participant array, including each participant's `Error` code. A successful command does not mean every participant succeeded. Invite JSON stays `{jid, link}` (plus `revoked: true` for revoke). Timeouts after dispatch are uncertain: check the group before retrying a mutation or resetting its link.
 - Invite `get` also requires writable mode because it opens the linked-device store with write access; `--read-only` never delegates it.
+- Same-group participant and invite operations serialize through their snapshot refresh, without blocking other groups or the message-send queue. Waiting uses the same request deadline. Lost IPC replies (including EOF after dispatch) are uncertain, not proof of a clean failure; inspect the group before retrying.
 
 ## Examples
 

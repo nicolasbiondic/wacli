@@ -123,9 +123,17 @@ command is handed to that process over the local socket instead of failing on th
 lock; an owner built before these commands rejects it and nothing changes, so
 restart `wacli sync` after upgrading. `--read-only` refuses every write.
 
+Writes and manual `app-state resync` are disabled by default in this build.
+Only explicit `WACLI_REGULAR_WRITES=1` in both the calling CLI and the running
+sync owner's environment enables them. This includes labels and chat-label
+assignments. Leave it unset for read-only imports: these operations share the
+archive/pin coordinator and can delay those commands. Reading quick replies and
+normal startup sync do not require the opt-in.
+
 - `lists create` uses `appstate.BuildLabelEdit`. Without `--id` it takes the next
   numeric ID after every ID ever observed, deleted ones included, and refuses
-  while `full_sync_events_seen` is false, because a label the index never saw
+  until a full `regular` snapshot has been persisted through its completion
+  sentinel, because a label the index never saw
   could be overwritten. Pass `--id` with an unused, canonical nonnegative numeric
   ID in that case; deleted IDs cannot be reused. On accounts
   whose observed lists use the `CUSTOM` type, the new definition is also sent as
@@ -159,9 +167,13 @@ than incremental sync; known-broken collections retain the existing degraded
 recovery behavior.
 
 `quick-replies list` reads replies observed during sync. Its JSON `completeness`
-is `"complete"` when `full_sync_events_seen` is true for `regular`, otherwise
-`"incomplete"`; text output warns when incomplete. This flag records that a full
-sync was observed, not that every phone feature or deletion was captured. A reply
+is `"complete"` only after the ordered `regular` completion sentinel and all
+preceding snapshot writes have persisted successfully, otherwise `"incomplete"`;
+text output warns when incomplete. `full_sync_events_seen` remains informational
+and is not evidence of completion. Legacy indexes start incomplete on upgrade,
+and a partial or failed full replay cannot mark them complete. The new
+`list_sync_state.full_sync_complete` bit is independent of the legacy flag.
+This boundary does not prove that every phone feature or deletion was captured. A reply
 deleted on the phone with a REMOVE operation instead of a deletion flag stays
 listed until it is replaced. Full snapshots merge into the local index; absent
 rows are not pruned. `lists list` retains its `"unknown"` completeness contract.
@@ -170,9 +182,9 @@ Only WhatsApp Business accounts show quick replies on the phone.
 ### Resync the regular collection
 
 ```bash
-wacli --json app-state resync regular
+WACLI_REGULAR_WRITES=1 wacli --json app-state resync regular
 # Only after understanding the risk on an account with a known-broken full sync:
-wacli --json app-state resync regular --force
+WACLI_REGULAR_WRITES=1 wacli --json app-state resync regular --force
 ```
 
 This requests a full `regular` sync through the existing serialized recovery and
