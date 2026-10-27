@@ -402,7 +402,7 @@ func TestGroupCommandsSerializeSameGroupButNotOtherGroups(t *testing.T) {
 	if id := <-started; id != "first" {
 		t.Fatal(id)
 	}
-	second := request("second", "123@g.us", groupInviteLinkKind)
+	second := request("second", "123:0@g.us", groupInviteLinkKind)
 	other := request("other", "456@g.us", groupParticipantsKind)
 	if err := <-other; err != nil {
 		t.Fatal(err)

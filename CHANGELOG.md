@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Quick replies: durably invalidate later live full/recovery snapshots before their first mutation, including quick-reply-only snapshots. The pinned SDK now preserves generic-event provenance and emits opening boundaries. Crash regressions cover follow and one-shot handlers against the real SDK collector.
+- Groups: canonicalize JIDs before taking per-group slots, so `123@g.us` and `123:0@g.us` cannot race their participant snapshot refreshes.
 - Quick replies: only mark a regular snapshot complete after its ordered completion sentinel and successful preceding writes; keep the legacy event-seen bit informational and invalidate incomplete/failed snapshots. Regular label/quick-reply writes and manual resync now require explicit `WACLI_REGULAR_WRITES=1` in both CLI and sync owner.
 - Groups: serialize same-group participant/invite operations through the snapshot refresh; preserve post-dispatch uncertainty when an IPC reply is lost, including EOF.
 - Build: pin the exact vendas whatsmeow SDK to a public, checksummed module revision instead of an unversioned sibling directory.

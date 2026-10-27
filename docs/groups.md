@@ -58,6 +58,7 @@ wacli groups prune [--days N] [--left-only=false|--include-active] [--dry-run] [
 - Participant mutation JSON keeps the WhatsApp participant array, including each participant's `Error` code. A successful command does not mean every participant succeeded. Invite JSON stays `{jid, link}` (plus `revoked: true` for revoke). Timeouts after dispatch are uncertain: check the group before retrying a mutation or resetting its link.
 - Invite `get` also requires writable mode because it opens the linked-device store with write access; `--read-only` never delegates it.
 - Same-group participant and invite operations serialize through their snapshot refresh, without blocking other groups or the message-send queue. Waiting uses the same request deadline. Lost IPC replies (including EOF after dispatch) are uncertain, not proof of a clean failure; inspect the group before retrying.
+- Group slot keys use parsed non-device JIDs: `123@g.us` and `123:0@g.us` share a slot rather than racing their snapshot refreshes.
 
 ## Examples
 

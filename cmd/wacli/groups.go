@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/spf13/cobra"
+	"go.mau.fi/whatsmeow/types"
 )
 
 // Hold one slot through the mutation and its snapshot refresh. Different
@@ -22,6 +23,11 @@ type groupDelegateSlot struct {
 }
 
 func (o *groupDelegateOrder) acquire(ctx context.Context, group string) (func(), error) {
+	jid, err := types.ParseJID(group)
+	if err != nil {
+		return nil, err
+	}
+	group = jid.ToNonAD().String()
 	o.mu.Lock()
 	if o.groups == nil {
 		o.groups = make(map[string]*groupDelegateSlot)
