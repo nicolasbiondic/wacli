@@ -125,12 +125,13 @@ func (a *App) addSyncEventHandler(ctx context.Context, opts SyncOptions, message
 					limits.appStatePending.Add(-1)
 				}
 			})
-		case *events.AppStateSyncComplete:
-			// Only the live `regular` sentinel is persisted: it marks the
-			// quick reply/list index complete. `regular_low` sentinels settle
-			// the archive recovery only at their captured snapshot position
+		case *events.AppStateSyncStart, *events.AppStateSyncComplete:
+			// Persist both regular boundaries: the start invalidates durably
+			// before mutations; only its successful close marks complete.
+			// `regular_low` sentinels settle archive recovery only at their
+			// captured snapshot position
 			// (see settleChatArchiveRecovery), never from live dispatch.
-			if !isRegularFullSyncSentinel(v) {
+			if !isRegularSnapshotBoundary(v) {
 				return
 			}
 			lastEvent.Store(nowUTC().UnixNano())
@@ -423,6 +424,11 @@ func (a *App) clearLiveAppStateRecovery(markers []appStateRecoveryMarker) {
 
 func (a *App) persistAppStateEvent(ctx context.Context, evt any, tracker *appStatePersistenceTracker) error {
 	var err error
+	if start, ok := evt.(*events.AppStateSyncStart); ok && start != nil && start.Name == appstate.WAPatchRegular {
+		// Only an explicit new snapshot starts a new live attempt. Mutations
+		// must not clear failures accumulated earlier in this same snapshot.
+		a.regularFullSyncFailed = false
+	}
 	if isRegularFullSyncEvent(evt) {
 		err = a.db.InvalidateRegularFullSync()
 	}
@@ -475,10 +481,25 @@ func (a *App) persistAppStateEvent(ctx context.Context, evt any, tracker *appSta
 
 func isRegularFullSyncEvent(evt any) bool {
 	switch v := evt.(type) {
+	case *events.AppStateSyncStart:
+		return v != nil && v.Name == appstate.WAPatchRegular
+	case *events.AppState:
+		return isQuickReplyEvent(v) && v.FromFullSync
 	case *events.LabelEdit:
 		return v != nil && v.FromFullSync
 	case *events.LabelAssociationChat:
 		return v != nil && v.FromFullSync
+	default:
+		return false
+	}
+}
+
+func isRegularSnapshotBoundary(evt any) bool {
+	switch v := evt.(type) {
+	case *events.AppStateSyncStart:
+		return v != nil && v.Name == appstate.WAPatchRegular
+	case *events.AppStateSyncComplete:
+		return isRegularFullSyncSentinel(v)
 	default:
 		return false
 	}
@@ -492,6 +513,11 @@ func isRegularFullSyncSentinel(evt *events.AppStateSyncComplete) bool {
 
 func appStateCollectionsForEvent(evt any) []appstate.WAPatchName {
 	switch v := evt.(type) {
+	case *events.AppStateSyncStart:
+		if isRegularSnapshotBoundary(v) {
+			return []appstate.WAPatchName{appstate.WAPatchRegular}
+		}
+		return nil
 	case *events.AppStateSyncComplete:
 		if isRegularFullSyncSentinel(v) {
 			return []appstate.WAPatchName{appstate.WAPatchRegular}

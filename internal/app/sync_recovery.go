@@ -226,7 +226,7 @@ func (a *App) syncAppStateDeltas(ctx context.Context, recoveries *sync.Map) {
 		var err error
 		if fullSync {
 			// Capture the whole regular snapshot and its sentinel, then persist
-			// them in order. Generic quick-reply events have no FromFullSync bit.
+			// them in order, including the SDK's explicit opening boundary.
 			fetchErr, persistErr := a.fetchAndPersistAppState(ctx, name, true, &appStatePersistenceTracker{})
 			err = errors.Join(fetchErr, persistErr)
 		} else {

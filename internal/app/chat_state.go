@@ -47,10 +47,11 @@ func (a *App) AddChatStatePersistenceHandler(ctx context.Context) (func(), error
 			*events.Archive, *events.UnarchiveChatsSetting, *events.Pin, *events.Mute, *events.MarkChatAsRead,
 			*events.Contact, *events.LabelEdit, *events.LabelAssociationChat:
 			a.handleAppStatePersistenceEvent(ctx, evt, nil)
-		case *events.AppStateSyncComplete:
-			// Live `regular` sentinels mark the quick reply index complete;
+		case *events.AppStateSyncStart, *events.AppStateSyncComplete:
+			// Live regular starts invalidate before mutations; only a
+			// successfully persisted closing sentinel marks complete.
 			// `regular_low` sentinels only settle at their captured position.
-			if isRegularFullSyncSentinel(v) {
+			if isRegularSnapshotBoundary(v) {
 				a.handleAppStatePersistenceEvent(ctx, evt, nil)
 			}
 		case *wa.AppStateKeyUnavailable:

@@ -173,6 +173,13 @@ text output warns when incomplete. `full_sync_events_seen` remains informational
 and is not evidence of completion. Legacy indexes start incomplete on upgrade,
 and a partial or failed full replay cannot mark them complete. The new
 `list_sync_state.full_sync_complete` bit is independent of the legacy flag.
+This applies to later live snapshots too: the pinned SDK emits an opening
+boundary for full/recovery snapshots and preserves `FromFullSync` on generic
+quick-reply events. Both live handlers persist invalidation before mutations;
+an abrupt exit after the first reply reopens as incomplete. Only the ordered,
+successfully persisted closing sentinel restores completeness. A failed opening
+invalidation prevents snapshot mutations from being written. Incremental updates
+do not open a new snapshot.
 This boundary does not prove that every phone feature or deletion was captured. A reply
 deleted on the phone with a REMOVE operation instead of a deletion flag stays
 listed until it is replaced. Full snapshots merge into the local index; absent
