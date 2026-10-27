@@ -33,6 +33,7 @@ wacli groups prune [--days N] [--left-only=false|--include-active] [--dry-run] [
 - If a row cannot be deleted, bulk cleanup continues with the other targets, then exits nonzero with the underlying errors and the number successfully deleted. In `--json` mode, failures use the error envelope on stderr and do not emit a success result on stdout. Successfully deleted rows stay deleted; failed deletions are rolled back individually.
 - Use `--dry-run` first; it lists what would be deleted without changing the local store.
 - Use `--read-only` or `WACLI_READONLY=1` to make cleanup commands fail before opening the store for writes.
+- Read-only opening validation retries only the transient SQLite extended code `SQLITE_READONLY_RECOVERY`, up to four attempts with 5/10/15 ms backoff. Exhaustion and other errors remain errors. This does not retry migrations, transactions or mutations, or change the read-only SHM policy.
 - Use `--account NAME` to target a named account store. Use `--store DIR` for manual stores or migration debugging; it cannot be combined with `--account`.
 
 ## Examples

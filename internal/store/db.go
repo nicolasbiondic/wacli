@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/openclaw/wacli/internal/fsutil"
@@ -86,7 +87,15 @@ func open(path string, readOnly bool) (*DB, error) {
 
 func (d *DB) validateReadable() error {
 	var n int
-	return d.sql.QueryRow("SELECT count(*) FROM sqlite_master").Scan(&n)
+	for attempt := 0; ; attempt++ {
+		err := d.sql.QueryRow("SELECT count(*) FROM sqlite_master").Scan(&n)
+		if attempt == 3 || !isReadonlyRecovery(err) {
+			return err
+		}
+		// A concurrent WAL writer may briefly be rebuilding SHM. Retry only
+		// this read-only opening SELECT, never migrations or mutations.
+		time.Sleep(time.Duration(attempt+1) * 5 * time.Millisecond)
+	}
 }
 
 func (d *DB) hasMessagesColumn(name string) bool {
