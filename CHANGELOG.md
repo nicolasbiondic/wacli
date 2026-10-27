@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- SQLite errors: preserve the JSON error string and add `sqlite_error` with primary/extended codes, symbolic name and read-only retryability (also in lifecycle errors). Only known read-only WAL init failures 264/1288 can be retryable; other errors and mutations stay non-retryable.
+- Read-only store: include `SQLITE_READONLY_CANTINIT` (1288) in the existing four-attempt read retry. Retry the entire rolled-back read view, never writable connections or mutations.
 - Lists: resolve active definitions, exact-ID tombstones and filtered chat memberships in one SQLite read view, so concurrent undeletes cannot redirect an ID to another list's name.
 - Store: retry only `SQLITE_READONLY_RECOVERY` during read-only opening validation and read views, with four attempts and 5/10/15 ms backoff. Read views roll back and restart as a whole. Writable connections, mutations and other SQLite errors are not retried.
 - Quick replies/lists: read rows and completeness metadata in one SQLite WAL snapshot, including related label-ID selection and resync counts. A deterministic concurrent-writer regression passes 20 race runs.

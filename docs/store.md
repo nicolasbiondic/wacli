@@ -33,10 +33,25 @@ wacli groups prune [--days N] [--left-only=false|--include-active] [--dry-run] [
 - If a row cannot be deleted, bulk cleanup continues with the other targets, then exits nonzero with the underlying errors and the number successfully deleted. In `--json` mode, failures use the error envelope on stderr and do not emit a success result on stdout. Successfully deleted rows stay deleted; failed deletions are rolled back individually.
 - Use `--dry-run` first; it lists what would be deleted without changing the local store.
 - Use `--read-only` or `WACLI_READONLY=1` to make cleanup commands fail before opening the store for writes.
-- Read-only opening validation and read views retry only the transient SQLite extended code `SQLITE_READONLY_RECOVERY`, up to four attempts with 5/10/15 ms backoff. A read view rolls back and starts a fresh transaction before rerunning its read-only callback. Exhaustion and other errors remain errors. Writable connections, migrations and mutations are not retried; the read-only SHM policy is unchanged.
+- Read-only opening validation and read views retry only `SQLITE_READONLY_RECOVERY` (264) and `SQLITE_READONLY_CANTINIT` (1288), up to four attempts with 5/10/15 ms backoff. Both can occur during concurrent WAL/SHM initialisation. A read view rolls back and starts a fresh transaction before rerunning its read-only callback. Exhaustion and other errors remain errors. Writable connections, migrations and mutations are not retried; the read-only SHM policy is unchanged.
 - Use `--account NAME` to target a named account store. Use `--store DIR` for manual stores or migration debugging; it cannot be combined with `--account`.
 
 ## Examples
+
+SQLite failures in `--json` retain the existing string `error` and add typed
+details on stderr (no success output on stdout):
+
+```json
+{"success":false,"data":null,"error":"attempt to write a readonly database","sqlite_error":{"primary_code":8,"extended_code":1288,"name":"SQLITE_READONLY_CANTINIT","retryable":true}}
+```
+
+`retryable` is true only for codes 264/1288 originating in a read-only opening
+or read view. It describes that read failure, not permission to replay an entire
+command or an uncertain mutation. Persistent SHM/permission failures can exhaust
+the budget even for those codes. Other SQLite errors retain their codes with
+`retryable:false`; unknown extensions use `SQLITE_UNKNOWN` rather than a guessed
+symbol. Non-SQLite errors omit `sqlite_error`. The same details appear in
+`--events` error events under `data.sqlite_error`.
 
 ```bash
 wacli store stats

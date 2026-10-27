@@ -114,7 +114,7 @@ func writeRootError(flags rootFlags, err error) {
 		return
 	}
 	if flags.events {
-		_ = out.NewEventWriter(os.Stderr, true).Emit("error", map[string]any{"message": err.Error()})
+		_ = out.NewEventWriter(os.Stderr, true).Emit("error", out.ErrorFields(err))
 		return
 	}
 	_ = out.WriteError(os.Stderr, flags.asJSON, err)

@@ -15,6 +15,7 @@ import (
 func TestReadOnlyOpenRetriesOnlyReadonlyRecovery(t *testing.T) {
 	fixture := openTestDB(t)
 	recovery := sqlite3.Error{Code: sqlite3.ErrReadonly, ExtendedCode: sqlite3.ErrReadonlyRecovery}
+	cantinit := sqlite3.Error{Code: sqlite3.ErrReadonly, ExtendedCode: sqlite3.ErrReadonly.Extend(5)}
 	for _, tc := range []struct {
 		name                string
 		injected            error
@@ -22,6 +23,8 @@ func TestReadOnlyOpenRetriesOnlyReadonlyRecovery(t *testing.T) {
 		mutation, wantError bool
 	}{
 		{name: "transient", injected: recovery, failures: 3, wantCalls: 4},
+		{name: "cantinit transient", injected: cantinit, failures: 3, wantCalls: 4},
+		{name: "cantinit bounded", injected: cantinit, failures: 100, wantCalls: 4, wantError: true},
 		{name: "wrapped", injected: fmt.Errorf("wrapped: %w", recovery), failures: 1, wantCalls: 2},
 		{name: "bounded", injected: recovery, failures: 100, wantCalls: 4, wantError: true},
 		{name: "plain readonly", injected: sqlite3.Error{Code: sqlite3.ErrReadonly}, failures: 1, wantCalls: 1, wantError: true},
@@ -29,6 +32,7 @@ func TestReadOnlyOpenRetriesOnlyReadonlyRecovery(t *testing.T) {
 		{name: "busy", injected: sqlite3.Error{Code: sqlite3.ErrBusy}, failures: 1, wantCalls: 1, wantError: true},
 		{name: "message is not a code", injected: errors.New("SQLITE_READONLY_RECOVERY"), failures: 1, wantCalls: 1, wantError: true},
 		{name: "mutation never retried", injected: recovery, failures: 1, wantCalls: 1, mutation: true, wantError: true},
+		{name: "cantinit mutation never retried", injected: cantinit, failures: 1, wantCalls: 1, mutation: true, wantError: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var calls atomic.Int32
@@ -66,6 +70,7 @@ func TestReadOnlyRecoveryRestartsWholeReadViewOnly(t *testing.T) {
 	}
 	defer ro.Close()
 	recovery := sqlite3.Error{Code: sqlite3.ErrReadonly, ExtendedCode: sqlite3.ErrReadonlyRecovery}
+	cantinit := sqlite3.Error{Code: sqlite3.ErrReadonly, ExtendedCode: sqlite3.ErrReadonly.Extend(5)}
 	for _, tc := range []struct {
 		name                string
 		db                  *DB
@@ -73,9 +78,12 @@ func TestReadOnlyRecoveryRestartsWholeReadViewOnly(t *testing.T) {
 		injected            error
 	}{
 		{"readonly transient", ro, 3, 4, recovery},
+		{"cantinit transient", ro, 3, 4, cantinit},
+		{"cantinit exhausted", ro, 100, 4, cantinit},
 		{"readonly exhausted", ro, 100, 4, recovery},
 		{"readonly other error", ro, 1, 1, sqlite3.Error{Code: sqlite3.ErrReadonly}},
 		{"writable never retries", writer, 1, 1, recovery},
+		{"cantinit writable never retries", writer, 1, 1, cantinit},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			calls := 0

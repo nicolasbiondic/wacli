@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/openclaw/wacli/internal/sqliteutil"
 )
 
 // Retrieval metadata is initialized only by writable migrations.
@@ -285,15 +287,18 @@ type queryRows interface {
 
 // ReadView shares a single SQLite snapshot across rows, cursors, names and context.
 // The callback must only read; on OpenReadOnly connections it may be rerun after
-// SQLITE_READONLY_RECOVERY, always in a fresh transaction after rollback.
+// SQLITE_READONLY_RECOVERY/CANTINIT, in a fresh transaction after rollback.
 func (d *DB) ReadView(read func(*DB) error) error {
 	if d.readRows != nil {
 		return read(d)
 	}
 	for attempt := 0; ; attempt++ {
 		err := d.readView(read)
-		if !d.readOnly || attempt == 3 || !isReadonlyRecovery(err) {
+		if !d.readOnly {
 			return err
+		}
+		if attempt == 3 || !sqliteutil.IsReadOnlyTransient(err) {
+			return sqliteutil.MarkReadOnlyError(err)
 		}
 		time.Sleep(time.Duration(attempt+1) * 5 * time.Millisecond)
 	}

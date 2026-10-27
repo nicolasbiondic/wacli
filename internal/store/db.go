@@ -36,7 +36,8 @@ func Open(path string) (*DB, error) {
 }
 
 func OpenReadOnly(path string) (*DB, error) {
-	return open(path, true)
+	db, err := open(path, true)
+	return db, sqliteutil.MarkReadOnlyError(err)
 }
 
 func open(path string, readOnly bool) (*DB, error) {
@@ -90,7 +91,7 @@ func (d *DB) validateReadable() error {
 	var n int
 	for attempt := 0; ; attempt++ {
 		err := d.sql.QueryRow("SELECT count(*) FROM sqlite_master").Scan(&n)
-		if attempt == 3 || !isReadonlyRecovery(err) {
+		if attempt == 3 || !sqliteutil.IsReadOnlyTransient(err) {
 			return err
 		}
 		// A concurrent WAL writer may briefly be rebuilding SHM. Retry only
