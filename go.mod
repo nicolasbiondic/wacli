@@ -79,4 +79,4 @@ require (
 tool github.com/sqlc-dev/sqlc/cmd/sqlc
 
 // vendas/fix-i-on-b2b1e71 at aa93c65: app-state fixes b–i, atomic patches and contact rotation.
-replace go.mau.fi/whatsmeow => ../whatsmeow-024
+replace go.mau.fi/whatsmeow => github.com/nicolasbiondic/whatsmeow v0.0.0-20261021145333-aa93c652f0d0
