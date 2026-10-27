@@ -9,9 +9,15 @@ G, en una noche distinta del movimiento de pm2. Copiar el artefacto a su ruta
 inmutable no lo despliega; arrancar un daemon con él sí cambia su comportamiento,
 incluso con todas las gates apagadas (ver «Instalar dark no es inerte»).
 
+G aprobó `e0f3fb4` para un **swap futuro**, sin bloqueantes, en la quinta revisión
+de #125 (`issuecomment-6440712853`). No autorizó desplegar ni activar funciones.
+El candidato de esta tabla agrega la condición de observabilidad/disponibilidad
+read-only; no hereda automáticamente un go para su nuevo hash. Mantén el HOLD
+hasta que G acepte el artefacto y la ventana concreta.
+
 Este build **reemplaza al de respuestas rápidas y a los candidatos `fbb1447`,
-`2e2921a`, `13b8cb1` y `04bd77c` revisados por G**. Incluye la base `8f293bd`,
-la delegación de grupos y las correcciones de las cuatro revisiones descritas
+`2e2921a`, `13b8cb1`, `04bd77c` y `e0f3fb4` revisados por G**. Incluye la base `8f293bd`,
+la delegación de grupos y los cambios posteriores a la quinta revisión descritos
 abajo. Los artefactos anteriores quedan como evidencia, no como candidatos de
 despliegue.
 
@@ -22,14 +28,14 @@ despliegue.
 | Rama | `nicolasbiondic/wacli:vendas/fotos-acks-qr-groups` |
 | Worktree | `/home/xubuntu/code/new-pedrito/wacli-fork/fotos-acks-qr-groups` |
 | Base | `8f293bd02d51c25627e1aa80f475850b29b5407a` (`vendas/fotos-acks-quick-replies`) |
-| Commit de código del binario | `e0f3fb40033ffd7ec10f12c7c26d736bd9af2ef2` |
-| Binario nuevo (0555) | `/home/xubuntu/.local/share/wacli-diag/0.24.0-vendas-fotos-acks-qr-groups-c4dbf28208c0/wacli` |
-| `--version` | `wacli 0.24.0+vendas.e0f3fb4.502.496.lid.settle.fotos.acks.qr.groups` |
-| SHA256 de ambos builds independientes | `c4dbf28208c0c5fec02bdbe6ce37dd4673261adba8f44fa8770f33135ba8230f` |
+| Commit de código del binario | `f9afe32fe867f60bd8cb5e7178e426ea5a1dc987` |
+| Binario nuevo (0555) | `/home/xubuntu/.local/share/wacli-diag/0.24.0-vendas-fotos-acks-qr-groups-896f1f246060/wacli` |
+| `--version` | `wacli 0.24.0+vendas.f9afe32.502.496.lid.settle.fotos.acks.qr.groups` |
+| SHA256 de ambos builds independientes | `896f1f24606055fbb4fdd49781a6d2f99184dd2ccb95a74dd11793452b99e819` |
 | Sustituye al artefacto QR | `/home/xubuntu/.local/share/wacli-diag/0.24.0-vendas-fotos-acks-qr-80c744ac81b9/wacli` |
 | SDK público | `github.com/nicolasbiondic/whatsmeow v0.0.0-20261027081841-579078a41ce7`, rama `vendas/024`, commit `579078a41ce7e7d2b66ef7c4a7c241e6fbb020b6` |
 | Checksum SDK | `h1:tjIdk4hWmWOb3o3hflg9qahBFMV/lsBCGlb6Fy/k9Lc=` |
-| Otras dependencias | Sin cambios de versión respecto de `04bd77c`, incluido el SDK `579078a`. Los 275 archivos del módulo de la reconstrucción final coinciden con ese commit público |
+| Otras dependencias | Sin cambios de versión respecto de `e0f3fb4`, incluido el SDK `579078a`. Los 275 archivos del módulo de la reconstrucción final coinciden con ese commit público |
 
 El sufijo de 12 caracteres del directorio es el prefijo del SHA256 del
 **binario**, no del commit. `go version -m` registra `vcs.modified=false`.
@@ -58,12 +64,14 @@ kind nuevo con `unsupported send kind "group_participants"` o
 ``restart `wacli sync` after upgrading``. No hay fallback a otra conexión tras
 ese rechazo ni tras un timeout del IPC.
 
-El JSON público no cambia: participantes devuelve el array de whatsmeow,
+El JSON de éxito no cambia: participantes devuelve el array de whatsmeow,
 incluidos `Error` y `AddRequest` por participante, incluso con éxitos parciales.
 **`success: true` no significa que todos los participantes cambiaron**: el
 gateway debe revisar cada `data[i].Error`. Se conservan `null` y `[]` si la API
 los devuelve. El snapshot local se refresca best-effort como antes. Invitación
 devuelve `{jid, link}`, más `revoked: true` al resetear.
+Los errores SQLite añaden `sqlite_error` sin sustituir el texto de `error`;
+ver la quinta revisión y `docs/store.md` para su contrato y alcance.
 
 `invite link get` ahora rechaza `--read-only` explícitamente antes de abrir o
 delegar: la operación usa acceso de escritura al store de dispositivo. Es una
@@ -149,7 +157,7 @@ histórico `full_sync_events_seen` de un build anterior pruebe completitud.
   sobre una sola vista de definiciones; `ListByID()` y `MaxNumericListID()` usan
   `readQuery()`, y creación de labels/resync ya comparten `ReadView`. No se
   modificaron el escritor de app-state ni el SDK.
-- **Cuarta revisión, condición read-only:** se reintenta exclusivamente el
+- **Cuarta revisión, condición read-only:** en `e0f3fb4` se reintentaba solo el
   código extendido `SQLITE_READONLY_RECOVERY` (264), tanto en el SELECT de
   validación de apertura como en `ReadView` de una conexión `OpenReadOnly`.
   Son cuatro intentos, con pausas de 5/10/15 ms; cada retry de vista hace
@@ -162,6 +170,27 @@ histórico `full_sync_events_seen` de un build anterior pruebe completitud.
   escrituras. El agotamiento sigue siendo un error; una sonda de 3.000 intentos
   sin errores inesperados no garantiza ausencia futura de errores. Los helpers
   CGO/no-CGO conservan el cross-compile de tests y la guardia CGO explícita del CLI.
+- **Quinta revisión, errores de lectura visibles:** el JSON conserva
+  `success`, `data` y `error` (string) y añade un campo opcional `sqlite_error`:
+  `primary_code`, `extended_code`, `name` y `retryable`. Los errores NDJSON de
+  `--events` llevan los mismos datos en `data.sqlite_error`. La clasificación
+  usa el tipo/código SQLite, no el texto del mensaje; conserva wrappers/joins
+  y no transfiere la marca de una lectura a otra causa de mutación. Los éxitos
+  y los errores no-SQLite mantienen su envelope. Extensiones desconocidas
+  conservan su número con nombre `SQLITE_UNKNOWN`, sin inventar un símbolo.
+- **Decisión sobre 1288:** se incluye `SQLITE_READONLY_CANTINIT` junto a
+  `SQLITE_READONLY_RECOVERY` (264) en el retry acotado. Ambos pueden aparecer
+  cuando un writer concurrente inicializa WAL/SHM. Solo se repite el SELECT de
+  apertura read-only o la vista de una conexión `OpenReadOnly`: cuatro intentos,
+  pausas de 5/10/15 ms, rollback y transacción nueva para repetir la vista
+  completa. No se reintentan conexiones RW, mutaciones, migraciones, otros
+  códigos ni operaciones de WhatsApp; no cambia SHM. `retryable:true` solo se
+  publica para 264/1288 con esa procedencia read-only, nunca para una mutación
+  sin marcar. No autoriza repetir un comando entero o una mutación incierta.
+  Si el problema es persistente (por ejemplo, permisos/SHM), se agota el presupuesto
+  y se publica el error tipado: la marca no promete disponibilidad futura.
+  Inyección de 1288 cubre apertura, vista completa nueva, agotamiento y exclusión
+  RW/mutaciones. La condición de G de aceptar fallos residuales sigue pendiente.
 - **`WACLI_REGULAR_WRITES` queda sin definir o en 0 por defecto** tanto en el
   gateway/CLI como en cada daemon. Solo `=1` en ambos permite escrituras de
   etiquetas/listas/respuestas rápidas y resync manual. Son operaciones que
@@ -171,13 +200,17 @@ histórico `full_sync_events_seen` de un build anterior pruebe completitud.
   expresamente el flag en ambos lados y deshabilitarlo al terminar; los comandos
   de resync del runbook anterior no eluden esta guardia.
 
-### Condiciones antes de encender escrituras
+### Condiciones antes de activar funciones
 
-Los tres puntos previos a escrituras de la tercera revisión y la condición
-read-only de la cuarta están implementados; no se difirió ninguno. Eso **no
-autoriza** habilitarlo: exige la re-revisión de G de esta corrección y las
-regresiones, su go explícito, una noche distinta de pm2 y el preflight nuevo de
-abajo. El SDK permanece en el commit público ya revisado. Mantén
+Los cambios de código pedidos están implementados. Eso **no autoriza** activar
+funciones: G debe revisar el contrato de errores y **aceptar expresamente la
+disponibilidad residual**. G observó en `e0f3fb4` 1/30.000 aperturas con 1288 y
+un error explícito en 60.000 lecturas CLI, sin datos erróneos. El nuevo retry
+acotado y una sonda limpia no demuestran que no pueda volver a fallar.
+Esta disponibilidad es condición para activar funciones, **no un bloqueante del
+swap** que G declaró listo para `e0f3fb4`.
+El swap requiere además su go, otra noche y el preflight nuevo de abajo.
+El SDK permanece en el commit público ya revisado. Mantén
 `WACLI_REGULAR_WRITES` apagado y las allowlists del gateway vacías hasta esa
 decisión. Los tests son offline con fixtures sintéticas; no prueban aceptación/
 permisos de WhatsApp ni reconexión autenticada tras rollback.
@@ -208,14 +241,14 @@ nueva ventana siguen pendientes. Esta tarea no verificó producción.
 
 ## Dos ventanas distintas: pm2 primero, wacli otra noche
 
-**No mezcles los cambios.** G programó `~/vendas-ops/pm2-pin.sh` para las **02:30
-Lima del 27-oct-2026**: pin a pm2 **7.1.1**, movimiento/reinicio del daemon pm2 y
-resurrección de su lista guardada. Este implementador solo leyó el script; no lo
-ejecutó ni verificó el estado de producción.
+**No mezcles los cambios.** G confirmó en la quinta revisión que el movimiento
+de pm2 quedó hecho el **27-oct-2026** (pin **7.1.1**). Es una confirmación de G,
+no una verificación de producción de este implementador; no se ejecutó el script
+ni se inspeccionaron procesos o stores reales en esta tarea.
 
 El cambio de wacli va **OTRA noche**, nunca en esa misma ventana ni como segunda
-parte automática del script. G debe confirmar que terminó el movimiento y
-aprobar la nueva ventana. Un preflight o snapshot anterior al movimiento de pm2
+parte automática del script. G debe aprobar la nueva ventana. Un preflight o
+snapshot anterior al movimiento de pm2
 no sirve como baseline de la ventana de wacli.
 
 En la nueva noche, antes de tocar una línea, exige un **preflight nuevo**:
@@ -250,7 +283,9 @@ esta revisión.** `OLD` debe ser el
 artefacto que realmente tenga esa línea en el momento de desplegar, no el
 artefacto QR por suposición: aquel build también quedó preparado sin desplegar.
 
-1. Preflight nuevo posterior a pm2 y backup de configs del procedimiento existente.
+1. Preflight nuevo **de las cuatro líneas** posterior a pm2 y backup de configs
+   del procedimiento existente. Verifica `OLD`, versión/checksum y configs
+   activa/base de cada línea; no des por válido un ejecutable por su ruta.
 2. **Antes de que el binario nuevo abra el store**, para solo esa línea y toma
    el LOCK exclusivo (aborta si no se libera). Con la línea cerrada y el LOCK
    retenido, crea un snapshot SQLite de **`session.db` y `wacli.db` como pareja**
@@ -260,12 +295,18 @@ artefacto QR por suposición: aquel build también quedó preparado sin desplega
    (por ejemplo, medios); guarda todo en un directorio privado 0700, bases 0600.
    Anota la hora/corte del snapshot. No copies WAL vivos a mano ni saltes el
    snapshot porque las migraciones son aditivas.
-3. Actualiza **una línea por vez** con el mismo procedimiento de LOCK y snapshot;
-   verifica proceso, ejecutable real, heartbeat y logs antes de seguir.
+3. Empieza con un **canario de una sola línea**, elegida por G, con su parada,
+   LOCK y snapshot pareado. Verifica ejecutable real, autenticación, heartbeat,
+   logs y errores SQLite durante el periodo de observación acordado con G.
+   No avances sin su aceptación del canario. Después actualiza las restantes
+   **una línea por vez**, repitiendo parada/LOCK/snapshot y las verificaciones.
 4. Actualiza también la configuración base de esa línea. No basta cambiar
    `WACLI_BIN`: el daemon debe arrancar con el nuevo ejecutable.
-5. Sigue el orden daemons primero, gateway/`WACLI_BIN` después. Mantén apagadas
-   ambas gates de escritura y verifica lectura de respuestas rápidas: durante
+5. Sigue el orden **daemons primero, gateway/`WACLI_BIN` después**: no cambies el
+   gateway hasta validar los daemons de las líneas aprobadas. Mantén
+   `WACLI_REGULAR_WRITES` apagado (incluido resync) y ambas allowlists
+   `GROUP_PARTICIPANTS_TENANTS` y `QUICK_REPLIES_WRITE_TENANTS` vacías.
+   Verifica lectura de respuestas rápidas: durante
    un snapshot parcial debe verse `incomplete`, no se fuerza `complete` a mano.
 6. Guarda el estado de pm2 nuevo solo después de validar la línea. Si falla,
    no continúes a la siguiente: usa el rollback de abajo.
@@ -277,14 +318,17 @@ reintentar. Nunca lances estos comandos a mano con el LOCK libre de una línea.
 
 ## Rollback de una línea y restauración del snapshot
 
-Hay una prueba offline del binario anterior exacto
+Hay una prueba offline de compatibilidad con el ejecutable de archivo
 `/home/xubuntu/.local/share/wacli-diag/0.24.0-vendas-fotos-acks-b37c8f109faa/wacli`
 sobre un store migrado por el ejecutable nuevo: abre con y sin `--read-only`,
 lee chats/mensajes/cambios/grupos/contactos/auth, hace un purge **local** y pasa
 doctor. Las tablas nuevas y su contenido sobreviven. No equivale a probar una
 conexión autenticada: no hay modo offline de sync; `sync --once` abre ambas bases
 en una sesión temporal sin autenticar y se detiene antes de `Connect`. Nunca se
-usó una sesión real para esta prueba.
+usó una sesión real para esta prueba. Este ejecutable no sustituye la
+verificación del `OLD` real de cada línea. La prueba de rollback que reportó G
+usó un rebuild de fuentes `bee384f`, no el histórico ejecutable de producción;
+ninguna de las dos demuestra reconexión autenticada tras restaurar.
 
 Por esa compatibilidad se puede elegir rollback **solo de binario**, preservando
 datos posteriores al snapshot, si las bases siguen sanas. No lo presentes como
@@ -353,7 +397,7 @@ Con `TMPDIR=/tmp/opencode`, `CGO_ENABLED=1` y
 - `go test -count=1 ./...`: OK, todos los paquetes.
 - `go vet ./...` y `go vet -tags sqlite_fts5 ./...`: OK.
 - Tests de grupos con `-race -tags sqlite_fts5`: OK.
-- Race completo de `cmd/wacli`, `internal/app`, `internal/store` e `internal/wa`: OK en plain y FTS.
+- Race completo de `cmd/wacli`, `internal/app`, `internal/store`, `internal/wa`, `internal/sqliteutil` e `internal/out`: OK en plain y FTS.
 - `scripts/check-deadcode.sh`: OK, producción y tests.
 - Cross-compile Windows de lock/store y guardia CGO obligatorio: OK.
 - Tests Node de docs/release: 32 OK; build del sitio de docs: OK.
@@ -364,28 +408,36 @@ Con `TMPDIR=/tmp/opencode`, `CGO_ENABLED=1` y
 - Lector WAL: `go test -count=20 -race [-tags sqlite_fts5] ./internal/store -run '^TestCompletenessAndRowsShareOneWALSnapshot$'`: 20/20 en cada modo.
 - Resolución/tombstones/membresías: `TestListResolutionAndMembershipsShareOneWALSnapshot`, 20/20 con race en cada modo; fallo confirmado 3/3 por modo antes del fix.
 - Retry read-only: tests de error inyectado `TestReadOnlyOpenRetriesOnlyReadonlyRecovery` y `TestReadOnlyRecoveryRestartsWholeReadViewOnly`, 20/20 con race por modo.
+- Inyección de 1288: apertura y vista, éxito tras tres fallos, agotamiento en
+  cuatro intentos, transacción nueva y RW/mutaciones una sola vez: OK.
+- JSON/NDJSON: códigos 264/1288, nombre, contexto read-only y causa original,
+  joins sin filtración de retryability; CLI real con error `SQLITE_NOTADB`: OK.
 - SDK sin cambios: tests completos/race/vet de raíz, `appstate` y `types/events`
   ya pasaron en la tercera revisión; esta ronda vuelve a verificar los 275/275
   archivos del módulo y su checksum desde una caché vacía.
 - Cierres fallidos y retry, follow/one-shot/capture: OK, sin aperturas filtradas.
 - Artefacto instalado: 3.000 intentos reales `chats list --list 7` con writer
   concurrente en tres stores WAL desechables; sin chats de la lista equivocada
-  ni errores inesperados. El writer confirmó 432.837 toggles en total.
+  ni errores inesperados. El writer confirmó 526.645 toggles en total.
+- Artefacto instalado: error SQLite tipado real en JSON y eventos, guardia de
+  mutación read-only y envelope de éxito sin cambios: OK.
 - Dos builds con `-trimpath`, clones distintos y cachés de módulos/compilación
   vacías e independientes: SHA256 idéntico y `cmp` byte a byte OK.
 - Smoke del binario instalado con dueño IPC simulado y LOCK temporal: 14 casos
   OK (las seis operaciones, dueño viejo, arrays `null`/vacíos). La ayuda del
   binario QR anterior no contiene el marcador de capacidad.
 
-Logs de esta revisión: `/tmp/opencode/wacli-groups-round4-{before-plain,before-fts,retry-before,reader-plain,reader-fts,cli-provisional,artifact-list,test-fts,test-plain,vet,vet-fts,race-plain,race-fts,deadcode,windows,doc-tests,doc-site,cgo-required,rollback}.log`.
-Diagnóstico del error posterior a apertura: `/tmp/opencode/wacli-groups-round4-readonly-diagnostic.log`.
-Información del artefacto: `/tmp/opencode/wacli-groups-round4-build-info.txt`.
-Prueba SDK: `/tmp/opencode/wacli-groups-round4-sdk-proof.txt`.
-Diff de código: `/tmp/opencode/wacli-groups-round4-code.diff`.
+Logs de esta revisión: `/tmp/opencode/wacli-groups-round5-{focal,reader-plain,reader-fts,artifact-json,artifact-list,test-fts,test-plain,vet,vet-fts,race-plain,race-fts,deadcode,windows,doc-tests,doc-site,cgo-required,rollback}.log`.
+Información del artefacto: `/tmp/opencode/wacli-groups-round5-build-info.txt`.
+Prueba SDK: `/tmp/opencode/wacli-groups-round5-sdk-proof.txt`.
+Diff de código: `/tmp/opencode/wacli-groups-round5-code.diff`.
 El script `/tmp/opencode/wacli-groups-round4-artifact-list.py` verifica la CLI
-instalada; solo crea stores temporales sin autenticar. Por defecto ejecuta
+instalada pasando `WACLI_LIST_PROBE_BIN` con el binario de esta tabla; solo crea
+stores temporales sin autenticar. Por defecto ejecuta
 1.000 intentos en cada uno de tres stores, sin retries externos.
-Smoke instalado: `/tmp/opencode/wacli-groups-round4-installed-smoke.log` (script
+El script `/tmp/opencode/wacli-groups-round5-artifact-json.py` prueba el contrato
+JSON del binario instalado sin acceso a WhatsApp.
+Smoke instalado: `/tmp/opencode/wacli-groups-round5-installed-smoke.log` (script
 `/tmp/opencode/wacli-groups-installed-smoke.py`).
 
 ## Reproducir el artefacto sin desplegar
@@ -393,7 +445,7 @@ Smoke instalado: `/tmp/opencode/wacli-groups-round4-installed-smoke.log` (script
 El artefacto se construyó **dos veces**, con clones HTTPS limpios, rutas distintas
 y cachés `GOMODCACHE` y `GOCACHE` inicialmente vacías e independientes. Se usó
 Go 1.27.3, Linux amd64 y el mismo compilador C en ambos; `-trimpath` quita las
-rutas de construcción. Evidencia en `/tmp/opencode/wacli-groups-round4-repro-final/`:
+rutas de construcción. Evidencia en `/tmp/opencode/wacli-groups-round5-repro/`:
 `a/` y `b/` contienen clone/build/verify logs, build-info y ejecutable;
 `sha256.log` registra el digest idéntico de ambos y `toolchain.txt` el toolchain.
 `cmp a/wacli b/wacli` pasó. No se requiere un directorio hermano whatsmeow.
@@ -409,14 +461,14 @@ bajo `/tmp/opencode`:
 
 ```bash
 set -euo pipefail
-ROOT=/tmp/opencode/wacli-groups-rebuild-round4
+ROOT=/tmp/opencode/wacli-groups-rebuild-round5
 test ! -e "$ROOT"
 mkdir -m0700 "$ROOT"
 for side in a b; do
   mkdir "$ROOT/$side"
   git clone --single-branch --branch vendas/fotos-acks-qr-groups \
     https://github.com/nicolasbiondic/wacli.git "$ROOT/$side/src"
-  git -C "$ROOT/$side/src" checkout --detach e0f3fb40033ffd7ec10f12c7c26d736bd9af2ef2
+  git -C "$ROOT/$side/src" checkout --detach f9afe32fe867f60bd8cb5e7178e426ea5a1dc987
   test -z "$(git -C "$ROOT/$side/src" status --porcelain)"
   bash /tmp/opencode/wait-load.sh 1400
   TMPDIR=/tmp/opencode GOWORK=off GOFLAGS= \
@@ -424,7 +476,7 @@ for side in a b; do
   GOPROXY=https://proxy.golang.org,direct \
   CGO_ENABLED=1 CGO_CFLAGS=-Wno-error=missing-braces \
     go -C "$ROOT/$side/src" build -p 4 -trimpath -tags sqlite_fts5 \
-      -ldflags '-X main.version=0.24.0+vendas.e0f3fb4.502.496.lid.settle.fotos.acks.qr.groups' \
+      -ldflags '-X main.version=0.24.0+vendas.f9afe32.502.496.lid.settle.fotos.acks.qr.groups' \
       -o "$ROOT/$side/wacli" ./cmd/wacli
   GOMODCACHE="$ROOT/$side/modules" GOWORK=off go -C "$ROOT/$side/src" mod verify
   go version -m "$ROOT/$side/wacli"
@@ -450,7 +502,7 @@ temporales; la fixture de ejecutables FTS se ejecuta con `sqlite_fts5`):
 bash /tmp/opencode/wait-load.sh 1400
 TMPDIR=/tmp/opencode CGO_ENABLED=1 CGO_CFLAGS=-Wno-error=missing-braces \
 WACLI_COMPAT_BIN=/home/xubuntu/.local/share/wacli-diag/0.24.0-vendas-fotos-acks-b37c8f109faa/wacli \
-WACLI_NEW_BIN=/home/xubuntu/.local/share/wacli-diag/0.24.0-vendas-fotos-acks-qr-groups-c4dbf28208c0/wacli \
+WACLI_NEW_BIN=/home/xubuntu/.local/share/wacli-diag/0.24.0-vendas-fotos-acks-qr-groups-896f1f246060/wacli \
   go test -count=1 -v -tags sqlite_fts5 ./internal/store \
   -run 'TestQuickReplies.*(Previous|Rollback)'
 ```
