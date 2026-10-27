@@ -57,7 +57,7 @@ func TestQuickRepliesUpsertOrderingAndResolution(t *testing.T) {
 	}
 }
 
-func TestQuickRepliesCompletenessFollowsRegularFullSyncEvents(t *testing.T) {
+func TestQuickRepliesCompletenessRequiresRegularCompletion(t *testing.T) {
 	db := openTestDB(t)
 	got, err := db.QuickReplies()
 	if err != nil || got.Completeness != "incomplete" {
@@ -67,8 +67,39 @@ func TestQuickRepliesCompletenessFollowsRegularFullSyncEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err = db.QuickReplies()
+	if err != nil || got.Completeness != "incomplete" {
+		t.Fatalf("partial full sync = %+v, %v", got, err)
+	}
+	if err := db.MarkRegularFullSyncComplete(); err != nil {
+		t.Fatal(err)
+	}
+	got, err = db.QuickReplies()
 	if err != nil || got.Completeness != "complete" {
 		t.Fatalf("after full sync = %+v, %v", got, err)
+	}
+}
+
+func TestQuickRepliesLegacySeenFlagDoesNotProveCompletion(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "wacli.db")
+	db := mustOpen(t, path)
+	if _, err := db.sql.Exec(`DROP TABLE list_sync_state;
+		CREATE TABLE list_sync_state(id INTEGER PRIMARY KEY,full_sync_events_seen INTEGER NOT NULL DEFAULT 0);
+		INSERT INTO list_sync_state VALUES(1,1)`); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	ro, err := OpenReadOnly(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := ro.QuickReplies(); err != nil || got.Completeness != "incomplete" {
+		t.Fatalf("legacy read-only = %+v, %v", got, err)
+	}
+	ro.Close()
+	db = mustOpen(t, path)
+	defer db.Close()
+	if got, err := db.QuickReplies(); err != nil || got.Completeness != "incomplete" {
+		t.Fatalf("legacy upgrade = %+v, %v", got, err)
 	}
 }
 

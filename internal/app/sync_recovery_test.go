@@ -497,6 +497,9 @@ func TestFailedAppStateReplayPersistsIntentAndRecoversAtStartup(t *testing.T) {
 		var fullFetches, deltas int
 		client := &appStateContextWA{fakeWA: newFakeWA()}
 		client.fetchEvents = func(_ context.Context, collection string, full, _ bool) ([]any, error) {
+			if collection == string(appstate.WAPatchRegular) && full {
+				return []any{&events.AppStateSyncComplete{Name: appstate.WAPatchRegular}}, nil
+			}
 			if collection != name || !full {
 				t.Fatalf("recovery fetch = %s, full=%v", collection, full)
 			}

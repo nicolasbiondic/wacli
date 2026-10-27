@@ -1148,6 +1148,8 @@ func tableInfoPragma(table string) (string, error) {
 		return `PRAGMA table_info("messages_fts")`, nil
 	case "status_messages":
 		return `PRAGMA table_info("status_messages")`, nil
+	case "list_sync_state":
+		return `PRAGMA table_info("list_sync_state")`, nil
 	default:
 		return "", fmt.Errorf("unsupported table %q", table)
 	}

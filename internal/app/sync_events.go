@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"runtime/debug"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -345,7 +346,12 @@ func (a *App) handleAppStatePersistenceEvent(ctx context.Context, evt any, onPer
 			map[string]any{"error": markerErr.Error()},
 		)
 		persistCtx := context.WithoutCancel(ctx)
-		firstErr := a.persistAppStateEvent(persistCtx, evt, nil)
+		var firstErr error
+		// Regular completeness must only change at its ordered position, even
+		// when durable recovery bookkeeping temporarily fails.
+		if !slices.Contains(appStateCollectionsForEvent(evt), appstate.WAPatchRegular) {
+			firstErr = a.persistAppStateEvent(persistCtx, evt, nil)
+		}
 		retryMarkers, retryErr := a.markLiveAppStateRecovery(evt)
 		if retryErr != nil {
 			a.emitWarning(
@@ -417,30 +423,46 @@ func (a *App) clearLiveAppStateRecovery(markers []appStateRecoveryMarker) {
 
 func (a *App) persistAppStateEvent(ctx context.Context, evt any, tracker *appStatePersistenceTracker) error {
 	var err error
-	switch v := evt.(type) {
-	case *events.AppStateSyncComplete:
-		if isRegularFullSyncSentinel(v) {
-			err = a.db.MarkRegularFullSyncEventsSeen()
-		} else {
+	if isRegularFullSyncEvent(evt) {
+		err = a.db.InvalidateRegularFullSync()
+	}
+	if err == nil {
+		switch v := evt.(type) {
+		case *events.AppStateSyncComplete:
+			if isRegularFullSyncSentinel(v) {
+				if a.regularFullSyncFailed {
+					err = fmt.Errorf("regular full sync has unpersisted events; completeness remains incomplete")
+				} else {
+					err = a.db.MarkRegularFullSyncComplete()
+				}
+				a.regularFullSyncFailed = false
+			} else {
+				err = a.handleChatStateEvent(ctx, v)
+			}
+		case *events.AppState:
+			if isQuickReplyEvent(v) {
+				err = a.handleQuickReplyEvent(v)
+			} else {
+				err = a.handleLiveCallEvent(ctx, v)
+			}
+		case *events.Star:
+			err = a.handleStarEvent(ctx, v)
+		case *events.DeleteForMe:
+			err = a.handleDeleteForMeEvent(ctx, v)
+		case *events.Archive, *events.UnarchiveChatsSetting,
+			*events.Pin, *events.Mute, *events.MarkChatAsRead:
 			err = a.handleChatStateEvent(ctx, v)
+		case *events.Contact:
+			err = a.handleContactEvent(ctx, v)
+		case *events.LabelEdit, *events.LabelAssociationChat:
+			err = a.handleListEvent(ctx, v)
 		}
-	case *events.AppState:
-		if isQuickReplyEvent(v) {
-			err = a.handleQuickReplyEvent(v)
-		} else {
-			err = a.handleLiveCallEvent(ctx, v)
+	}
+	if err != nil && slices.Contains(appStateCollectionsForEvent(evt), appstate.WAPatchRegular) {
+		if _, sentinel := evt.(*events.AppStateSyncComplete); !sentinel {
+			a.regularFullSyncFailed = true
 		}
-	case *events.Star:
-		err = a.handleStarEvent(ctx, v)
-	case *events.DeleteForMe:
-		err = a.handleDeleteForMeEvent(ctx, v)
-	case *events.Archive, *events.UnarchiveChatsSetting,
-		*events.Pin, *events.Mute, *events.MarkChatAsRead:
-		err = a.handleChatStateEvent(ctx, v)
-	case *events.Contact:
-		err = a.handleContactEvent(ctx, v)
-	case *events.LabelEdit, *events.LabelAssociationChat:
-		err = a.handleListEvent(ctx, v)
+		err = errors.Join(err, a.db.InvalidateRegularFullSync())
 	}
 	if tracker != nil {
 		tracker.record(err)
@@ -449,6 +471,17 @@ func (a *App) persistAppStateEvent(ctx context.Context, evt any, tracker *appSta
 		a.observeArchiveEvent(ctx, evt, true)
 	}
 	return err
+}
+
+func isRegularFullSyncEvent(evt any) bool {
+	switch v := evt.(type) {
+	case *events.LabelEdit:
+		return v != nil && v.FromFullSync
+	case *events.LabelAssociationChat:
+		return v != nil && v.FromFullSync
+	default:
+		return false
+	}
 }
 
 // isRegularFullSyncSentinel reports whether evt closes a full sync of the

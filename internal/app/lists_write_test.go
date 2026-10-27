@@ -65,6 +65,7 @@ func TestCreateLabelUsesNextIDAfterPreWriteSync(t *testing.T) {
 	a, f := newLabelWriteApp(t,
 		labelEvent("3", "Old", at, true, nil),
 		labelEvent("5", "Gone", at, true, func(l *waSyncAction.LabelEditAction) { l.Deleted = proto.Bool(true) }),
+		&events.AppStateSyncComplete{Name: appstate.WAPatchRegular},
 	)
 	// A label created on the phone arrives with the pre-write fetch; the new
 	// ID must be computed after it is persisted, not from a stale index.
@@ -120,7 +121,7 @@ func TestCreateLabelRefusesGuessingIDWithoutFullSync(t *testing.T) {
 func TestCreateLabelFollowsCustomListModel(t *testing.T) {
 	a, f := newLabelWriteApp(t, labelEvent("3", "Custom", time.Unix(100, 0), true, func(l *waSyncAction.LabelEditAction) {
 		l.Type = waSyncAction.LabelEditAction_CUSTOM.Enum()
-	}))
+	}), &events.AppStateSyncComplete{Name: appstate.WAPatchRegular})
 	if _, err := a.CreateLabel(t.Context(), LabelInput{Name: proto.String("Prueba")}); err != nil {
 		t.Fatal(err)
 	}

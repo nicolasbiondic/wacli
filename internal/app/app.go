@@ -134,6 +134,7 @@ type App struct {
 	status                  *syncStatus
 	chatStateSync           chan struct{}
 	appStatePersist         appStatePersistenceSequencer
+	regularFullSyncFailed   bool // Accessed only by the ordered app-state writer.
 	archiveObservationMu    sync.Mutex
 	archiveObserved         map[string]int64
 	archiveSettingObserved  *events.UnarchiveChatsSetting

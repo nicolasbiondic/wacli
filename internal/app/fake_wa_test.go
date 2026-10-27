@@ -999,6 +999,9 @@ func (f *fakeWA) FetchAppState(ctx context.Context, name string, fullSync, onlyI
 			f.emit(evt)
 		}
 	}
+	if fullSync && name == string(appstate.WAPatchRegular) {
+		f.emit(&events.AppStateSyncComplete{Name: appstate.WAPatchRegular})
+	}
 	return nil
 }
 
@@ -1023,14 +1026,18 @@ func (f *fakeWA) FetchAppStateEvents(ctx context.Context, name string, fullSync,
 		}
 		return nil, err
 	}
-	if eventCB == nil {
-		return nil, nil
+	var captured []any
+	if eventCB != nil {
+		if evt := eventCB(name, fullSync, onlyIfNotSynced); evt != nil {
+			captured = append(captured, evt)
+		}
 	}
-	evt := eventCB(name, fullSync, onlyIfNotSynced)
-	if evt == nil {
-		return nil, nil
+	// Model the SDK's actual ordered boundary, including empty regular full
+	// snapshots. A successful fetch alone must never imply completeness.
+	if fullSync && name == string(appstate.WAPatchRegular) {
+		captured = append(captured, &events.AppStateSyncComplete{Name: appstate.WAPatchRegular})
 	}
-	return []any{evt}, nil
+	return captured, nil
 }
 
 func (f *fakeWA) Logout(ctx context.Context) error {

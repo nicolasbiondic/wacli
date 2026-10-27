@@ -21,10 +21,21 @@ func migrateLists(d *DB) error {
 		);
 		CREATE INDEX IF NOT EXISTS idx_chat_lists_list ON chat_lists(list_id, labeled, chat_jid);
 		CREATE TABLE IF NOT EXISTS list_sync_state (
-			id INTEGER PRIMARY KEY CHECK(id=1), full_sync_events_seen INTEGER NOT NULL DEFAULT 0
+			id INTEGER PRIMARY KEY CHECK(id=1), full_sync_events_seen INTEGER NOT NULL DEFAULT 0,
+			full_sync_complete INTEGER NOT NULL DEFAULT 0
 		);
 		INSERT OR IGNORE INTO list_sync_state(id) VALUES(1);
 	`)
+	if err != nil {
+		return err
+	}
+	// Legacy builds set events_seen on the first mutation, not on completion.
+	// Never promote that bit when upgrading an existing index.
+	has, err := d.tableHasColumn("list_sync_state", "full_sync_complete")
+	if err != nil || has {
+		return err
+	}
+	_, err = d.sql.Exec(`ALTER TABLE list_sync_state ADD COLUMN full_sync_complete INTEGER NOT NULL DEFAULT 0`)
 	return err
 }
 
@@ -62,14 +73,30 @@ func recordListFullSync(tx *sql.Tx, full bool) error {
 	if !full {
 		return nil
 	}
-	_, err := tx.Exec(`UPDATE list_sync_state SET full_sync_events_seen=1 WHERE id=1`)
+	_, err := tx.Exec(`UPDATE list_sync_state SET full_sync_events_seen=1,full_sync_complete=0 WHERE id=1`)
 	return err
 }
 
-// MarkRegularFullSyncEventsSeen also records verified empty regular snapshots.
-func (d *DB) MarkRegularFullSyncEventsSeen() error {
-	_, err := d.sql.Exec(`UPDATE list_sync_state SET full_sync_events_seen=1 WHERE id=1`)
+// MarkRegularFullSyncComplete is only called at a successfully persisted,
+// ordered regular completion sentinel, including a verified empty snapshot.
+func (d *DB) MarkRegularFullSyncComplete() error {
+	_, err := d.sql.Exec(`UPDATE list_sync_state SET full_sync_events_seen=1,full_sync_complete=1 WHERE id=1`)
 	return err
+}
+
+func (d *DB) InvalidateRegularFullSync() error {
+	_, err := d.sql.Exec(`UPDATE list_sync_state SET full_sync_complete=0 WHERE id=1`)
+	return err
+}
+
+func (d *DB) RegularFullSyncComplete() (bool, error) {
+	has, err := d.tableHasColumn("list_sync_state", "full_sync_complete")
+	if err != nil || !has {
+		return false, err
+	}
+	var complete bool
+	err = d.sql.QueryRow(`SELECT full_sync_complete FROM list_sync_state WHERE id=1`).Scan(&complete)
+	return complete, err
 }
 
 func (d *DB) UpsertList(p ListUpdate) error {

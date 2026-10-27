@@ -223,7 +223,16 @@ func (a *App) syncAppStateDeltas(ctx context.Context, recoveries *sync.Map) {
 			continue
 		}
 		fullSync := name == appstate.WAPatchRegular
-		if err := a.wa.FetchAppState(ctx, string(name), fullSync, false); err != nil {
+		var err error
+		if fullSync {
+			// Capture the whole regular snapshot and its sentinel, then persist
+			// them in order. Generic quick-reply events have no FromFullSync bit.
+			fetchErr, persistErr := a.fetchAndPersistAppState(ctx, name, true, &appStatePersistenceTracker{})
+			err = errors.Join(fetchErr, persistErr)
+		} else {
+			err = a.wa.FetchAppState(ctx, string(name), false, false)
+		}
+		if err != nil {
 			if errors.Is(err, wa.ErrEmptyAppStateKeyShare) {
 				a.handleAppStateSyncError(ctx, &events.AppStateSyncError{Name: name, FullSync: fullSync, Error: err}, recoveries)
 				continue

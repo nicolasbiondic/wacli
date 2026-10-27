@@ -110,7 +110,11 @@ func (a *App) CreateLabel(ctx context.Context, in LabelInput) (store.List, error
 			}
 		}
 		if id == "" {
-			if !index.FullSyncEventsSeen {
+			complete, err := a.db.RegularFullSyncComplete()
+			if err != nil {
+				return appstate.PatchInfo{}, nil, err
+			}
+			if !complete {
 				return appstate.PatchInfo{}, nil, fmt.Errorf("the local label index has not seen a full sync, so the next label ID could overwrite a label it never saw; pass --id with an unused ID")
 			}
 			maxID, err := a.db.MaxNumericListID()

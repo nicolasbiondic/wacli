@@ -67,17 +67,17 @@ func (d *DB) UpsertQuickReply(q QuickReply, at time.Time) error {
 // QuickReplies returns the observed, not deleted quick replies.
 func (d *DB) QuickReplies() (QuickRepliesResult, error) {
 	result := QuickRepliesResult{QuickReplies: []QuickReply{}, Completeness: "incomplete"}
-	lists, err := d.Lists()
+	complete, err := d.RegularFullSyncComplete()
 	if err != nil {
 		return result, err
-	}
-	if lists.FullSyncEventsSeen {
-		result.Completeness = "complete"
 	}
 	// Read-only opens never migrate, so tolerate a store without the table.
 	exists, err := d.tableExists("quick_replies")
 	if err != nil || !exists {
 		return result, err
+	}
+	if complete {
+		result.Completeness = "complete"
 	}
 	rows, err := d.sql.Query(`SELECT id,shortcut,message,keywords,label_ids,count,deleted FROM quick_replies WHERE deleted=0 ORDER BY shortcut,id`)
 	if err != nil {

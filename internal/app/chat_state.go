@@ -503,11 +503,6 @@ func (a *App) recoverMismatchingAppState(ctx context.Context, collection appstat
 	if recoveryErr != nil {
 		return recoveryErr
 	}
-	if collection == appstate.WAPatchRegular {
-		if err := a.db.MarkRegularFullSyncEventsSeen(); err != nil {
-			return err
-		}
-	}
 	return a.clearCompletedAppStateRecovery(collection, markerGeneration)
 }
 
@@ -690,12 +685,6 @@ func (a *App) runLateAppStateRecovery(collection appstate.WAPatchName, cont *lat
 		a.warnAppStateRecovery(string(collection), fmt.Errorf("persist late recovered app state %s: %w", collection, persistenceErr))
 		return
 	}
-	if collection == appstate.WAPatchRegular {
-		if err := a.db.MarkRegularFullSyncEventsSeen(); err != nil {
-			a.warnAppStateRecovery(string(collection), err)
-			return
-		}
-	}
 	if err := a.clearCompletedAppStateRecovery(collection, cont.generation); err != nil {
 		a.warnAppStateRecovery(string(collection), err)
 		return
@@ -737,10 +726,11 @@ func (a *App) fetchAndPersistAppState(ctx context.Context, collection appstate.W
 		if collection == appstate.WAPatchCriticalUnblockLow {
 			persistCtx = context.WithoutCancel(ctx)
 		}
-		persistErr := a.persistFetchedAppStateEvents(persistCtx, eventsToPersist, tracker)
-		if persistErr == nil && fetchErr == nil && fullSync && collection == appstate.WAPatchRegular {
-			persistErr = a.db.MarkRegularFullSyncEventsSeen()
+		var persistErr error
+		if fullSync && collection == appstate.WAPatchRegular {
+			persistErr = a.db.InvalidateRegularFullSync()
 		}
+		persistErr = errors.Join(persistErr, a.persistFetchedAppStateEvents(persistCtx, eventsToPersist, tracker))
 		if collection == appstate.WAPatchCriticalUnblockLow {
 			// Drain even without events or after fetch cancellation: SDK store
 			// writes precede event delivery and must retain their canonical JID.
@@ -869,6 +859,17 @@ func (a *App) completeLocalAppStateWrite(ctx context.Context, pending *pendingLo
 }
 
 func (a *App) persistFetchedAppStateEvents(ctx context.Context, eventsToPersist []any, tracker *appStatePersistenceTracker) error {
+	// A captured verified snapshot is a new attempt. Its sentinel is part of
+	// this batch, never an inferred consequence of a successful fetch call.
+	for _, evt := range eventsToPersist {
+		if sentinel, ok := evt.(*events.AppStateSyncComplete); ok && isRegularFullSyncSentinel(sentinel) {
+			a.regularFullSyncFailed = false
+			if err := a.db.InvalidateRegularFullSync(); err != nil {
+				return err
+			}
+			break
+		}
+	}
 	tracker.begin()
 	for _, evt := range eventsToPersist {
 		if _, completion := evt.(*events.AppStateSyncComplete); completion && tracker.failed() {
@@ -876,6 +877,9 @@ func (a *App) persistFetchedAppStateEvents(ctx context.Context, eventsToPersist 
 			// the store. After a failed write the replay debt and the archive
 			// recovery stay armed, so the retried snapshot applies the
 			// original action instead of meeting a boundary stamped here.
+			if isRegularFullSyncSentinel(evt.(*events.AppStateSyncComplete)) {
+				a.regularFullSyncFailed = false
+			}
 			continue
 		}
 		a.persistAppStateEvent(ctx, evt, tracker)
