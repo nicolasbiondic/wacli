@@ -95,7 +95,7 @@ func (d *DB) RegularFullSyncComplete() (bool, error) {
 		return false, err
 	}
 	var complete bool
-	err = d.sql.QueryRow(`SELECT full_sync_complete FROM list_sync_state WHERE id=1`).Scan(&complete)
+	err = d.readQuery().QueryRow(`SELECT full_sync_complete FROM list_sync_state WHERE id=1`).Scan(&complete)
 	return complete, err
 }
 
@@ -157,6 +157,16 @@ func (d *DB) SetChatList(chat, id string, labeled bool, at time.Time, fullSync b
 // is complete. A full-sync event alone cannot prove a verified empty snapshot.
 func (d *DB) Lists() (ListsResult, error) {
 	result := ListsResult{Lists: []List{}, Completeness: "unknown"}
+	err := d.ReadView(func(view *DB) error {
+		var err error
+		result, err = view.listsView()
+		return err
+	})
+	return result, err
+}
+
+func (d *DB) listsView() (ListsResult, error) {
+	result := ListsResult{Lists: []List{}, Completeness: "unknown"}
 	// Read-only opens never migrate, so tolerate a missing or half-created schema.
 	for _, table := range []string{"lists", "list_sync_state"} {
 		exists, err := d.tableExists(table)
@@ -164,10 +174,10 @@ func (d *DB) Lists() (ListsResult, error) {
 			return result, err
 		}
 	}
-	if err := d.sql.QueryRow(`SELECT full_sync_events_seen FROM list_sync_state WHERE id=1`).Scan(&result.FullSyncEventsSeen); err != nil {
+	if err := d.readQuery().QueryRow(`SELECT full_sync_events_seen FROM list_sync_state WHERE id=1`).Scan(&result.FullSyncEventsSeen); err != nil {
 		return result, err
 	}
-	rows, err := d.sql.Query(`SELECT id,COALESCE(name,''),color,predefined_id,type,order_index,is_active,is_immutable
+	rows, err := d.readQuery().Query(`SELECT id,COALESCE(name,''),color,predefined_id,type,order_index,is_active,is_immutable
 		FROM lists WHERE deleted=0 ORDER BY COALESCE(order_index,0),name,id`)
 	if err != nil {
 		return result, err
@@ -258,7 +268,7 @@ func (d *DB) ListByID(id string) (ListRecord, bool, error) {
 		return ListRecord{}, false, err
 	}
 	var r ListRecord
-	err = d.sql.QueryRow(`SELECT id,COALESCE(name,''),color,predefined_id,type,order_index,is_active,is_immutable,deleted
+	err = d.readQuery().QueryRow(`SELECT id,COALESCE(name,''),color,predefined_id,type,order_index,is_active,is_immutable,deleted
 		FROM lists WHERE id=?`, id).Scan(&r.ID, &r.Name, &r.Color, &r.PredefinedID, &r.Type, &r.OrderIndex, &r.IsActive, &r.IsImmutable, &r.Deleted)
 	if err == sql.ErrNoRows {
 		return ListRecord{}, false, nil
@@ -278,7 +288,7 @@ func (d *DB) MaxNumericListID() (int64, error) {
 		return 0, err
 	}
 	var maxID sql.NullInt64
-	err = d.sql.QueryRow(`SELECT MAX(CAST(id AS INTEGER)) FROM lists WHERE id GLOB '[0-9]*' AND id NOT GLOB '*[^0-9]*'`).Scan(&maxID)
+	err = d.readQuery().QueryRow(`SELECT MAX(CAST(id AS INTEGER)) FROM lists WHERE id GLOB '[0-9]*' AND id NOT GLOB '*[^0-9]*'`).Scan(&maxID)
 	return maxID.Int64, err
 }
 

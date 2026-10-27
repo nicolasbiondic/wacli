@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/openclaw/wacli/internal/store"
 	"github.com/openclaw/wacli/internal/wa"
 	"go.mau.fi/whatsmeow/appstate"
 	"go.mau.fi/whatsmeow/types"
@@ -51,15 +52,20 @@ func (a *App) ResyncAppState(ctx context.Context, name string, force bool) (AppS
 	if err := a.replayRequiredAppState(ctx, appstate.WAPatchRegular, generation, &appStatePersistenceTracker{}); err != nil {
 		return AppStateResyncResult{}, err
 	}
-	replies, err := a.db.QuickReplies()
-	if err != nil {
-		return AppStateResyncResult{}, err
-	}
-	lists, err := a.db.Lists()
-	if err != nil {
-		return AppStateResyncResult{}, err
-	}
-	return AppStateResyncResult{Collection: name, Completeness: replies.Completeness, QuickReplies: len(replies.QuickReplies), Lists: len(lists.Lists)}, nil
+	var result AppStateResyncResult
+	err = a.db.ReadView(func(view *store.DB) error {
+		replies, err := view.QuickReplies()
+		if err != nil {
+			return err
+		}
+		lists, err := view.Lists()
+		if err != nil {
+			return err
+		}
+		result = AppStateResyncResult{Collection: name, Completeness: replies.Completeness, QuickReplies: len(replies.QuickReplies), Lists: len(lists.Lists)}
+		return nil
+	})
+	return result, err
 }
 
 func (a *App) handleAppStateSyncError(ctx context.Context, evt *events.AppStateSyncError, recoveries *sync.Map) {

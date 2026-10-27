@@ -100,32 +100,39 @@ func (a *App) CreateLabel(ctx context.Context, in LabelInput) (store.List, error
 	}
 	var created store.List
 	err := a.writeRegularAppState(ctx, func(at time.Time) (appstate.PatchInfo, func() error, error) {
-		index, err := a.db.Lists()
-		if err != nil {
-			return appstate.PatchInfo{}, nil, err
-		}
-		for _, l := range index.Lists {
-			if l.Name == *in.Name {
-				return appstate.PatchInfo{}, nil, fmt.Errorf("a label named %q already exists (ID %s); use `lists edit`", l.Name, l.ID)
-			}
-		}
-		if id == "" {
-			complete, err := a.db.RegularFullSyncComplete()
+		var index store.ListsResult
+		if err := a.db.ReadView(func(view *store.DB) error {
+			var err error
+			index, err = view.Lists()
 			if err != nil {
-				return appstate.PatchInfo{}, nil, err
+				return err
 			}
-			if !complete {
-				return appstate.PatchInfo{}, nil, fmt.Errorf("the local label index has not seen a full sync, so the next label ID could overwrite a label it never saw; pass --id with an unused ID")
+			for _, l := range index.Lists {
+				if l.Name == *in.Name {
+					return fmt.Errorf("a label named %q already exists (ID %s); use `lists edit`", l.Name, l.ID)
+				}
 			}
-			maxID, err := a.db.MaxNumericListID()
-			if err != nil {
-				return appstate.PatchInfo{}, nil, err
+			if id == "" {
+				complete, err := view.RegularFullSyncComplete()
+				if err != nil {
+					return err
+				}
+				if !complete {
+					return fmt.Errorf("the local label index has not seen a full sync, so the next label ID could overwrite a label it never saw; pass --id with an unused ID")
+				}
+				maxID, err := view.MaxNumericListID()
+				if err != nil {
+					return err
+				}
+				id = strconv.FormatInt(maxID+1, 10)
+			} else if existing, found, err := view.ListByID(id); err != nil {
+				return err
+			} else if found {
+				return fmt.Errorf("label ID %s is already used by %q; use `lists edit`", id, existing.Name)
 			}
-			id = strconv.FormatInt(maxID+1, 10)
-		} else if existing, found, err := a.db.ListByID(id); err != nil {
+			return nil
+		}); err != nil {
 			return appstate.PatchInfo{}, nil, err
-		} else if found {
-			return appstate.PatchInfo{}, nil, fmt.Errorf("label ID %s is already used by %q; use `lists edit`", id, existing.Name)
 		}
 		color := int32(0)
 		if in.Color != nil {

@@ -1090,7 +1090,7 @@ func migrateMessagesFTS(d *DB) error {
 }
 
 func (d *DB) tableExists(table string) (bool, error) {
-	row := d.sql.QueryRow(`SELECT 1 FROM sqlite_master WHERE name = ? AND type IN ('table','view')`, table)
+	row := d.readQuery().QueryRow(`SELECT 1 FROM sqlite_master WHERE name = ? AND type IN ('table','view')`, table)
 	var one int
 	if err := row.Scan(&one); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -1109,7 +1109,7 @@ func (d *DB) tableHasColumn(table, column string) (bool, error) {
 	if !isSQLiteIdentifier(column) {
 		return false, fmt.Errorf("tableHasColumn column: invalid SQLite identifier %q", column)
 	}
-	rows, err := d.sql.Query(query)
+	rows, err := d.readQuery().Query(query)
 	if err != nil {
 		return false, err
 	}

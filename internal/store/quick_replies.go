@@ -67,6 +67,16 @@ func (d *DB) UpsertQuickReply(q QuickReply, at time.Time) error {
 // QuickReplies returns the observed, not deleted quick replies.
 func (d *DB) QuickReplies() (QuickRepliesResult, error) {
 	result := QuickRepliesResult{QuickReplies: []QuickReply{}, Completeness: "incomplete"}
+	err := d.ReadView(func(view *DB) error {
+		var err error
+		result, err = view.quickRepliesView()
+		return err
+	})
+	return result, err
+}
+
+func (d *DB) quickRepliesView() (QuickRepliesResult, error) {
+	result := QuickRepliesResult{QuickReplies: []QuickReply{}, Completeness: "incomplete"}
 	complete, err := d.RegularFullSyncComplete()
 	if err != nil {
 		return result, err
@@ -79,7 +89,7 @@ func (d *DB) QuickReplies() (QuickRepliesResult, error) {
 	if complete {
 		result.Completeness = "complete"
 	}
-	rows, err := d.sql.Query(`SELECT id,shortcut,message,keywords,label_ids,count,deleted FROM quick_replies WHERE deleted=0 ORDER BY shortcut,id`)
+	rows, err := d.readQuery().Query(`SELECT id,shortcut,message,keywords,label_ids,count,deleted FROM quick_replies WHERE deleted=0 ORDER BY shortcut,id`)
 	if err != nil {
 		return result, err
 	}
