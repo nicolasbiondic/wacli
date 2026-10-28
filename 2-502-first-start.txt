@@ -1,0 +1,41 @@
+$ wacli-502 --store "$STORE" sync --follow   # #502 head ff0d05e, stock whatsmeow
+warning: sync storage is uncapped; use --max-messages or --max-db-size to bound local history growth
+app state regular_low: requested recovery snapshot from the primary in the background (id 3EB091506C544EA3C5EC9A)
+
+Connected.
+warning: settled legacy chat archive boundaries after incremental sync; full sync is broken and any snapshot debt remains pending
+
+Replaying offline backlog: 3 message(s), 10 event(s) total.
+
+Offline backlog replayed (9 event(s)).
+
+Shutting down (interrupt again to force quit)...
+
+Stopping sync.
+Messages stored: 6
+# no full regular_low replay: background snapshot request, incremental sync, conservative settlement
+
+$ python3 state.py "$STORE"
+{
+ "wacli_tables_app_state": [
+  "app_state_full_sync_broken",
+  "app_state_recovery_intents",
+  "chat_archive_setting",
+  "unavailable_app_state_keys"
+ ],
+ "chats": 22,
+ "archived_chats": 2,
+ "rows:app_state_full_sync_broken": 2,
+ "rows:app_state_recovery_intents": 0,
+ "rows:chat_archive_setting": 1,
+ "rows:unavailable_app_state_keys": 0,
+ "regular_low_version": [
+  [
+   63,
+   "AE6CF6E9F761"
+  ]
+ ],
+ "regular_low_mutation_macs": 679
+}
+# same version, MACs, chats and archived chats; only the new archive-setting row
+

@@ -1,0 +1,17 @@
+$ wacli-502 --store "$STORE" sync --follow   # restart
+warning: sync storage is uncapped; use --max-messages or --max-db-size to bound local history growth
+
+Connected.
+
+Offline backlog replayed (0 event(s)).
+
+Shutting down (interrupt again to force quit)...
+
+Stopping sync.
+Messages stored: 0
+# settled: no new snapshot request, no replay
+
+$ diff state-after-first-start.json state-after-restart.json
+
+# identical
+

@@ -1,0 +1,32 @@
+$ wacli-0.22.0 --store "$STORE" auth --phone  --history-days 1
+warning: failed to sync WhatsApp app state regular_low: failed to decode app state regular_low patches: failed to verify snapshot: failed to get key 000000007ACF to verify patch v62 MACs: didn't find app state key
+23:49:58.312 [Client ERROR] Failed to do initial fetch of app state regular_low: failed to decode app state regular_low patches: failed to verify snapshot: failed to verify patch v62: mismatching LTHash
+warning: app state regular_low hit an LTHash mismatch; attempting full sync
+warning: app state regular_low full sync failed: failed to decode app state regular_low patches: failed to verify snapshot: failed to verify patch v62: mismatching LTHash; requesting recovery snapshot
+Requested app state regular_low recovery (id 3EB0EB2DBD80B050A99F39)
+Idle for 1m0s, exiting.
+Authenticated. Messages stored: 3491
+# stock v0.22.0 (before the Keep-chats-archived recovery); this account's regular_low snapshot does not verify
+
+$ python3 state.py "$STORE"
+{
+ "wacli_tables_app_state": [
+  "app_state_full_sync_broken",
+  "app_state_recovery_intents",
+  "unavailable_app_state_keys"
+ ],
+ "chats": 22,
+ "archived_chats": 2,
+ "rows:app_state_full_sync_broken": 2,
+ "rows:app_state_recovery_intents": 0,
+ "rows:unavailable_app_state_keys": 0,
+ "regular_low_version": [
+  [
+   63,
+   "AE6CF6E9F761"
+  ]
+ ],
+ "regular_low_mutation_macs": 679
+}
+# regular_low v63, 679 mutation MACs, 2 archived chats
+
