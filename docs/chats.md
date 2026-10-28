@@ -98,8 +98,8 @@ always refuse and point to `sync --follow` primary recovery: stock whatsmeow
 discards saved collection state before a full sync verifies. Keep the primary
 online for recovery; resync does not bypass verification or guarantee repair.
 
-The next writable open adds migration **34**, the next free number on current
-main (33). The schema guard also handles occupied migration rows from other
+The next writable open adds migration **38**; 34-37 are claimed by open PRs
+(stickers, ad referrals, lists, message kinds). The schema guard also handles occupied migration rows from other
 builds/open PRs without overwriting their data or version entries. This feature
 does not depend on the Lists prerequisite or implement any label commands.
 

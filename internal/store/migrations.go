@@ -47,9 +47,10 @@ var schemaMigrations = []migration{
 	{version: 31, name: "content-free message change journal", up: migrateChanges},
 	{version: 32, name: "message receipt retrieval revisions", up: migrateReceiptRetrieval},
 	{version: 33, name: "ordered chat auto-unarchive", up: migrateChatAutoUnarchive},
-	// Next free on main. ensureCurrentSchema also repairs stores whose version
-	// rows are occupied by other builds, including open-PR claims at 34-37.
-	{version: 34, name: "WhatsApp Business quick replies", up: migrateQuickReplies},
+	// 34-37 are claimed by open PRs (stickers, ad referrals, lists, message
+	// kinds). ensureCurrentSchema also repairs stores whose version rows are
+	// occupied by other builds.
+	{version: 38, name: "WhatsApp Business quick replies", up: migrateQuickReplies},
 }
 
 func migratePlaceholderChatActivity(d *DB) error {

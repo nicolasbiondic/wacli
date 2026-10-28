@@ -66,7 +66,7 @@ func TestQuickReplyMigrationCollisionAndReadOnlyUpgrade(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "wacli.db")
 			db := mustOpen(t, path)
 			if _, err := db.sql.Exec(`DROP TABLE quick_replies; DROP TABLE quick_reply_sync_state;
-			DELETE FROM schema_migrations WHERE version IN (34,?);
+			DELETE FROM schema_migrations WHERE version IN (38,?);
 			INSERT INTO schema_migrations(version,name,applied_at) VALUES(?,'foreign owner',1);
 			CREATE TABLE list_sync_state(id INTEGER PRIMARY KEY, full_sync_events_seen INTEGER);
 			INSERT INTO list_sync_state VALUES(1,1);`, version, version); err != nil {
