@@ -5,6 +5,17 @@
 - Lists: persist WhatsApp List/Business label definitions and chat membership events; add read-only `lists list` (`labels list`) and `chats list --list ID_OR_NAME`, with explicit unknown completeness and LID/phone membership reconciliation. Message memberships and favorites/system-list filtering remain out of scope.
 - Labels and quick replies: add `lists create|edit|delete` (`labels ...`), `chats label add|remove` and `quick-replies list|create|edit|delete`, sent as `regular` app-state patches after a pre-write sync and delegated to a running `sync --follow` like archiving. Quick replies seen during sync are now stored (migration 38). New label IDs are only guessed after a full sync was observed (otherwise pass `--id`); LID-only chats cannot be labeled yet.
 - Quick replies: send action version 3, report observed full-sync completeness, and add delegated `app-state resync regular` using existing recovery debt. Known-broken full syncs require explicit `--force`. Label writes reject retired/non-numeric IDs and duplicate renames, preserve absent colors, and report the patched phone JID; shortcut conflicts fail closed.
+- Sync: keep valid delivery/read receipts after malformed entries in the same batch, report invalid input separately from storage failures, and keep incomplete syncs from advancing freshness. Thanks @jesusvillota (#537).
+
+## 0.25.1 - 2026-10-26
+
+**Highlights:** reliable slow file and voice uploads, plus complete decoding of wrapped history and video notes.
+
+- Send: extend the `send file` and `send voice` attempt timeout by one second per 64 KiB, so uploads slower than 45 seconds no longer fail with `send timed out after 45s`. Thanks @ViaxCo (#535, #534).
+
+- Messages: read wrapped history payloads, grouped iPhone contact-card fields, and round video notes with their media and reply context. Thanks @emanuma03-alt (#529).
+
+- Dependencies: update the GraphQL parser after the 48-hour cooldown, preserving Go 1.27.0 and Node 24 minimums.
 
 ## 0.25.0 - 2026-10-23
 
