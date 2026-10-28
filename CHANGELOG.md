@@ -4,6 +4,17 @@
 
 - Sync: settle the upgrade replay for Keep chats archived after one complete `regular_low` snapshot, so stores whose snapshot has no preference mutation or omits a locally archived chat no longer request a full replay (and, on known-broken collections, a phone snapshot) on every start. A snapshot whose mutation failed to persist does not settle; the kept replay applies the original action first. When full sync is known broken and the primary does not answer, settle archive uncertainty after a successfully persisted incremental fetch without clearing snapshot debt or unarchiving chats, and stop adding duplicate recovery intents each delta cycle. Thanks @nicolasbiondic (#502).
 - Sync: recover the upgrade's missing **Keep chats archived** metadata from a background phone snapshot instead of a full `regular_low` replay, which with the SDK's full sync discards local collection state when the server's snapshot fails verification. No replay intent is recorded for it; until the phone answers with a newer snapshot, archived chats stay archived and incremental sync continues. On a collection whose full sync is known not to verify, a persisted incremental fetch settles it conservatively instead, since the phone may never answer.
+- Sync: keep valid delivery/read receipts after malformed entries in the same batch, report invalid input separately from storage failures, and keep incomplete syncs from advancing freshness. Thanks @jesusvillota (#537).
+
+## 0.25.1 - 2026-10-26
+
+**Highlights:** reliable slow file and voice uploads, plus complete decoding of wrapped history and video notes.
+
+- Send: extend the `send file` and `send voice` attempt timeout by one second per 64 KiB, so uploads slower than 45 seconds no longer fail with `send timed out after 45s`. Thanks @ViaxCo (#535, #534).
+
+- Messages: read wrapped history payloads, grouped iPhone contact-card fields, and round video notes with their media and reply context. Thanks @emanuma03-alt (#529).
+
+- Dependencies: update the GraphQL parser after the 48-hour cooldown, preserving Go 1.27.0 and Node 24 minimums.
 
 ## 0.25.0 - 2026-10-23
 
