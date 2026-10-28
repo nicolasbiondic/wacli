@@ -805,6 +805,9 @@ func (a *App) completeLocalAppStateWrite(ctx context.Context, pending *pendingLo
 	if err := a.appStatePersist.waitThrough(persistCtx, frontier); err != nil {
 		return err
 	}
+	// Regular sends now return captured result batches synchronously; retain
+	// the existing conservative debt policy for them as well. Other canonical
+	// SDK sends still have the asynchronous delivery limitation below.
 	// Keep this write's intent durable even though persistErr == nil: pinned
 	// whatsmeow's SendAppState advances the collection cursor and dispatches
 	// the post-send fetched mutations in a goroutine after returning, so a nil

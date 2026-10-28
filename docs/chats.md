@@ -158,6 +158,13 @@ delayed snapshot cannot overtake a newer patch. Device timestamps are stored as
 data, never used to reject an accepted edit, echo or later patch. Memberships
 also retain application order across LID/PN merges; legacy alias rows without
 order metadata cannot be ordered retrospectively, so ties retain removals.
+Regular sends use the pinned SDK's encode, conflict-apply and fetch primitives
+but return each result batch synchronously to that owner, instead of using
+`SendAppState`'s detached event-dispatch goroutine. Conflict batches and the
+single 409 retry stay in SDK application order. The owner persists the returned
+batch before releasing the write coordinator, so an earlier send echo cannot
+arrive after a following edit or undo a delete. No dependency change, diagnostic
+log parsing or device-clock arbitration is involved.
 Each write keeps a durable
 `regular` recovery intent, so the next pre-write sync or `sync --follow` recovery
 normally performs a full `regular` replay. This is intentional but costs more
