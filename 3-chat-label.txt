@@ -1,0 +1,48 @@
+$ wacli --store "$STORE" --json chats label add --chat  --label 5
+{
+  "success": true,
+  "data": {
+    "action": "chat_label_add",
+    "chat": "@s.whatsapp.net",
+    "label": {
+      "id": "5",
+      "name": "Prueba Vendas 3",
+      "color": 12,
+      "predefined_id": null,
+      "type": 5,
+      "order_index": null,
+      "is_active": true,
+      "is_immutable": null,
+      "mute_end_time_ms": null,
+      "chat_memberships_supported": true
+    },
+    "ok": true
+  },
+  "error": null
+}
+# phone: the chat shows under the list filter, with the list chip
+
+$ wacli --store "$STORE" --json chats label remove --chat  --label 5
+{
+  "success": true,
+  "data": {
+    "action": "chat_label_remove",
+    "chat": "@s.whatsapp.net",
+    "label": {
+      "id": "5",
+      "name": "Prueba Vendas 3",
+      "color": 12,
+      "predefined_id": null,
+      "type": 5,
+      "order_index": null,
+      "is_active": true,
+      "is_immutable": null,
+      "mute_end_time_ms": null,
+      "chat_memberships_supported": true
+    },
+    "ok": true
+  },
+  "error": null
+}
+# phone: the list filter is empty
+

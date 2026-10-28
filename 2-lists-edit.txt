@@ -1,0 +1,46 @@
+$ wacli --store "$STORE" --json lists edit "Prueba Vendas" --name "Prueba Vendas 2" --color 8
+{
+  "success": true,
+  "data": {
+    "action": "label_edit",
+    "label": {
+      "id": "5",
+      "name": "Prueba Vendas 2",
+      "color": 8,
+      "predefined_id": null,
+      "type": 5,
+      "order_index": null,
+      "is_active": true,
+      "is_immutable": null,
+      "mute_end_time_ms": null,
+      "chat_memberships_supported": true
+    },
+    "ok": true
+  },
+  "error": null
+}
+# phone: renamed, new color
+
+$ wacli --store "$STORE" --json lists edit 5 --name "Prueba Vendas 3" --color 12
+{
+  "success": true,
+  "data": {
+    "action": "label_edit",
+    "label": {
+      "id": "5",
+      "name": "Prueba Vendas 3",
+      "color": 12,
+      "predefined_id": null,
+      "type": 5,
+      "order_index": null,
+      "is_active": true,
+      "is_immutable": null,
+      "mute_end_time_ms": null,
+      "chat_memberships_supported": true
+    },
+    "ok": true
+  },
+  "error": null
+}
+# phone: renamed again, new color
+
