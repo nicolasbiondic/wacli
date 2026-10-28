@@ -1,0 +1,139 @@
+=== RUN   TestRegularRealTransport
+=== RUN   TestRegularRealTransport/ordered_edits_delete
+    regular_transport_test.go:253: NOISE XX: real ConnectContext, test-CA certificate verified; seeded paired device, no account login bootstrap
+    regular_transport_test.go:487: IQ OUT set/fetch regular from=v0 snapshot=true
+    regular_transport_test.go:489: IQ IN patches count=0 end=v0
+    regular_transport_test.go:459: IQ OUT set/write regular base=v0
+    regular_transport_test.go:428: SERVER ACCEPT v1 message="created" deleted=false (MAC verified)
+    regular_transport_test.go:484: IQ IN accepted regular v1
+    regular_transport_test.go:487: IQ OUT set/fetch regular from=v0 snapshot=true
+    regular_transport_test.go:489: IQ IN patches count=1 end=v1
+    regular_transport_test.go:195: SDK APPLY collection=regular version=1 SQL-error=<nil>
+    regular_transport_test.go:65: PERSISTED reply message="created" deleted=false
+    regular_transport_test.go:487: IQ OUT set/fetch regular from=v0 snapshot=true
+    regular_transport_test.go:489: IQ IN patches count=1 end=v1
+    regular_transport_test.go:195: SDK APPLY collection=regular version=1 SQL-error=<nil>
+    regular_transport_test.go:459: IQ OUT set/write regular base=v1
+    regular_transport_test.go:428: SERVER ACCEPT v2 message="A" deleted=false (MAC verified)
+    regular_transport_test.go:484: IQ IN accepted regular v2
+    regular_transport_test.go:487: IQ OUT set/fetch regular from=v1 snapshot=false
+    regular_transport_test.go:489: IQ IN patches count=1 end=v2
+    regular_transport_test.go:195: SDK APPLY collection=regular version=2 SQL-error=<nil>
+    regular_transport_test.go:70: PERSISTED reply message="A" deleted=false
+    regular_transport_test.go:487: IQ OUT set/fetch regular from=v0 snapshot=true
+    regular_transport_test.go:489: IQ IN patches count=2 end=v2
+    regular_transport_test.go:195: SDK APPLY collection=regular version=1 SQL-error=<nil>
+    regular_transport_test.go:195: SDK APPLY collection=regular version=2 SQL-error=<nil>
+    regular_transport_test.go:459: IQ OUT set/write regular base=v2
+    regular_transport_test.go:428: SERVER ACCEPT v3 message="B" deleted=false (MAC verified)
+    regular_transport_test.go:484: IQ IN accepted regular v3
+    regular_transport_test.go:487: IQ OUT set/fetch regular from=v2 snapshot=false
+    regular_transport_test.go:489: IQ IN patches count=1 end=v3
+    regular_transport_test.go:195: SDK APPLY collection=regular version=3 SQL-error=<nil>
+    regular_transport_test.go:70: PERSISTED reply message="B" deleted=false
+    regular_transport_test.go:487: IQ OUT set/fetch regular from=v0 snapshot=true
+    regular_transport_test.go:489: IQ IN patches count=3 end=v3
+    regular_transport_test.go:195: SDK APPLY collection=regular version=1 SQL-error=<nil>
+    regular_transport_test.go:195: SDK APPLY collection=regular version=2 SQL-error=<nil>
+    regular_transport_test.go:195: SDK APPLY collection=regular version=3 SQL-error=<nil>
+    regular_transport_test.go:459: IQ OUT set/write regular base=v3
+    regular_transport_test.go:428: SERVER ACCEPT v4 message="B" deleted=true (MAC verified)
+    regular_transport_test.go:484: IQ IN accepted regular v4
+    regular_transport_test.go:487: IQ OUT set/fetch regular from=v3 snapshot=false
+    regular_transport_test.go:489: IQ IN patches count=1 end=v4
+    regular_transport_test.go:195: SDK APPLY collection=regular version=4 SQL-error=<nil>
+    regular_transport_test.go:75: PERSISTED reply message="B" deleted=true
+    regular_transport_test.go:76: SERVER/SDK agree: regular v4, verified LTHash; conflicts=0
+    regular_transport_test.go:78: OWNER SQL seq=1 message="created" deleted=false
+    regular_transport_test.go:78: OWNER SQL seq=2 message="created" deleted=false
+    regular_transport_test.go:78: OWNER SQL seq=3 message="created" deleted=false
+    regular_transport_test.go:78: OWNER SQL seq=4 message="A" deleted=false
+    regular_transport_test.go:78: OWNER SQL seq=5 message="A" deleted=false
+    regular_transport_test.go:78: OWNER SQL seq=6 message="created" deleted=false
+    regular_transport_test.go:78: OWNER SQL seq=7 message="A" deleted=false
+    regular_transport_test.go:78: OWNER SQL seq=8 message="B" deleted=false
+    regular_transport_test.go:78: OWNER SQL seq=9 message="B" deleted=false
+    regular_transport_test.go:78: OWNER SQL seq=10 message="created" deleted=false
+    regular_transport_test.go:78: OWNER SQL seq=11 message="A" deleted=false
+    regular_transport_test.go:78: OWNER SQL seq=12 message="B" deleted=false
+    regular_transport_test.go:78: OWNER SQL seq=13 message="B" deleted=true
+    regular_transport_test.go:78: OWNER SQL seq=14 message="B" deleted=true
+    regular_transport_test.go:288: CLEANUP: peer closes the test websocket after assertions
+=== RUN   TestRegularRealTransport/injected_409
+    regular_transport_test.go:253: NOISE XX: real ConnectContext, test-CA certificate verified; seeded paired device, no account login bootstrap
+    regular_transport_test.go:487: IQ OUT set/fetch regular from=v0 snapshot=true
+    regular_transport_test.go:489: IQ IN patches count=0 end=v0
+    regular_transport_test.go:459: IQ OUT set/write regular base=v0
+    regular_transport_test.go:428: SERVER ACCEPT v1 message="created" deleted=false (MAC verified)
+    regular_transport_test.go:484: IQ IN accepted regular v1
+    regular_transport_test.go:487: IQ OUT set/fetch regular from=v0 snapshot=true
+    regular_transport_test.go:489: IQ IN patches count=1 end=v1
+    regular_transport_test.go:195: SDK APPLY collection=regular version=1 SQL-error=<nil>
+    regular_transport_test.go:89: PERSISTED reply message="created" deleted=false
+    regular_transport_test.go:487: IQ OUT set/fetch regular from=v0 snapshot=true
+    regular_transport_test.go:489: IQ IN patches count=1 end=v1
+    regular_transport_test.go:195: SDK APPLY collection=regular version=1 SQL-error=<nil>
+    regular_transport_test.go:459: IQ OUT set/write regular base=v1
+    regular_transport_test.go:428: SERVER ACCEPT v2 message="foreign" deleted=false (MAC verified)
+    regular_transport_test.go:474: IQ IN 409 regular pending=v2..v2
+    regular_transport_test.go:195: SDK APPLY collection=regular version=2 SQL-error=<nil>
+    regular_transport_test.go:459: IQ OUT set/write regular base=v2
+    regular_transport_test.go:428: SERVER ACCEPT v3 message="retry wins" deleted=false (MAC verified)
+    regular_transport_test.go:484: IQ IN accepted regular v3
+    regular_transport_test.go:487: IQ OUT set/fetch regular from=v2 snapshot=false
+    regular_transport_test.go:489: IQ IN patches count=1 end=v3
+    regular_transport_test.go:195: SDK APPLY collection=regular version=3 SQL-error=<nil>
+    regular_transport_test.go:98: PERSISTED reply message="retry wins" deleted=false
+    regular_transport_test.go:99: SERVER/SDK agree: regular v3, verified LTHash; conflicts=1
+    regular_transport_test.go:100: OWNER SQL seq=1 message="created" deleted=false
+    regular_transport_test.go:100: OWNER SQL seq=2 message="created" deleted=false
+    regular_transport_test.go:100: OWNER SQL seq=3 message="created" deleted=false
+    regular_transport_test.go:100: OWNER SQL seq=4 message="retry wins" deleted=false
+    regular_transport_test.go:100: OWNER SQL seq=5 message="foreign" deleted=false
+    regular_transport_test.go:100: OWNER SQL seq=6 message="retry wins" deleted=false
+    regular_transport_test.go:105: PASS: SDK applied v2 foreign then v3 retry; owner persisted conflict before retry
+    regular_transport_test.go:288: CLEANUP: peer closes the test websocket after assertions
+=== RUN   TestRegularRealTransport/legacy_delayed_dispatch_control
+    regular_transport_test.go:253: NOISE XX: real ConnectContext, test-CA certificate verified; seeded paired device, no account login bootstrap
+    regular_transport_test.go:459: IQ OUT set/write regular base=v0
+    regular_transport_test.go:428: SERVER ACCEPT v1 message="created" deleted=false (MAC verified)
+    regular_transport_test.go:484: IQ IN accepted regular v1
+    regular_transport_test.go:487: IQ OUT set/fetch regular from=v0 snapshot=true
+    regular_transport_test.go:489: IQ IN patches count=1 end=v1
+    regular_transport_test.go:195: SDK APPLY collection=regular version=1 SQL-error=<nil>
+    regular_transport_test.go:162: PERSISTED reply message="created" deleted=false
+    regular_transport_test.go:459: IQ OUT set/write regular base=v1
+    regular_transport_test.go:428: SERVER ACCEPT v2 message="A" deleted=false (MAC verified)
+    regular_transport_test.go:484: IQ IN accepted regular v2
+    regular_transport_test.go:487: IQ OUT set/fetch regular from=v1 snapshot=false
+    regular_transport_test.go:489: IQ IN patches count=1 end=v2
+    regular_transport_test.go:195: SDK APPLY collection=regular version=2 SQL-error=<nil>
+    regular_transport_test.go:117: GATE: legacy A already applied in SDK; hold its detached callback before owner admission
+    regular_transport_test.go:459: IQ OUT set/write regular base=v2
+    regular_transport_test.go:428: SERVER ACCEPT v3 message="B" deleted=false (MAC verified)
+    regular_transport_test.go:484: IQ IN accepted regular v3
+    regular_transport_test.go:487: IQ OUT set/fetch regular from=v2 snapshot=false
+    regular_transport_test.go:489: IQ IN patches count=1 end=v3
+    regular_transport_test.go:195: SDK APPLY collection=regular version=3 SQL-error=<nil>
+    regular_transport_test.go:162: PERSISTED reply message="B" deleted=false
+    regular_transport_test.go:459: IQ OUT set/write regular base=v3
+    regular_transport_test.go:428: SERVER ACCEPT v4 message="B" deleted=true (MAC verified)
+    regular_transport_test.go:484: IQ IN accepted regular v4
+    regular_transport_test.go:487: IQ OUT set/fetch regular from=v3 snapshot=false
+    regular_transport_test.go:489: IQ IN patches count=1 end=v4
+    regular_transport_test.go:195: SDK APPLY collection=regular version=4 SQL-error=<nil>
+    regular_transport_test.go:162: PERSISTED reply message="B" deleted=true
+    regular_transport_test.go:166: PERSISTED reply message="A" deleted=false
+    regular_transport_test.go:167: SERVER/SDK agree: regular v4, verified LTHash; conflicts=0
+    regular_transport_test.go:168: OWNER SQL seq=1 message="created" deleted=false
+    regular_transport_test.go:168: OWNER SQL seq=2 message="B" deleted=false
+    regular_transport_test.go:168: OWNER SQL seq=3 message="B" deleted=true
+    regular_transport_test.go:168: OWNER SQL seq=4 message="A" deleted=false
+    regular_transport_test.go:169: EXPECTED CONTROL FAILURE: invariant latest=B/deleted=true is false; late A resurrected the row. New sender scenario above retains B/deleted=true.
+    regular_transport_test.go:288: CLEANUP: peer closes the test websocket after assertions
+--- PASS: TestRegularRealTransport (0.68s)
+    --- PASS: TestRegularRealTransport/ordered_edits_delete (0.28s)
+    --- PASS: TestRegularRealTransport/injected_409 (0.19s)
+    --- PASS: TestRegularRealTransport/legacy_delayed_dispatch_control (0.21s)
+PASS
+ok  	github.com/openclaw/wacli/internal/wa	0.693s
