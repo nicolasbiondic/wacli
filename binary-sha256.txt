@@ -1,0 +1,4 @@
+7465243813299768d899c7316e7114a6002f9103816a1450f511e9f644846976  $PROOF/run-vgyUzC/bin/seed-lists498
+7270bd0c0f890f54766ca3e9dde07e4b8431b0183ecc8eb076b161edca22b807  $PROOF/run-vgyUzC/bin/seed-stock
+a0f353c4ef3ec0d1fdad1e2a86cb83b7371c75884c135cd7ddeb00849911c07f  $PROOF/run-vgyUzC/bin/wacli-new
+f4056d8764d85e7cd5f400c38a31afd1a575e9925c1cbc8714f3e7632900593b  $PROOF/run-vgyUzC/bin/wacli-stock
