@@ -129,6 +129,7 @@ func TestLabelAndQuickReplyCommandsValidateBeforeOpeningStore(t *testing.T) {
 		{[]string{"--read-only", "quick-replies", "delete", "x"}, "read-only"},
 		{[]string{"--read-only", "app-state", "resync", "regular"}, "read-only"},
 		{[]string{"app-state", "resync", "regular_low"}, "only regular"},
+		{[]string{"--read-only", "app-state", "resync", "regular", "--force"}, "unknown flag: --force"},
 	} {
 		dir := t.TempDir()
 		var err error
@@ -205,13 +206,13 @@ func TestAppStateResyncCLIUsesSeparateDelegateKind(t *testing.T) {
 		requests <- req
 		_ = json.NewEncoder(conn).Encode(map[string]any{"ok": true, "app_state_resync": map[string]any{"collection": "regular", "completeness": "complete", "quick_replies": 2, "lists": 1}})
 	}()
-	stdout, stderr, err := runPresenceDelegateHelper(t, []string{"--store", dir, "--json", "--timeout", "5s", "app-state", "resync", "regular", "--force"})
+	stdout, stderr, err := runPresenceDelegateHelper(t, []string{"--store", dir, "--json", "--timeout", "5s", "app-state", "resync", "regular"})
 	if err != nil {
 		t.Fatalf("resync: %v stdout=%q stderr=%q", err, stdout, stderr)
 	}
 	select {
 	case req := <-requests:
-		if req["kind"] != "app_state_resync" || req["collection"] != "regular" || req["force"] != true {
+		if req["kind"] != "app_state_resync" || req["collection"] != "regular" || req["force"] != nil {
 			t.Fatalf("request = %v", req)
 		}
 	case <-contextWithTestTimeout(t).Done():

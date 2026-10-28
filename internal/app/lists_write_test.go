@@ -267,8 +267,8 @@ func TestQuickReplyEventsPersistFromSyncAndOneShot(t *testing.T) {
 		}
 		f.emit(quickReplyEvent("1700000000", "hola", "", time.Unix(101, 0), true))
 		waitQuickReplies(t, a, 0)
-		// An older replay cannot resurrect a deleted reply.
-		f.emit(quickReplyEvent("1700000000", "hola", "x", time.Unix(99, 0), false))
+		// A replay of the current tombstone can have a lower device clock.
+		f.emit(quickReplyEvent("1700000000", "hola", "", time.Unix(99, 0), true))
 		time.Sleep(50 * time.Millisecond)
 		waitQuickReplies(t, a, 0)
 		// A regular full sync can contain only quick replies (or no labels).
@@ -444,4 +444,91 @@ func TestQuickReplyInputValidation(t *testing.T) {
 		t.Fatal("empty edit accepted")
 	}
 	noPatch(t, f)
+}
+
+func TestQuickReplySkewedClockWriteReplayAndFollowingEdit(t *testing.T) {
+	at := time.Unix(1700000000, 0)
+	a, f := newLabelWriteApp(t, quickReplyEvent("1", "hello", "old text", at.Add(time.Hour), false))
+	defer func(prev func() time.Time) { nowUTC = prev }(nowUTC)
+	nowUTC = func() time.Time { return at }
+	if _, err := a.EditQuickReply(t.Context(), "1", QuickReplyInput{Message: proto.String("accepted text")}); err != nil {
+		t.Fatal(err)
+	}
+	got, _, err := a.db.QuickReplyByID("1")
+	if err != nil || got.Message != "accepted text" {
+		t.Fatalf("accepted edit = %+v, %v", got, err)
+	}
+	// The echo/full replay belongs after the accepted edit, despite its lower clock.
+	f.appStateFetchEvent = func(string, bool, bool) any { return quickReplyEvent("1", "hello", "accepted text", at, false) }
+	f.appStatePatches = nil
+	if _, err := a.EditQuickReply(t.Context(), "1", QuickReplyInput{Keywords: &[]string{"next"}}); err != nil {
+		t.Fatal(err)
+	}
+	if act := onlyPatch(t, f).Value.GetQuickReplyAction(); act.GetMessage() != "accepted text" {
+		t.Fatalf("following edit resurrected text: %v", act)
+	}
+	// A later phone patch is authoritative even if its timestamp regresses again.
+	if err := a.persistFetchedAppStateEvents(t.Context(), []any{quickReplyEvent("1", "hello", "later phone patch", at.Add(-time.Minute), false)}, &appStatePersistenceTracker{}); err != nil {
+		t.Fatal(err)
+	}
+	got, _, err = a.db.QuickReplyByID("1")
+	if err != nil || got.Message != "later phone patch" {
+		t.Fatalf("later patch = %+v, %v", got, err)
+	}
+}
+
+func TestLabelSkewedClockWritesFollowPersistenceOrder(t *testing.T) {
+	at := time.Unix(1700000000, 0)
+	a, f := newLabelWriteApp(t, labelEvent("7", "Old", at.Add(time.Hour), true, nil))
+	defer func(prev func() time.Time) { nowUTC = prev }(nowUTC)
+	nowUTC = func() time.Time { return at }
+	if _, err := a.EditLabel(t.Context(), "7", LabelInput{Name: proto.String("Accepted")}); err != nil {
+		t.Fatal(err)
+	}
+	got, _, err := a.db.ListByID("7")
+	if err != nil || got.Name != "Accepted" {
+		t.Fatalf("accepted label = %+v, %v", got, err)
+	}
+	chat := types.NewJID("123", types.DefaultUserServer)
+	if err := a.db.SetChatList(chat.String(), "7", true, at.Add(time.Hour), false); err != nil {
+		t.Fatal(err)
+	}
+	f.appStatePatches = nil
+	if _, err := a.SetChatLabel(t.Context(), chat, "7", false); err != nil {
+		t.Fatal(err)
+	}
+	assertAppListMembers(t, a)
+}
+
+func TestEditMutedListPreservesMuteUntil(t *testing.T) {
+	const until int64 = 1900000000123
+	a, f := newLabelWriteApp(t, labelEvent("7", "Muted", time.Unix(100, 0), true, func(act *waSyncAction.LabelEditAction) {
+		act.Type = waSyncAction.LabelEditAction_CUSTOM.Enum()
+		act.MuteEndTimeMS = proto.Int64(until)
+	}))
+	if _, err := a.EditLabel(t.Context(), "7", LabelInput{Name: proto.String("Renamed")}); err != nil {
+		t.Fatal(err)
+	}
+	if act := onlyPatch(t, f).Value.GetLabelEditAction(); act.MuteEndTimeMS == nil || act.GetMuteEndTimeMS() != until {
+		t.Fatalf("muted list edit lost mute: %v", act)
+	}
+}
+
+func TestQuickReplySnapshotDoesNotOvertakeLowerClockLivePatch(t *testing.T) {
+	a, _ := newLabelWriteApp(t)
+	at := time.Unix(100, 0)
+	ticket := a.appStatePersist.reserve()
+	a.handleAppStatePersistenceEvent(t.Context(), quickReplyEvent("1", "hello", "new live text", at.Add(-time.Second), false), nil)
+	frontier := a.appStatePersist.complete(ticket, func() {
+		if err := a.persistFetchedAppStateEvents(t.Context(), []any{quickReplyEvent("1", "hello", "older snapshot text", at, false)}, &appStatePersistenceTracker{}); err != nil {
+			t.Error(err)
+		}
+	})
+	if err := a.appStatePersist.waitThrough(t.Context(), frontier); err != nil {
+		t.Fatal(err)
+	}
+	got, _, err := a.db.QuickReplyByID("1")
+	if err != nil || got.Message != "new live text" {
+		t.Fatalf("snapshot overtook live patch: %+v, %v", got, err)
+	}
 }

@@ -199,6 +199,7 @@ func (a *App) rewriteLabel(ctx context.Context, ref string, in LabelInput, delet
 		}
 		action.PredefinedID, action.OrderIndex = current.PredefinedID, current.OrderIndex
 		action.IsActive, action.IsImmutable = current.IsActive, current.IsImmutable
+		action.MuteEndTimeMS = current.MuteEndTimeMS
 		if current.Type != nil {
 			action.Type = waSyncAction.LabelEditAction_ListType(*current.Type).Enum()
 		}
@@ -378,7 +379,7 @@ func normalizeQuickReply(q store.QuickReply) store.QuickReply {
 
 func labelFromAction(id string, act *waSyncAction.LabelEditAction) store.List {
 	l := store.List{ID: id, Name: act.GetName(), Color: act.Color, PredefinedID: act.PredefinedID,
-		OrderIndex: act.OrderIndex, IsActive: act.IsActive, IsImmutable: act.IsImmutable}
+		OrderIndex: act.OrderIndex, IsActive: act.IsActive, IsImmutable: act.IsImmutable, MuteEndTimeMS: act.MuteEndTimeMS}
 	if act.Type != nil {
 		t := int32(*act.Type)
 		l.Type = &t
@@ -390,7 +391,7 @@ func labelFromAction(id string, act *waSyncAction.LabelEditAction) store.List {
 func labelUpdate(id string, act *waSyncAction.LabelEditAction, at time.Time) store.ListUpdate {
 	l := labelFromAction(id, act)
 	return store.ListUpdate{ID: id, Name: act.Name, Color: l.Color, PredefinedID: l.PredefinedID, Type: l.Type,
-		OrderIndex: l.OrderIndex, IsActive: l.IsActive, IsImmutable: l.IsImmutable, Deleted: act.Deleted, Timestamp: at}
+		OrderIndex: l.OrderIndex, IsActive: l.IsActive, IsImmutable: l.IsImmutable, MuteEndTimeMS: l.MuteEndTimeMS, Deleted: act.Deleted, Timestamp: at}
 }
 
 // handleQuickReplyEvent persists quick replies, which whatsmeow only

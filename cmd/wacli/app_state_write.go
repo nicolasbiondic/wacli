@@ -420,14 +420,14 @@ func newQuickRepliesCmd(flags *rootFlags) *cobra.Command {
 }
 
 type appStateResyncApp interface {
-	ResyncAppState(context.Context, string, bool) (app.AppStateResyncResult, error)
+	ResyncAppState(context.Context, string) (app.AppStateResyncResult, error)
 }
 
 func executeDelegatedAppStateResync(ctx context.Context, a appStateResyncApp, req sendDelegateRequest) (sendDelegateResponse, error) {
 	if req.Collection != "regular" {
 		return sendDelegateResponse{}, fmt.Errorf("app-state resync supports only regular")
 	}
-	result, err := a.ResyncAppState(ctx, req.Collection, req.Force)
+	result, err := a.ResyncAppState(ctx, req.Collection)
 	if err != nil {
 		return sendDelegateResponse{}, err
 	}
@@ -436,22 +436,20 @@ func executeDelegatedAppStateResync(ctx context.Context, a appStateResyncApp, re
 
 func newAppStateCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{Use: "app-state", Short: "Manage WhatsApp app-state synchronization"}
-	var force bool
 	resync := &cobra.Command{
 		Use: "resync regular", Short: "Force a full regular sync using existing recovery", Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if args[0] != "regular" {
 				return fmt.Errorf("app-state resync supports only regular")
 			}
-			return runAppStateResync(flags, args[0], force)
+			return runAppStateResync(flags, args[0])
 		},
 	}
-	resync.Flags().BoolVar(&force, "force", false, "accept loss of usable local app state when a known-broken full sync does not verify")
 	cmd.AddCommand(resync)
 	return cmd
 }
 
-func runAppStateResync(flags *rootFlags, collection string, force bool) error {
+func runAppStateResync(flags *rootFlags, collection string) error {
 	if err := flags.requireWritable(); err != nil {
 		return err
 	}
@@ -459,7 +457,7 @@ func runAppStateResync(flags *rootFlags, collection string, force bool) error {
 	defer cancel()
 	a, lk, err := newApp(ctx, flags, true, false)
 	if err != nil {
-		resp, delegated, delegateErr := tryDelegateSend(ctx, flags, err, sendDelegateRequest{Kind: appStateResyncKind, Collection: collection, Force: force})
+		resp, delegated, delegateErr := tryDelegateSend(ctx, flags, err, sendDelegateRequest{Kind: appStateResyncKind, Collection: collection})
 		if !delegated {
 			return err
 		}
@@ -486,7 +484,7 @@ func runAppStateResync(flags *rootFlags, collection string, force bool) error {
 	if err := a.Connect(ctx, false, nil); err != nil {
 		return err
 	}
-	result, err := a.ResyncAppState(ctx, collection, force)
+	result, err := a.ResyncAppState(ctx, collection)
 	if err != nil {
 		return err
 	}

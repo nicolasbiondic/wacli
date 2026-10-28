@@ -1078,6 +1078,10 @@ func tableInfoPragma(table string) (string, error) {
 		return `PRAGMA table_info("messages_fts")`, nil
 	case "status_messages":
 		return `PRAGMA table_info("status_messages")`, nil
+	case "lists":
+		return `PRAGMA table_info("lists")`, nil
+	case "chat_lists":
+		return `PRAGMA table_info("chat_lists")`, nil
 	default:
 		return "", fmt.Errorf("unsupported table %q", table)
 	}

@@ -25,6 +25,26 @@ func migrateLists(d *DB) error {
 		);
 		INSERT OR IGNORE INTO list_sync_state(id) VALUES(1);
 	`)
+	if err != nil {
+		return err
+	}
+	// Keep the migration idempotent even when row 36 was already claimed by
+	// the Lists prerequisite or another build. Existing rows are not rewritten.
+	for _, col := range []struct{ table, name, ddl string }{
+		{"lists", "mute_end_time_ms", "ALTER TABLE lists ADD COLUMN mute_end_time_ms INTEGER"},
+		{"chat_lists", "applied_order", "ALTER TABLE chat_lists ADD COLUMN applied_order INTEGER NOT NULL DEFAULT 0"},
+	} {
+		has, err := d.tableHasColumn(col.table, col.name)
+		if err != nil {
+			return err
+		}
+		if !has {
+			if _, err := d.sql.Exec(col.ddl); err != nil {
+				return err
+			}
+		}
+	}
+	_, err = d.sql.Exec(`CREATE INDEX IF NOT EXISTS idx_chat_lists_applied_order ON chat_lists(applied_order)`)
 	return err
 }
 
@@ -37,6 +57,7 @@ type List struct {
 	OrderIndex               *int32 `json:"order_index"`
 	IsActive                 *bool  `json:"is_active"`
 	IsImmutable              *bool  `json:"is_immutable"`
+	MuteEndTimeMS            *int64 `json:"mute_end_time_ms"`
 	ChatMembershipsSupported bool   `json:"chat_memberships_supported"`
 }
 
@@ -50,6 +71,7 @@ type ListUpdate struct {
 	Deleted               *bool
 	Timestamp             time.Time
 	FromFullSync          bool
+	MuteEndTimeMS         *int64
 }
 
 type ListsResult struct {
@@ -66,12 +88,8 @@ func recordListFullSync(tx *sql.Tx, full bool) error {
 	return err
 }
 
-// MarkRegularFullSyncEventsSeen also records verified empty regular snapshots.
-func (d *DB) MarkRegularFullSyncEventsSeen() error {
-	_, err := d.sql.Exec(`UPDATE list_sync_state SET full_sync_events_seen=1 WHERE id=1`)
-	return err
-}
-
+// UpsertList applies the persistence owner's ordered action sequence. Device
+// timestamps are data, not an arbitration clock (as for contact app-state SETs).
 func (d *DB) UpsertList(p ListUpdate) error {
 	if strings.TrimSpace(p.ID) == "" {
 		return fmt.Errorf("list ID is required")
@@ -81,19 +99,18 @@ func (d *DB) UpsertList(p ListUpdate) error {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	_, err = tx.Exec(`INSERT INTO lists(id,name,color,predefined_id,type,order_index,is_active,is_immutable,deleted,updated_at)
-		VALUES(?,?,?,?,?,?,?,?,COALESCE(?,0),?)
+	_, err = tx.Exec(`INSERT INTO lists(id,name,color,predefined_id,type,order_index,is_active,is_immutable,deleted,updated_at,mute_end_time_ms)
+		VALUES(?,?,?,?,?,?,?,?,COALESCE(?,0),?,?)
 		ON CONFLICT(id) DO UPDATE SET
 			name=COALESCE(excluded.name,lists.name), color=COALESCE(excluded.color,lists.color),
 			predefined_id=COALESCE(excluded.predefined_id,lists.predefined_id),
 			type=COALESCE(excluded.type,lists.type), order_index=COALESCE(excluded.order_index,lists.order_index),
 			is_active=COALESCE(excluded.is_active,lists.is_active),
 			is_immutable=COALESCE(excluded.is_immutable,lists.is_immutable),
-			deleted=COALESCE(?,lists.deleted), updated_at=excluded.updated_at
-		WHERE excluded.updated_at > lists.updated_at
-			OR (excluded.updated_at = lists.updated_at AND lists.deleted <= excluded.deleted)`,
+			mute_end_time_ms=COALESCE(excluded.mute_end_time_ms,lists.mute_end_time_ms),
+			deleted=COALESCE(?,lists.deleted), updated_at=excluded.updated_at`,
 		p.ID, p.Name, p.Color, p.PredefinedID, p.Type, p.OrderIndex, p.IsActive, p.IsImmutable,
-		p.Deleted, p.Timestamp.UnixMilli(), p.Deleted)
+		p.Deleted, p.Timestamp.UnixMilli(), p.MuteEndTimeMS, p.Deleted)
 	if err != nil {
 		return err
 	}
@@ -112,10 +129,12 @@ func (d *DB) SetChatList(chat, id string, labeled bool, at time.Time, fullSync b
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	_, err = tx.Exec(`INSERT INTO chat_lists(chat_jid,list_id,labeled,updated_at) VALUES(?,?,?,?)
-		ON CONFLICT(chat_jid,list_id) DO UPDATE SET labeled=excluded.labeled, updated_at=excluded.updated_at
-		WHERE excluded.updated_at > chat_lists.updated_at
-			OR (excluded.updated_at = chat_lists.updated_at AND excluded.labeled < chat_lists.labeled)`,
+	// Persist application order across raw LID/PN aliases for a later merge.
+	// Legacy rows start at zero: their device timestamps cannot establish order.
+	_, err = tx.Exec(`INSERT INTO chat_lists(chat_jid,list_id,labeled,updated_at,applied_order)
+		VALUES(?,?,?,?,(SELECT COALESCE(MAX(applied_order),0)+1 FROM chat_lists))
+		ON CONFLICT(chat_jid,list_id) DO UPDATE SET labeled=excluded.labeled, updated_at=excluded.updated_at,
+			applied_order=excluded.applied_order`,
 		chat, id, labeled, at.UnixMilli())
 	if err != nil {
 		return err
@@ -140,7 +159,11 @@ func (d *DB) Lists() (ListsResult, error) {
 	if err := d.sql.QueryRow(`SELECT full_sync_events_seen FROM list_sync_state WHERE id=1`).Scan(&result.FullSyncEventsSeen); err != nil {
 		return result, err
 	}
-	rows, err := d.sql.Query(`SELECT id,COALESCE(name,''),color,predefined_id,type,order_index,is_active,is_immutable
+	muteColumn, err := d.listMuteEndTimeColumn()
+	if err != nil {
+		return result, err
+	}
+	rows, err := d.sql.Query(`SELECT id,COALESCE(name,''),color,predefined_id,type,order_index,is_active,is_immutable,` + muteColumn + `
 		FROM lists WHERE deleted=0 ORDER BY COALESCE(order_index,0),name,id`)
 	if err != nil {
 		return result, err
@@ -148,7 +171,7 @@ func (d *DB) Lists() (ListsResult, error) {
 	defer rows.Close()
 	for rows.Next() {
 		var l List
-		if err := rows.Scan(&l.ID, &l.Name, &l.Color, &l.PredefinedID, &l.Type, &l.OrderIndex, &l.IsActive, &l.IsImmutable); err != nil {
+		if err := rows.Scan(&l.ID, &l.Name, &l.Color, &l.PredefinedID, &l.Type, &l.OrderIndex, &l.IsActive, &l.IsImmutable, &l.MuteEndTimeMS); err != nil {
 			return result, err
 		}
 		l.ChatMembershipsSupported = listTypeHasChatMemberships(l.Type)
@@ -207,11 +230,11 @@ func (d *DB) ResolveList(value string) (string, error) {
 }
 
 func migrateLIDListsToPN(tx *sql.Tx, lid, pn string) error {
-	if _, err := tx.Exec(`INSERT INTO chat_lists(chat_jid,list_id,labeled,updated_at)
-		SELECT ?,list_id,labeled,updated_at FROM chat_lists WHERE chat_jid=?
-		ON CONFLICT(chat_jid,list_id) DO UPDATE SET labeled=excluded.labeled,updated_at=excluded.updated_at
-		WHERE excluded.updated_at > chat_lists.updated_at
-			OR (excluded.updated_at = chat_lists.updated_at AND excluded.labeled < chat_lists.labeled)`, pn, lid); err != nil {
+	if _, err := tx.Exec(`INSERT INTO chat_lists(chat_jid,list_id,labeled,updated_at,applied_order)
+		SELECT ?,list_id,labeled,updated_at,applied_order FROM chat_lists WHERE chat_jid=?
+		ON CONFLICT(chat_jid,list_id) DO UPDATE SET labeled=excluded.labeled,updated_at=excluded.updated_at,applied_order=excluded.applied_order
+		WHERE excluded.applied_order > chat_lists.applied_order
+			OR (excluded.applied_order = chat_lists.applied_order AND excluded.labeled < chat_lists.labeled)`, pn, lid); err != nil {
 		return err
 	}
 	_, err := tx.Exec(`DELETE FROM chat_lists WHERE chat_jid=?`, lid)
@@ -231,8 +254,12 @@ func (d *DB) ListByID(id string) (ListRecord, bool, error) {
 		return ListRecord{}, false, err
 	}
 	var r ListRecord
-	err = d.sql.QueryRow(`SELECT id,COALESCE(name,''),color,predefined_id,type,order_index,is_active,is_immutable,deleted
-		FROM lists WHERE id=?`, id).Scan(&r.ID, &r.Name, &r.Color, &r.PredefinedID, &r.Type, &r.OrderIndex, &r.IsActive, &r.IsImmutable, &r.Deleted)
+	muteColumn, err := d.listMuteEndTimeColumn()
+	if err != nil {
+		return r, false, err
+	}
+	err = d.sql.QueryRow(`SELECT id,COALESCE(name,''),color,predefined_id,type,order_index,is_active,is_immutable,deleted,`+muteColumn+`
+		FROM lists WHERE id=?`, id).Scan(&r.ID, &r.Name, &r.Color, &r.PredefinedID, &r.Type, &r.OrderIndex, &r.IsActive, &r.IsImmutable, &r.Deleted, &r.MuteEndTimeMS)
 	if err == sql.ErrNoRows {
 		return ListRecord{}, false, nil
 	}
@@ -241,6 +268,18 @@ func (d *DB) ListByID(id string) (ListRecord, bool, error) {
 	}
 	r.ChatMembershipsSupported = listTypeHasChatMemberships(r.Type)
 	return r, true, nil
+}
+
+// Read-only opens of prerequisite Lists stores cannot add the optional column.
+func (d *DB) listMuteEndTimeColumn() (string, error) {
+	has, err := d.tableHasColumn("lists", "mute_end_time_ms")
+	if err != nil {
+		return "", err
+	}
+	if has {
+		return "mute_end_time_ms", nil
+	}
+	return "NULL", nil
 }
 
 // MaxNumericListID returns the largest numeric ID ever observed, deleted

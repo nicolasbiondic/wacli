@@ -16,6 +16,10 @@ func migrateQuickReplies(d *DB) error {
 			keywords TEXT NOT NULL DEFAULT '[]', label_ids TEXT NOT NULL DEFAULT '[]', count INTEGER,
 			deleted INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL
 		);
+		CREATE TABLE IF NOT EXISTS quick_reply_sync_state (
+			id INTEGER PRIMARY KEY CHECK(id=1), full_sync_events_seen INTEGER NOT NULL DEFAULT 0
+		);
+		INSERT OR IGNORE INTO quick_reply_sync_state(id) VALUES(1);
 	`)
 	return err
 }
@@ -40,7 +44,9 @@ type QuickRepliesResult struct {
 var ErrQuickReplyNotFound = errors.New("quick reply not found")
 
 // UpsertQuickReply stores a whole quick reply value: WhatsApp replaces the
-// complete action on every change, so absent fields are not merged.
+// complete action on every change, so absent fields are not merged. The shared
+// app-state persistence owner supplies authoritative application order; device
+// timestamps are retained as data only, just like contact SET actions.
 func (d *DB) UpsertQuickReply(q QuickReply, at time.Time) error {
 	if strings.TrimSpace(q.ID) == "" {
 		return fmt.Errorf("quick reply ID is required")
@@ -57,9 +63,7 @@ func (d *DB) UpsertQuickReply(q QuickReply, at time.Time) error {
 		VALUES(?,?,?,?,?,?,?,?)
 		ON CONFLICT(id) DO UPDATE SET shortcut=excluded.shortcut, message=excluded.message,
 			keywords=excluded.keywords, label_ids=excluded.label_ids, count=excluded.count,
-			deleted=excluded.deleted, updated_at=excluded.updated_at
-		WHERE excluded.updated_at > quick_replies.updated_at
-			OR (excluded.updated_at = quick_replies.updated_at AND quick_replies.deleted <= excluded.deleted)`,
+			deleted=excluded.deleted, updated_at=excluded.updated_at`,
 		q.ID, q.Shortcut, q.Message, string(keywords), string(labels), q.Count, q.Deleted, at.UnixMilli())
 	return err
 }
@@ -67,17 +71,23 @@ func (d *DB) UpsertQuickReply(q QuickReply, at time.Time) error {
 // QuickReplies returns the observed, not deleted quick replies.
 func (d *DB) QuickReplies() (QuickRepliesResult, error) {
 	result := QuickRepliesResult{QuickReplies: []QuickReply{}, Completeness: "incomplete"}
-	lists, err := d.Lists()
-	if err != nil {
-		return result, err
-	}
-	if lists.FullSyncEventsSeen {
-		result.Completeness = "complete"
-	}
 	// Read-only opens never migrate, so tolerate a store without the table.
 	exists, err := d.tableExists("quick_replies")
 	if err != nil || !exists {
 		return result, err
+	}
+	coverageExists, err := d.tableExists("quick_reply_sync_state")
+	if err != nil {
+		return result, err
+	}
+	if coverageExists {
+		var seen bool
+		if err := d.sql.QueryRow(`SELECT full_sync_events_seen FROM quick_reply_sync_state WHERE id=1`).Scan(&seen); err != nil && err != sql.ErrNoRows {
+			return result, err
+		}
+		if seen {
+			result.Completeness = "complete"
+		}
 	}
 	rows, err := d.sql.Query(`SELECT id,shortcut,message,keywords,label_ids,count,deleted FROM quick_replies WHERE deleted=0 ORDER BY shortcut,id`)
 	if err != nil {
@@ -92,6 +102,23 @@ func (d *DB) QuickReplies() (QuickRepliesResult, error) {
 		result.QuickReplies = append(result.QuickReplies, q)
 	}
 	return result, rows.Err()
+}
+
+// MarkRegularFullSyncEventsSeen records a successfully persisted full replay,
+// including empty snapshots. Quick-reply coverage never inherits Lists history.
+func (d *DB) MarkRegularFullSyncEventsSeen() error {
+	tx, err := d.sql.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`UPDATE list_sync_state SET full_sync_events_seen=1 WHERE id=1`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`UPDATE quick_reply_sync_state SET full_sync_events_seen=1 WHERE id=1`); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // QuickReplyByID returns a stored quick reply, including deleted ones.

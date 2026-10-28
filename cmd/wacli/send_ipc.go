@@ -84,7 +84,6 @@ type sendDelegateRequest struct {
 	AppState *appStateWriteRequest `json:"app_state,omitempty"`
 
 	Collection string `json:"collection,omitempty"`
-	Force      bool   `json:"force,omitempty"`
 }
 
 type sendDelegateResponse struct {

@@ -400,7 +400,14 @@ func (a *App) persistAppStateEvent(ctx context.Context, evt any, tracker *appSta
 	switch v := evt.(type) {
 	case *events.AppStateSyncComplete:
 		if v != nil && v.Name == appstate.WAPatchRegular {
-			err = a.db.MarkRegularFullSyncEventsSeen()
+			// A raw SDK full-sync sentinel does not cover a failed local write.
+			// Controlled replay/recovery paths mark coverage after the entire
+			// ordered batch succeeds; raw sync may do so only with no debt.
+			var pending bool
+			pending, err = a.db.AppStateRecoveryRequired(string(appstate.WAPatchRegular))
+			if err == nil && !pending {
+				err = a.db.MarkRegularFullSyncEventsSeen()
+			}
 		}
 	case *events.AppState:
 		if isQuickReplyEvent(v) {
@@ -431,9 +438,8 @@ func (a *App) persistAppStateEvent(ctx context.Context, evt any, tracker *appSta
 func appStateCollectionsForEvent(evt any) []appstate.WAPatchName {
 	switch v := evt.(type) {
 	case *events.AppStateSyncComplete:
-		if v != nil && v.Name == appstate.WAPatchRegular {
-			return []appstate.WAPatchName{appstate.WAPatchRegular}
-		}
+		// Coverage metadata is not a collection mutation; do not give the
+		// sentinel its own debt marker, which would mask earlier failures.
 		return nil
 	case *events.LabelEdit, *events.LabelAssociationChat:
 		return []appstate.WAPatchName{appstate.WAPatchRegular}

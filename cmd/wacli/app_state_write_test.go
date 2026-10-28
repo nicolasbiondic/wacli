@@ -57,8 +57,8 @@ func (f *fakeAppStateWriteApp) SetChatLabel(_ context.Context, chat types.JID, r
 	return app.ChatLabelResult{Label: store.List{ID: ref}, Chat: target}, nil
 }
 
-func (f *fakeAppStateWriteApp) ResyncAppState(_ context.Context, collection string, force bool) (app.AppStateResyncResult, error) {
-	f.record("resync %s force=%t", collection, force)
+func (f *fakeAppStateWriteApp) ResyncAppState(_ context.Context, collection string) (app.AppStateResyncResult, error) {
+	f.record("resync %s", collection)
 	return app.AppStateResyncResult{Collection: collection, Completeness: "complete", QuickReplies: 2, Lists: 1}, nil
 }
 
@@ -119,8 +119,7 @@ func TestAppStateWritesThroughProductionServerWhenStoreLocked(t *testing.T) {
 		{[]string{"quick-replies", "create", "--shortcut", "prueba", "--message", "Hola"}, "qr create prueba Hola <nil>"},
 		{[]string{"quick-replies", "edit", "prueba", "--keyword", "k"}, "qr edit prueba <nil> <nil> [k]"},
 		{[]string{"quick-replies", "delete", "prueba"}, "qr delete prueba"},
-		{[]string{"app-state", "resync", "regular"}, "resync regular force=false"},
-		{[]string{"app-state", "resync", "regular", "--force"}, "resync regular force=true"},
+		{[]string{"app-state", "resync", "regular"}, "resync regular"},
 	} {
 		stdout, stderr, err := runPresenceDelegateHelper(t, append([]string{"--store", storeDir, "--timeout", "5s"}, tt.args...))
 		if err != nil {

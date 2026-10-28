@@ -27,8 +27,8 @@ type AppStateResyncResult struct {
 
 // ResyncAppState forces the existing replay/recovery path, without a write.
 // Stock whatsmeow drops the saved collection version before verifying a full
-// sync; retrying a known-broken collection therefore requires explicit consent.
-func (a *App) ResyncAppState(ctx context.Context, name string, force bool) (AppStateResyncResult, error) {
+// sync; known-broken collections must be repaired by primary recovery instead.
+func (a *App) ResyncAppState(ctx context.Context, name string) (AppStateResyncResult, error) {
 	if name != string(appstate.WAPatchRegular) {
 		return AppStateResyncResult{}, fmt.Errorf("app-state resync supports only regular")
 	}
@@ -41,8 +41,8 @@ func (a *App) ResyncAppState(ctx context.Context, name string, force bool) (AppS
 	if err != nil {
 		return AppStateResyncResult{}, err
 	}
-	if !force && (slices.Contains(broken, name) || a.isAppStateFullSyncBroken(appstate.WAPatchRegular)) {
-		return AppStateResyncResult{}, fmt.Errorf("app state %s is flagged app_state_full_sync_broken; a full sync can discard usable local state before verification; use --force only if you accept this risk", name)
+	if slices.Contains(broken, name) || a.isAppStateFullSyncBroken(appstate.WAPatchRegular) {
+		return AppStateResyncResult{}, fmt.Errorf("app state %s is flagged app_state_full_sync_broken; refusing a full sync that can discard usable local state before verification; use `wacli sync --follow` for primary recovery instead", name)
 	}
 	generation, _, err := a.db.BeginAppStateRecovery(name)
 	if err != nil {
