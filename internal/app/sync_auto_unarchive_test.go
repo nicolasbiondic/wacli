@@ -233,7 +233,7 @@ func TestAutoUnarchiveRecoverySettlesAfterCompleteReplay(t *testing.T) {
 			if preferenceKnown {
 				a.handleAppStatePersistenceEvent(ctx, preference, nil)
 			}
-			if err := a.db.MarkAppStateRecoveryRequired(string(appstate.WAPatchRegularLow)); err != nil {
+			if _, err := a.db.MarkAppStateRecoveryGeneration(string(appstate.WAPatchRegularLow)); err != nil {
 				t.Fatal(err)
 			}
 			settled := base.Add(time.Hour)
@@ -612,7 +612,7 @@ func TestAutoUnarchiveFailedSnapshotMutationDefersSettlement(t *testing.T) {
 	t.Run("verified full replay", func(t *testing.T) {
 		a, f := setup(t)
 		ctx := context.Background()
-		if err := a.db.MarkAppStateRecoveryRequired(string(appstate.WAPatchRegularLow)); err != nil {
+		if _, err := a.db.MarkAppStateRecoveryGeneration(string(appstate.WAPatchRegularLow)); err != nil {
 			t.Fatal(err)
 		}
 		drop := failArchiveWrites(t, a)
@@ -898,7 +898,7 @@ func TestAutoUnarchivePhoneSnapshotLeavesLaterReplayDebt(t *testing.T) {
 	var recoveries sync.Map
 	a.syncAppStateDeltas(ctx, &recoveries)
 	// A chat-state write while the snapshot is pending keeps its intent durable.
-	if err := a.db.MarkAppStateRecoveryRequired(string(appstate.WAPatchRegularLow)); err != nil {
+	if _, err := a.db.MarkAppStateRecoveryGeneration(string(appstate.WAPatchRegularLow)); err != nil {
 		t.Fatal(err)
 	}
 	f.emit(&events.AppStateSyncComplete{Name: appstate.WAPatchRegularLow, Version: 9, Recovery: true})

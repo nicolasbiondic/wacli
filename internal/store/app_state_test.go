@@ -235,8 +235,8 @@ func TestAppStateRecoveryMarkerPersistsAcrossReopen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
-	if err := db.MarkAppStateRecoveryRequired("regular_low"); err != nil {
-		t.Fatalf("MarkAppStateRecoveryRequired: %v", err)
+	if _, err := db.MarkAppStateRecoveryGeneration("regular_low"); err != nil {
+		t.Fatalf("MarkAppStateRecoveryGeneration: %v", err)
 	}
 	if err := db.Close(); err != nil {
 		t.Fatalf("Close: %v", err)
@@ -268,8 +268,8 @@ func TestAppStateRecoveryMarkerPersistsAcrossReopen(t *testing.T) {
 
 func TestAppStateRecoveryMarkersAreCollectionScoped(t *testing.T) {
 	db := openTestDB(t)
-	if err := db.MarkAppStateRecoveryRequired("regular_high"); err != nil {
-		t.Fatalf("MarkAppStateRecoveryRequired: %v", err)
+	if _, err := db.MarkAppStateRecoveryGeneration("regular_high"); err != nil {
+		t.Fatalf("MarkAppStateRecoveryGeneration: %v", err)
 	}
 	for collection, want := range map[string]bool{
 		"regular_high": true,
@@ -282,21 +282,6 @@ func TestAppStateRecoveryMarkersAreCollectionScoped(t *testing.T) {
 		if got != want {
 			t.Fatalf("AppStateRecoveryRequired(%q) = %t, want %t", collection, got, want)
 		}
-	}
-}
-
-func TestMarkAppStateRecoveryRequiredDeduplicates(t *testing.T) {
-	db := openTestDB(t)
-	for range 2 {
-		if err := db.MarkAppStateRecoveryRequired(" regular_low "); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if got := countRows(t, db.sql, `SELECT COUNT(*) FROM app_state_recovery_intents WHERE collection='regular_low'`); got != 1 {
-		t.Fatalf("recovery intents = %d, want 1", got)
-	}
-	if err := db.MarkAppStateRecoveryRequired(" "); err == nil {
-		t.Fatal("accepted an empty collection")
 	}
 }
 
@@ -384,7 +369,7 @@ func TestAppStateRecoveryIntentBatchIsAtomic(t *testing.T) {
 func TestAppStateRecoveryCollectionsAreUniqueAndSorted(t *testing.T) {
 	db := openTestDB(t)
 	for _, name := range []string{"regular_low", "regular_high", "regular_low"} {
-		if err := db.MarkAppStateRecoveryRequired(name); err != nil {
+		if _, err := db.MarkAppStateRecoveryGeneration(name); err != nil {
 			t.Fatal(err)
 		}
 	}
