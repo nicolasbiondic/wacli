@@ -132,7 +132,9 @@ restart `wacli sync` after upgrading. `--read-only` refuses every write.
   `CUSTOM` and active. This account-model heuristic has not been verified on a
   real phone. Duplicate names are refused on create and rename.
 - `lists edit` and `lists delete` resend every stored field (predefined ID, type,
-  order, active and immutable flags), since WhatsApp replaces the whole value.
+  order, active and immutable flags, and optional `muteEndTimeMS`), since WhatsApp
+  replaces the whole value. Existing Lists stores gain a nullable mute-until
+  column without rewriting rows; the migration collision guard adds it too.
   An unobserved color stays unset rather than being replaced with color 0.
   Immutable definitions and system list types are refused. Deleting sends a
   definition tombstone; how each phone removes its chat associations is not yet
@@ -149,19 +151,27 @@ restart `wacli sync` after upgrading. `--read-only` refuses every write.
   keywords, usage count and label IDs. Shortcuts are matched with or without the
   leading `/`.
 
-The local label and quick reply indexes order values by action timestamp, while
-WhatsApp orders app state by patch. A phone clock ahead of this machine can make
-a newer local write and its echo lose to an older timestamped value; a replay
-does not necessarily fix this clock-skew limitation. Each write keeps a durable
+Label definitions, memberships and quick replies follow the existing app-state
+persistence owner's ordered event sequence, like contact actions. The owner
+reserves snapshot and local-write boundaries before later live events, so a
+delayed snapshot cannot overtake a newer patch. Device timestamps are stored as
+data, never used to reject an accepted edit, echo or later patch. Memberships
+also retain application order across LID/PN merges; legacy alias rows without
+order metadata cannot be ordered retrospectively, so ties retain removals.
+Each write keeps a durable
 `regular` recovery intent, so the next pre-write sync or `sync --follow` recovery
 normally performs a full `regular` replay. This is intentional but costs more
 than incremental sync; known-broken collections retain the existing degraded
 recovery behavior.
 
 `quick-replies list` reads replies observed during sync. Its JSON `completeness`
-is `"complete"` when `full_sync_events_seen` is true for `regular`, otherwise
-`"incomplete"`; text output warns when incomplete. This flag records that a full
-sync was observed, not that every phone feature or deletion was captured. A reply
+is `"complete"` only after a reply-aware full `regular` replay is persisted,
+otherwise `"incomplete"`; text output warns when incomplete. Reply coverage has
+its own `quick_reply_sync_state` table, initialized incomplete on upgrade, even
+when an older Lists build already recorded full-sync label events. Read-only
+opens without the reply or coverage table also report incomplete. A failed local
+replay cannot mark coverage complete. This flag does not mean every phone feature
+or deletion was captured. A reply
 deleted on the phone with a REMOVE operation instead of a deletion flag stays
 listed until it is replaced. Full snapshots merge into the local index; absent
 rows are not pruned. `lists list` retains its `"unknown"` completeness contract.
@@ -171,8 +181,6 @@ Only WhatsApp Business accounts show quick replies on the phone.
 
 ```bash
 wacli --json app-state resync regular
-# Only after understanding the risk on an account with a known-broken full sync:
-wacli --json app-state resync regular --force
 ```
 
 This requests a full `regular` sync through the existing serialized recovery and
@@ -182,13 +190,15 @@ Older owners refuse it; upgrade and restart `wacli sync`. `--read-only` refuses 
 The result is `{"collection":"regular","completeness":"complete"|"incomplete",
 "quick_replies":N,"lists":N}`, counting nondeleted local rows after recovery.
 
-A collection flagged in `app_state_full_sync_broken` is refused unless `--force`
-is explicit. Stock whatsmeow discards the saved collection version before a full
+A collection flagged in `app_state_full_sync_broken` is always refused. There is
+no force override. Stock whatsmeow discards the saved collection version before a full
 sync verifies; if verification fails, usable local app state can be lost until
-the primary provides a recovery snapshot. `--force` accepts that risk; it does
+the primary provides a recovery snapshot. Keep the primary online and use
+`wacli sync --follow` for the existing primary-recovery path instead; resync does
 not bypass verification or guarantee recovery. Failed fetches or persistence
-leave recovery debt for the existing recovery path. No live-phone proof has been
-completed yet.
+leave recovery debt for that path. The delegated/gateway contract likewise has
+no force override. Live proof of label writes and broken-collection recovery is
+still pending.
 
 ## Read receipts
 
