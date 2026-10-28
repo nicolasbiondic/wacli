@@ -1,0 +1,1 @@
+53bbb450f0a47e3b080173d61fd6cec72241d8065bee17e592275983b7abd281  wacli_0.25.1_linux_amd64.tar.gz

@@ -1,0 +1,26 @@
+IDENTICAL app_state_full_sync_broken         rows=  0 sha256=4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+IDENTICAL app_state_recovery_intents         rows=  0 sha256=4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+IDENTICAL call_events                        rows=120 sha256=49202faa8bcc4a4388d561e662fd52b7a833ac557628e41d1357849fb3139362
+IDENTICAL change_state                       rows=  1 sha256=7ad6a5733a33c45bf9fc185f93a4fac89d3f0c71950f537e0f077309fd837579
+IDENTICAL chat_archive_setting               rows=  1 sha256=d699d65adff293c5ad7992d3d440bfee18aec330243790eec17dda40fc92502e
+IDENTICAL chats                              rows=452 sha256=804477e6b5446940981b052a1d321d845ac4ed40701f88b1100441d4566d0828
+IDENTICAL contact_aliases                    rows=  0 sha256=4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+IDENTICAL contact_tags                       rows=  0 sha256=4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+IDENTICAL contacts                           rows=831 sha256=eef416f4c05da848138318be9041a3a541cbcf0d07d3014be12ae737d0802498
+IDENTICAL group_participants                 rows=521 sha256=a5e5a8278d7cdc27ada7fc3090d3ef0f624c5e8a51b5f7b82689e5cf1f58c30c
+IDENTICAL groups                             rows= 32 sha256=023cd4f682d4c52922baffff5e0439760a1ee3a3db4d7b738093addda1e2a15f
+IDENTICAL message_changes                    rows=9114 sha256=bca5b6cd56d77ea880d076e38aab0d7294e3e35e8e8b4129d59afa419e9a6a9a
+IDENTICAL message_local_media_aliases        rows=  0 sha256=4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+IDENTICAL message_locations                  rows=  6 sha256=eb43aa4417e3572b4975abd75d4bd26d3a1777ae566779d5d60bd6555bbad8ff
+IDENTICAL message_payload_purges             rows=  0 sha256=4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+IDENTICAL message_receipts                   rows= 13 sha256=5a310f3973ec3ec7d4daff588d0d07412b5d98743d56f918b4487d1a81b381e8
+IDENTICAL messages                           rows=8859 sha256=960b600ca7c32f548178c6a5ed946be1b1f2ab1f1ff496f0af7893c4f4df96e3
+IDENTICAL poll_votes                         rows=  0 sha256=4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+IDENTICAL polls                              rows=  1 sha256=2034172d70dcdc2c1e0009351f94d21ca0e08cb39f4a4547dfe08174f4f4aa6e
+IDENTICAL retrieval_state                    rows=  1 sha256=913c87e352dc5f4b3c6fd4548f88bec40fbef8684d96695681ec779255869de3
+IDENTICAL schema_migrations                  rows= 35 sha256=7685f5fc2b617b106e9d374feab73b90d25fbb3a59ef16ae20cd19518a8b788e
+IDENTICAL starred                            rows=  1 sha256=fc36856f5ec65ee18c7eb84249bef28d94cd8a55f074b6fde51447eac18713da
+IDENTICAL status_messages                    rows= 10 sha256=93afecb3a9fd4f2fc65fa58df386d367eb7ba5ec56d224b4d1e7d55ae7875be6
+IDENTICAL unavailable_app_state_keys         rows=  0 sha256=4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+ADDED migrations=[38] tables=['quick_replies', 'quick_reply_sync_state']
+PASS: all original logical rows/settings preserved; only additive schema/migration rows; new coverage incomplete; SQLite integrity/FKs clean.

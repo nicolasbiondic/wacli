@@ -1,0 +1,85 @@
+====== line-1 ======
+schema_migrations max 9035 | messages 41063 | chats 2827 | contacts 6326
+== new (#541) read-only before migration
+{"success":true,"data":{"quick_replies":[],"completeness":"incomplete"},"error":null}
+== new (#541) writable open applies migration 38
+{"success":true,"data":{"quick_replies":[],"completeness":"incomplete"},"error":null}
+migration 38 row: [(38, 'WhatsApp Business quick replies')]
+new: chats list ok
+new: messages search ok, fts= True
+compare after upgrade: PASS: all original logical rows/settings preserved; only additive schema/migration rows; new coverage incomplete; SQLite integrity/FKs clean.
+== stock v0.25.1 reopens read-only and writable
+stock read-only: chats list ok
+stock writable: chats list ok
+stock: messages search ok, fts= True
+compare after stock reopen: PASS: all original logical rows/settings preserved; only additive schema/migration rows; new coverage incomplete; SQLite integrity/FKs clean.
+integrity: ok | foreign keys: 0 violations
+no session.db was created by any command
+====== line-2 ======
+schema_migrations max 9035 | messages 65027 | chats 6724 | contacts 9093
+== new (#541) read-only before migration
+{"success":true,"data":{"quick_replies":[],"completeness":"incomplete"},"error":null}
+== new (#541) writable open applies migration 38
+{"success":true,"data":{"quick_replies":[],"completeness":"incomplete"},"error":null}
+migration 38 row: [(38, 'WhatsApp Business quick replies')]
+new: chats list ok
+new: messages search ok, fts= True
+compare after upgrade: PASS: all original logical rows/settings preserved; only additive schema/migration rows; new coverage incomplete; SQLite integrity/FKs clean.
+== stock v0.25.1 reopens read-only and writable
+stock read-only: chats list ok
+stock writable: chats list ok
+stock: messages search ok, fts= True
+compare after stock reopen: PASS: all original logical rows/settings preserved; only additive schema/migration rows; new coverage incomplete; SQLite integrity/FKs clean.
+integrity: ok | foreign keys: 0 violations
+no session.db was created by any command
+====== line-3 ======
+schema_migrations max 9035 | messages 194416 | chats 34764 | contacts 26815
+== new (#541) read-only before migration
+{"success":true,"data":{"quick_replies":[],"completeness":"incomplete"},"error":null}
+== new (#541) writable open applies migration 38
+{"success":true,"data":{"quick_replies":[],"completeness":"incomplete"},"error":null}
+migration 38 row: [(38, 'WhatsApp Business quick replies')]
+new: chats list ok
+new: messages search ok, fts= True
+compare after upgrade: PASS: all original logical rows/settings preserved; only additive schema/migration rows; new coverage incomplete; SQLite integrity/FKs clean.
+== stock v0.25.1 reopens read-only and writable
+stock read-only: chats list ok
+stock writable: chats list ok
+stock: messages search ok, fts= True
+compare after stock reopen: PASS: all original logical rows/settings preserved; only additive schema/migration rows; new coverage incomplete; SQLite integrity/FKs clean.
+integrity: ok | foreign keys: 0 violations
+no session.db was created by any command
+====== line-4 ======
+schema_migrations max 9035 | messages 4718 | chats 24 | contacts 1138
+== new (#541) read-only before migration
+{"success":true,"data":{"quick_replies":[],"completeness":"incomplete"},"error":null}
+== new (#541) writable open applies migration 38
+{"success":true,"data":{"quick_replies":[],"completeness":"incomplete"},"error":null}
+migration 38 row: [(38, 'WhatsApp Business quick replies')]
+new: chats list ok
+new: messages search ok, fts= True
+compare after upgrade: PASS: all original logical rows/settings preserved; only additive schema/migration rows; new coverage incomplete; SQLite integrity/FKs clean.
+== stock v0.25.1 reopens read-only and writable
+stock read-only: chats list ok
+stock writable: chats list ok
+stock: messages search ok, fts= True
+compare after stock reopen: PASS: all original logical rows/settings preserved; only additive schema/migration rows; new coverage incomplete; SQLite integrity/FKs clean.
+integrity: ok | foreign keys: 0 violations
+no session.db was created by any command
+====== line-5 ======
+schema_migrations max 9035 | messages 8859 | chats 452 | contacts 831
+== new (#541) read-only before migration
+{"success":true,"data":{"quick_replies":[],"completeness":"incomplete"},"error":null}
+== new (#541) writable open applies migration 38
+{"success":true,"data":{"quick_replies":[],"completeness":"incomplete"},"error":null}
+migration 38 row: [(38, 'WhatsApp Business quick replies')]
+new: chats list ok
+new: messages search ok, fts= True
+compare after upgrade: PASS: all original logical rows/settings preserved; only additive schema/migration rows; new coverage incomplete; SQLite integrity/FKs clean.
+== stock v0.25.1 reopens read-only and writable
+stock read-only: chats list ok
+stock writable: chats list ok
+stock: messages search ok, fts= True
+compare after stock reopen: PASS: all original logical rows/settings preserved; only additive schema/migration rows; new coverage incomplete; SQLite integrity/FKs clean.
+integrity: ok | foreign keys: 0 violations
+no session.db was created by any command
