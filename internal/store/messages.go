@@ -50,7 +50,7 @@ type UpsertMessageParams struct {
 }
 
 func (d *DB) messageSelectColumns(snippet string) string {
-	return fmt.Sprintf(`m.rowid, m.chat_jid, COALESCE(c.name,''), m.msg_id, COALESCE(m.sender_jid,''), COALESCE(m.sender_name,''), m.ts, m.from_me, COALESCE(m.text,''), COALESCE(m.display_text,''), COALESCE(m.quoted_msg_id,''), COALESCE(m.quoted_sender_jid,''), m.is_forwarded, m.forwarding_score, COALESCE(m.reaction_to_id,''), COALESCE(m.reaction_emoji,''), COALESCE(m.media_type,''), COALESCE(m.media_caption,''), COALESCE(m.filename,''), COALESCE(m.mime_type,''), COALESCE(m.direct_path,''), COALESCE(m.local_path,''), COALESCE(m.downloaded_at,0), CASE WHEN s.msg_id IS NULL THEN 0 ELSE 1 END, COALESCE(s.starred_at,0), m.revoked, m.deleted_for_me, COALESCE(m.deleted_at,0), COALESCE(m.deletion_reason,''), COALESCE(m.payload_purged_at,0), m.edited, COALESCE(m.buttons,''), %s, %s`, d.receiptColumns(), snippetSQL(snippet))
+	return fmt.Sprintf(`m.rowid, m.chat_jid, COALESCE(c.name,''), m.msg_id, COALESCE(m.sender_jid,''), COALESCE(m.sender_name,''), m.ts, m.from_me, COALESCE(m.text,''), COALESCE(m.display_text,''), COALESCE(m.quoted_msg_id,''), COALESCE(m.quoted_sender_jid,''), m.is_forwarded, m.forwarding_score, COALESCE(m.reaction_to_id,''), COALESCE(m.reaction_emoji,''), COALESCE(m.media_type,''), COALESCE(m.media_caption,''), COALESCE(m.filename,''), COALESCE(m.mime_type,''), COALESCE(m.direct_path,''), COALESCE(m.local_path,''), COALESCE(m.downloaded_at,0), CASE WHEN s.msg_id IS NULL THEN 0 ELSE 1 END, COALESCE(s.starred_at,0), m.revoked, m.deleted_for_me, COALESCE(m.deleted_at,0), COALESCE(m.deletion_reason,''), COALESCE(m.payload_purged_at,0), m.edited, COALESCE(m.buttons,''), %s, %s, %s`, d.receiptColumns(), d.messageReadColumn(), snippetSQL(snippet))
 }
 
 // receiptColumns counts, per message, how many recipients have it and how many
@@ -516,7 +516,11 @@ func (d *DB) GetMessage(chatJID, msgID string) (Message, error) {
 	if err != nil {
 		return Message{}, err
 	}
-	return messageFromGetRow(row), nil
+	m := messageFromGetRow(row)
+	if !m.FromMe {
+		m.ReadAt, err = d.messageReadAt(m.ChatJID, m.MsgID)
+	}
+	return m, err
 }
 
 func (d *DB) CountMessages() (int64, error) {
@@ -647,7 +651,8 @@ func scanMessagesFrom(db queryRows, ranked bool, query string, args ...any) ([]M
 		var payloadPurgedAt int64
 		var buttonsJSON string
 		var edited int
-		dest := []any{&m.rowID, &m.ChatJID, &m.ChatName, &m.MsgID, &m.SenderJID, &m.SenderName, &ts, &fromMe, &m.Text, &m.DisplayText, &m.QuotedMsgID, &m.QuotedSenderJID, &forwarded, &forwardingScore, &m.ReactionToID, &m.ReactionEmoji, &m.MediaType, &m.MediaCaption, &m.Filename, &m.MimeType, &m.DirectPath, &m.LocalPath, &downloadedAt, &starred, &starredAt, &revoked, &deletedForMe, &deletedAt, &deletionReason, &payloadPurgedAt, &edited, &buttonsJSON, &m.DeliveredTo, &m.ReadBy, &m.Snippet}
+		var readAt sql.NullInt64
+		dest := []any{&m.rowID, &m.ChatJID, &m.ChatName, &m.MsgID, &m.SenderJID, &m.SenderName, &ts, &fromMe, &m.Text, &m.DisplayText, &m.QuotedMsgID, &m.QuotedSenderJID, &forwarded, &forwardingScore, &m.ReactionToID, &m.ReactionEmoji, &m.MediaType, &m.MediaCaption, &m.Filename, &m.MimeType, &m.DirectPath, &m.LocalPath, &downloadedAt, &starred, &starredAt, &revoked, &deletedForMe, &deletedAt, &deletionReason, &payloadPurgedAt, &edited, &buttonsJSON, &m.DeliveredTo, &m.ReadBy, &readAt, &m.Snippet}
 		if ranked {
 			dest = append(dest, &m.rank)
 		}
@@ -656,6 +661,10 @@ func scanMessagesFrom(db queryRows, ranked bool, query string, args ...any) ([]M
 		}
 		m.Timestamp = fromUnix(ts)
 		m.FromMe = fromMe != 0
+		if readAt.Valid && !m.FromMe {
+			at := fromUnix(readAt.Int64)
+			m.ReadAt = &at
+		}
 		m.IsForwarded = forwarded != 0
 		m.ForwardingScore = uint32(forwardingScore)
 		m.DownloadedAt = fromUnix(downloadedAt)

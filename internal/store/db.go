@@ -23,6 +23,7 @@ type DB struct {
 	// open cannot create one, so message queries ask for the counts only when
 	// the table is there.
 	receiptsEnabled bool
+	readsEnabled    bool
 	readRows        queryRows
 }
 
@@ -63,6 +64,7 @@ func open(path string, readOnly bool) (*DB, error) {
 		}
 		s.ftsEnabled = s.detectMessagesFTS()
 		s.receiptsEnabled = s.hasTable("message_receipts")
+		s.readsEnabled = s.hasTable("message_reads")
 		return s, nil
 	}
 	if err := s.init(); err != nil {
@@ -70,6 +72,7 @@ func open(path string, readOnly bool) (*DB, error) {
 		return nil, err
 	}
 	s.receiptsEnabled = s.hasTable("message_receipts")
+	s.readsEnabled = s.hasTable("message_reads")
 	if err := sqliteutil.ChmodFiles(path, 0o600); err != nil {
 		_ = db.Close()
 		return nil, err

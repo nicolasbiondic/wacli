@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Messages: retain the earliest incoming-message read time from other linked devices and successful `chats mark-read --receipts` batches; expose nullable `read_at` in show/list JSON, with canonical phone/LID identity handling and read-only compatibility for older stores.
+
 - Sync: keep valid delivery/read receipts after malformed entries in the same batch, report invalid input separately from storage failures, and keep incomplete syncs from advancing freshness. Thanks @jesusvillota (#537).
 
 ## 0.25.1 - 2026-10-26

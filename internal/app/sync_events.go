@@ -133,7 +133,9 @@ func (a *App) addSyncEventHandler(ctx context.Context, opts SyncOptions, message
 			}
 		case *events.Receipt:
 			lastEvent.Store(nowUTC().UnixNano())
-			a.handleReceiptPersistenceEvent(ctx, v)
+			if err := a.handleReceiptPersistenceEvent(ctx, v); err != nil && limits != nil {
+				limits.persistenceFailed.Store(true)
+			}
 			if err := a.handleOutgoingReceiptEvent(ctx, v); err != nil && limits != nil {
 				limits.persistenceFailed.Store(true)
 			}
@@ -436,11 +438,11 @@ func appStateCollectionsForEvent(evt any) []appstate.WAPatchName {
 	}
 }
 
-func (a *App) handleReceiptPersistenceEvent(ctx context.Context, evt *events.Receipt) {
+func (a *App) handleReceiptPersistenceEvent(ctx context.Context, evt *events.Receipt) error {
 	if evt == nil || evt.Chat.IsEmpty() || !readByThisAccountElsewhere(evt) {
-		return
+		return nil
 	}
-	a.handleReceiptEvent(ctx, evt)
+	return a.handleReceiptEvent(ctx, evt)
 }
 
 // readByThisAccountElsewhere reports whether a receipt says this account read
@@ -464,20 +466,24 @@ func readByThisAccountElsewhere(evt *events.Receipt) bool {
 	}
 }
 
-func (a *App) handleReceiptEvent(ctx context.Context, evt *events.Receipt) {
+func (a *App) handleReceiptEvent(ctx context.Context, evt *events.Receipt) error {
 	chat := a.canonicalStoreJID(ctx, evt.Chat)
 	chatJID := canonicalJIDString(chat)
 	through, ids, err := a.receiptReadPosition(chatJID, evt)
+	if err == nil {
+		err = a.db.UpsertMessageReads(chatJID, ids, evt.Timestamp, "other_device")
+	}
 	if err == nil {
 		err = a.clearChatUnreadFromEvent(chatJID, through, ids)
 	}
 	if err != nil {
 		a.emitWarning(
 			"receipt_read_self_store_failed",
-			fmt.Sprintf("warning: failed to clear unread count from read-self receipt for chat %s: %v", chat, err),
+			fmt.Sprintf("warning: failed to store read-self receipt state for chat %s: %v", chat, err),
 			map[string]any{"chat_jid": chat.String(), "error": err.Error()},
 		)
 	}
+	return err
 }
 
 func (a *App) handleDeleteForMeEvent(ctx context.Context, evt *events.DeleteForMe) error {

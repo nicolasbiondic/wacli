@@ -610,6 +610,92 @@ func TestGetMessageByChatFilterCarriesDeliveryState(t *testing.T) {
 	}
 }
 
+func TestSelfReadTimesMessageCommands(t *testing.T) {
+	dir := t.TempDir()
+	db, err := store.Open(filepath.Join(dir, "wacli.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	chat := "15551234567@s.whatsapp.net"
+	at := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
+	if err := db.UpsertChat(chat, "dm", "Alice", at); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"known", "unknown"} {
+		if err := db.UpsertMessage(store.UpsertMessageParams{ChatJID: chat, MsgID: id, Timestamp: at, Text: "incoming"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := db.UpsertMessageReads(chat, []string{"known"}, at, "other_device"); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	for _, command := range []string{"show", "list"} {
+		t.Run(command, func(t *testing.T) {
+			flags := &rootFlags{storeDir: dir, readOnly: true, asJSON: true, timeout: time.Minute}
+			cmd := newMessagesListCmd(flags)
+			args := []string{"--chat", chat}
+			if command == "show" {
+				cmd = newMessagesShowCmd(flags)
+				args = append(args, "--id", "known")
+			}
+			cmd.SetArgs(args)
+			var runErr error
+			raw := captureRootStdout(t, func() { runErr = cmd.Execute() })
+			if runErr != nil {
+				t.Fatal(runErr)
+			}
+			var result struct {
+				Data json.RawMessage `json:"data"`
+			}
+			if err := json.Unmarshal([]byte(raw), &result); err != nil {
+				t.Fatal(err)
+			}
+			var messages []map[string]json.RawMessage
+			if command == "show" {
+				var m map[string]json.RawMessage
+				if err := json.Unmarshal(result.Data, &m); err != nil {
+					t.Fatal(err)
+				}
+				messages = append(messages, m)
+			} else {
+				var data struct {
+					Messages []map[string]json.RawMessage `json:"messages"`
+				}
+				if err := json.Unmarshal(result.Data, &data); err != nil {
+					t.Fatal(err)
+				}
+				messages = data.Messages
+			}
+			wantCount := 1
+			if command == "list" {
+				wantCount = 2
+			}
+			if len(messages) != wantCount {
+				t.Fatalf("messages = %s", raw)
+			}
+			for _, m := range messages {
+				want := "null"
+				if string(m["MsgID"]) == `"known"` {
+					want = `"` + at.Format(time.RFC3339) + `"`
+				}
+				if string(m["read_at"]) != want {
+					t.Fatalf("read_at = %s; want %s", m["read_at"], want)
+				}
+			}
+		})
+	}
+	var shown bytes.Buffer
+	if err := writeMessageShow(&shown, store.Message{ReadAt: &at}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(shown.String(), "Read at: ") {
+		t.Fatalf("human show omitted read time: %s", &shown)
+	}
+}
+
 func TestGetMessageByChatFilterTriesMappedChatJIDs(t *testing.T) {
 	db, err := store.Open(filepath.Join(t.TempDir(), "wacli.db"))
 	if err != nil {

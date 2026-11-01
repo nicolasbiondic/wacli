@@ -71,7 +71,8 @@ func (a *App) markChatReadWithReceipts(ctx context.Context, jid types.JID, throu
 	sent := 0
 	receipt := types.ReceiptTypeReadSelf
 	for _, batch := range batches {
-		kind, err := a.wa.MarkRead(ctx, batch.ids, nowUTC(), jid, batch.sender, addressing)
+		readAt := nowUTC()
+		kind, err := a.wa.MarkRead(ctx, batch.ids, readAt, jid, batch.sender, addressing)
 		if err != nil {
 			return sent, receipt, fmt.Errorf("send read receipts to %s (%d already sent; retry may resend them): %w", jid, sent, err)
 		}
@@ -79,6 +80,13 @@ func (a *App) markChatReadWithReceipts(ctx context.Context, jid types.JID, throu
 			receipt = wa.ReadReceiptUnknown
 		}
 		sent += len(batch.ids)
+		ids := make([]string, 0, len(batch.ids))
+		for _, id := range batch.ids {
+			ids = append(ids, string(id))
+		}
+		if err := a.db.UpsertMessageReads(chatJID, ids, readAt, "this_device"); err != nil {
+			return sent, receipt, fmt.Errorf("receipts sent, but storing local read times failed: %w", err)
+		}
 	}
 	ids := make([]string, 0, len(msgs))
 	for _, m := range msgs {

@@ -67,6 +67,16 @@ WhatsApp's read-receipt privacy setting is respected and never changed. JSON out
 
 The local read boundary advances after every selected batch has dispatched successfully. If a later batch fails, the error reports how many messages were already dispatched; retrying may resend those receipts. Receipt mode does not send an additional chat-state patch. `--read-only` rejects it because sending receipts changes WhatsApp state.
 
+Each successfully dispatched batch also persists its read timestamp with source
+`this_device`, even if a later batch fails. Failed or unsent batches do not gain a
+read timestamp. Reads observed from another linked device use `other_device`, for
+both `read-self` and this account's ordinary `read` receipts. The earliest read
+time wins across sources and replays. Inspect incoming messages with
+`messages show --json` or `messages list --json` (`read_at`, null when unknown).
+Only listed message IDs are recorded; clearing unread metadata does not infer
+timestamps for earlier messages. Plain app-state `mark-read` and local-only
+zero-receipt clears do not populate message read times.
+
 ## Examples
 
 ```bash

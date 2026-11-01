@@ -22,6 +22,10 @@ type MessageLocalMedia struct {
 // identity nobody discovers is never migrated. The app layer resolves these
 // through whatsmeow.
 func (d *DB) HistoricalLIDJIDs() ([]string, error) {
+	readJIDs := ""
+	if d.readsEnabled {
+		readJIDs = ` UNION SELECT chat_jid FROM message_reads WHERE chat_jid GLOB '*@lid' `
+	}
 	rows, err := d.sql.Query(`
 		SELECT jid FROM chats WHERE jid GLOB '*@lid'
 		UNION
@@ -48,6 +52,7 @@ func (d *DB) HistoricalLIDJIDs() ([]string, error) {
 		SELECT chat_jid FROM message_receipts WHERE chat_jid GLOB '*@lid'
 		UNION
 		SELECT recipient_jid FROM message_receipts WHERE recipient_jid GLOB '*@lid'
+	` + readJIDs + `
 		ORDER BY 1
 	`)
 	if err != nil {
@@ -130,6 +135,9 @@ func (d *DB) MigrateLIDToPN(lidJID, pnJID string) error {
 		return err
 	}
 	if err := migrateLIDMessageReceiptsToPN(tx, lidJID, pnJID); err != nil {
+		return err
+	}
+	if err := migrateLIDMessageReadsToPN(tx, lidJID, pnJID); err != nil {
 		return err
 	}
 	if err := migrateLIDPollsToPN(tx, lidJID, pnJID); err != nil {
