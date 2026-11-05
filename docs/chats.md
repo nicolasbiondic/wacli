@@ -167,6 +167,10 @@ their result and 409-conflict batches synchronously through the pinned SDK's
 encode/apply/fetch primitives, before releasing that owner. No detached regular
 send echo can overtake a following edit. The same owner consumes the fork's
 snapshot boundaries and failed closes; there is no second ordering queue.
+On 409 the candidate fetches the current delta with the fork's SDK lock instead
+of directly applying a stale response against the pre-send hash. This adds one
+IQ on a conflict and avoids replaying an already-applied notification patch;
+snapshot provenance and MAC validation still belong to the SDK.
 Each write keeps a durable
 `regular` recovery intent, so the next pre-write sync or `sync --follow` recovery
 normally performs a full `regular` replay. This is intentional but costs more
@@ -250,6 +254,16 @@ WhatsApp's read-receipt privacy setting is respected and never changed. JSON out
 - `receipt: "unknown"`, `sender_notified: null`: normal receipts were requested, but the transport may apply a newer privacy setting and does not report the emitted type. This is not confirmation that a sender saw blue ticks. Mixed group-batch outcomes are also reported as unknown.
 
 The local read boundary advances after every selected batch has dispatched successfully. If a later batch fails, the error reports how many messages were already dispatched; retrying may resend those receipts. Receipt mode does not send an additional chat-state patch. `--read-only` rejects it because sending receipts changes WhatsApp state.
+
+Each successfully dispatched batch also persists its read timestamp with source
+`this_device`, even if a later batch fails. Failed or unsent batches do not gain a
+read timestamp. Reads observed from another linked device use `other_device`, for
+both `read-self` and this account's ordinary `read` receipts. The earliest read
+time wins across sources and replays. Inspect incoming messages with
+`messages show --json` or `messages list --json` (`read_at`, null when unknown).
+Only listed message IDs are recorded; clearing unread metadata does not infer
+timestamps for earlier messages. Plain app-state `mark-read` and local-only
+zero-receipt clears do not populate message read times.
 
 ## Examples
 

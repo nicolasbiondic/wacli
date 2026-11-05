@@ -61,6 +61,18 @@ func (s *delayedRegularSDK) fetch(ctx context.Context, name appstate.WAPatchName
 	return batch, err
 }
 
+// This transport stub supplies the same authoritative delta the real sender
+// fetches on 409. The real-Noise test below covers the fork's fetch/locking path.
+func (s *delayedRegularSDK) conflicts(ctx context.Context, state appstate.HashState, name appstate.WAPatchName, collection *waBinary.Node) ([]any, error) {
+	patches, err := appstate.ParsePatchList(ctx, collection, s.cli.DangerousInternals().DownloadExternalAppStateBlob)
+	if err != nil {
+		return nil, err
+	}
+	var batch []any
+	_, err = s.cli.DangerousInternals().ApplyAppStatePatches(ctx, name, state, patches, false, &batch)
+	return batch, err
+}
+
 // Counterfactual models exactly SendAppState's detached batch dispatch: A is
 // already applied in session.db, but its event goroutine resumes after B's.
 func (s *delayedRegularSDK) send(ctx context.Context, p appstate.PatchInfo) error {

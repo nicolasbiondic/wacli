@@ -145,7 +145,33 @@ Malformed receipt entries are skipped while valid entries in the same batch are 
 
 `messages show` reports the same two counts, and an identity migration from a `@lid` chat to its phone number carries the reports with their messages, counting a recipient that reported under both identities once.
 
-Only reports that arrive while `sync` is connected are kept: WhatsApp announces each one once and does not repeat it. Messages sent before a store started keeping them, or while nothing was connected, stay at zero on both counts, which means "sent, nothing reported" rather than "not delivered". Your own notes chat receives no report at all, since the only recipient is the account itself. Reports about incoming messages are not kept: they say nothing about your own.
+Only reports that arrive while `sync` is connected are kept: WhatsApp announces each one once and does not repeat it. Messages sent before a store started keeping them, or while nothing was connected, stay at zero on both counts, which means "sent, nothing reported" rather than "not delivered". Your own notes chat receives no report at all, since the only recipient is the account itself. Incoming-message reads are tracked separately from these outgoing counts.
+
+## When this account read a message
+
+`messages show --json` and `messages list --json` include `read_at`, the earliest
+observed time this account read an incoming message, as a UTC RFC3339 timestamp
+with whole-second precision. It is `null` when unknown, including old history,
+untimestamped receipts, old stores opened read-only, and outgoing messages.
+Human `messages show` prints `Read at` when known.
+
+Reads received from another linked device (`read-self`, or `read` sent by this
+account) and successful `chats mark-read --receipts` batches are persisted in
+`message_reads`, with source `other_device` or `this_device`. Replays keep the
+earliest timestamp and its source; phone/LID reconciliation merges them the same
+way. Known outgoing messages are excluded. Listed IDs not yet in history can be
+retained if their chat is already stored.
+
+Only IDs explicitly listed in a receipt are recorded. The existing read-position
+logic clears unread metadata but does not enumerate earlier covered messages, so
+an earlier message can have `read_at: null` even after a later one was read.
+The receipt timestamp is the read time, not the message's original timestamp.
+No historical read time is inferred or backfilled. Plain app-state `mark-read`
+does not send per-message receipts and does not populate this field.
+
+Read-time changes invalidate pagination cursors, like outgoing receipt counts;
+they do not add message change-journal entries. All times describe observations
+in this local archive, not proof of complete WhatsApp history.
 
 ## Media captions
 

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Messages: retain earliest observed self-read times in an additive fork-only migration 9039; expose nullable `read_at` without changing message rows or the existing delivery/read acknowledgements.
+
 - Candidate: merge upstream 0.25.1 and reviewed regular app-state writes. Preserve the production SDK and its ordered snapshot boundaries; capture regular send/409 batches synchronously, arbitrate by application order, preserve list mute times, and initialize independent quick-reply coverage as incomplete. Known-broken resync has no force override. Keep the production write opt-in and read-view guarantees.
 
 - SQLite errors: preserve the JSON error string and add `sqlite_error` with primary/extended codes, symbolic name and read-only retryability (also in lifecycle errors). Only known read-only WAL init failures 264/1288 can be retryable; other errors and mutations stay non-retryable.

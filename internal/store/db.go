@@ -24,6 +24,7 @@ type DB struct {
 	// open cannot create one, so message queries ask for the counts only when
 	// the table is there.
 	receiptsEnabled bool
+	readsEnabled    bool
 	// Same for the ad referral column, which only a writable open adds.
 	adReferralEnabled bool
 	kindEnabled       bool
@@ -69,6 +70,7 @@ func open(path string, readOnly bool) (*DB, error) {
 		}
 		s.ftsEnabled = s.detectMessagesFTS()
 		s.receiptsEnabled = s.hasTable("message_receipts")
+		s.readsEnabled = s.hasTable("message_reads")
 		s.adReferralEnabled = s.hasMessagesColumn("ad_referral")
 		s.kindEnabled = s.hasMessagesColumn("kind")
 		return s, nil
@@ -78,6 +80,7 @@ func open(path string, readOnly bool) (*DB, error) {
 		return nil, err
 	}
 	s.receiptsEnabled = s.hasTable("message_receipts")
+	s.readsEnabled = s.hasTable("message_reads")
 	s.adReferralEnabled = s.hasMessagesColumn("ad_referral")
 	s.kindEnabled = s.hasMessagesColumn("kind")
 	if err := sqliteutil.ChmodFiles(path, 0o600); err != nil {

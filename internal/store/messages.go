@@ -54,7 +54,7 @@ type UpsertMessageParams struct {
 const messageBaseColumns = `m.rowid, m.chat_jid, COALESCE(c.name,''), m.msg_id, COALESCE(m.sender_jid,''), COALESCE(m.sender_name,''), m.ts, m.from_me, COALESCE(m.text,''), COALESCE(m.display_text,''), COALESCE(m.quoted_msg_id,''), COALESCE(m.quoted_sender_jid,''), m.is_forwarded, m.forwarding_score, COALESCE(m.reaction_to_id,''), COALESCE(m.reaction_emoji,''), COALESCE(m.media_type,''), COALESCE(m.media_caption,''), COALESCE(m.filename,''), COALESCE(m.mime_type,''), COALESCE(m.direct_path,''), COALESCE(m.local_path,''), COALESCE(m.downloaded_at,0), CASE WHEN s.msg_id IS NULL THEN 0 ELSE 1 END, COALESCE(s.starred_at,0), m.revoked, m.deleted_for_me, COALESCE(m.deleted_at,0), COALESCE(m.deletion_reason,''), COALESCE(m.payload_purged_at,0), m.edited, COALESCE(m.buttons,'')`
 
 func (d *DB) messageSelectColumns(snippet string) string {
-	return fmt.Sprintf("%s, %s, %s, %s, %s", messageBaseColumns, d.adReferralColumn(), d.receiptColumns(), snippetSQL(snippet), d.kindColumn())
+	return fmt.Sprintf("%s, %s, %s, %s, %s, %s", messageBaseColumns, d.adReferralColumn(), d.receiptColumns(), snippetSQL(snippet), d.kindColumn(), d.messageReadColumn())
 }
 
 func (d *DB) kindColumn() string {
@@ -645,7 +645,7 @@ LIMIT ?`, chatJID, ts, ts, target.rowID, int64(after))
 // contextColumns is the message row without receipt counts or a snippet, as
 // show and context have always returned it.
 func (d *DB) contextColumns() string {
-	return messageBaseColumns + ", " + d.adReferralColumn() + ", 0, 0, '', " + d.kindColumn()
+	return messageBaseColumns + ", " + d.adReferralColumn() + ", 0, 0, '', " + d.kindColumn() + ", " + d.messageReadColumn()
 }
 
 func (d *DB) scanMessages(query string, args ...any) ([]Message, error) {
@@ -676,8 +676,9 @@ func scanMessagesFrom(db queryRows, ranked bool, query string, args ...any) ([]M
 		var buttonsJSON string
 		var adReferralJSON string
 		var edited int
+		var readAt sql.NullInt64
 		dest := []any{&m.rowID, &m.ChatJID, &m.ChatName, &m.MsgID, &m.SenderJID, &m.SenderName, &ts, &fromMe, &m.Text, &m.DisplayText, &m.QuotedMsgID, &m.QuotedSenderJID, &forwarded, &forwardingScore, &m.ReactionToID, &m.ReactionEmoji, &m.MediaType, &m.MediaCaption, &m.Filename, &m.MimeType, &m.DirectPath, &m.LocalPath, &downloadedAt, &starred, &starredAt, &revoked, &deletedForMe, &deletedAt, &deletionReason, &payloadPurgedAt, &edited, &buttonsJSON, &adReferralJSON, &m.DeliveredTo, &m.ReadBy, &m.Snippet}
-		dest = append(dest, &m.Kind)
+		dest = append(dest, &m.Kind, &readAt)
 		if ranked {
 			dest = append(dest, &m.rank)
 		}
@@ -686,6 +687,10 @@ func scanMessagesFrom(db queryRows, ranked bool, query string, args ...any) ([]M
 		}
 		m.Timestamp = fromUnix(ts)
 		m.FromMe = fromMe != 0
+		if readAt.Valid && !m.FromMe {
+			at := fromUnix(readAt.Int64)
+			m.ReadAt = &at
+		}
 		m.IsForwarded = forwarded != 0
 		m.ForwardingScore = uint32(forwardingScore)
 		m.DownloadedAt = fromUnix(downloadedAt)

@@ -123,6 +123,7 @@ type Message struct {
 	// includes every message stored before receipts were kept.
 	DeliveredTo int
 	ReadBy      int
+	ReadAt      *time.Time `json:"read_at"`
 	Snippet     string
 	rowID       int64
 }

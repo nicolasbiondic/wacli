@@ -58,6 +58,8 @@ var schemaMigrations = []migration{
 	{version: 36, name: "WhatsApp lists and chat memberships", up: migrateLists},
 	{version: 38, name: "WhatsApp Business quick replies", up: migrateQuickReplies},
 	{version: 9035, name: "messages semantic kind", up: migrateMessageKind},
+	// Fork-only: do not claim upstream's 39 or any existing production row.
+	{version: 9039, name: "message self read times", up: ensureMessageReadsTable},
 }
 
 func migrateMessageKind(d *DB) error {
@@ -547,6 +549,9 @@ func (d *DB) ensureCurrentSchema() error {
 	}
 	if err := migrateQuickReplies(d); err != nil {
 		return fmt.Errorf("ensure current quick replies schema: %w", err)
+	}
+	if err := ensureMessageReadsTable(d); err != nil {
+		return fmt.Errorf("ensure message self read times: %w", err)
 	}
 	return migrateMessageKind(d)
 }

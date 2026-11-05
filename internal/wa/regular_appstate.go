@@ -93,14 +93,14 @@ func (s sdkRegularAppStateSender) exchange(ctx context.Context, name appstate.WA
 	})
 }
 
-func (s sdkRegularAppStateSender) conflicts(ctx context.Context, state appstate.HashState, name appstate.WAPatchName, collection *waBinary.Node) ([]any, error) {
-	patches, err := appstate.ParsePatchList(ctx, collection, s.cli.DangerousInternals().DownloadExternalAppStateBlob)
-	if err != nil {
-		return nil, err
-	}
-	var events []any
-	_, err = s.cli.DangerousInternals().ApplyAppStatePatches(ctx, name, state, patches, false, &events)
-	return events, err
+func (s sdkRegularAppStateSender) conflicts(ctx context.Context, _ appstate.HashState, name appstate.WAPatchName, _ *waBinary.Node) ([]any, error) {
+	// The production fork serializes conflict application against notification
+	// fetches and rereads the current version. Its conflict helper is not exposed
+	// through DangerousInternals. Do not bypass that lock with ApplyAppStatePatches
+	// and the stale pre-send hash: applying an already-fetched patch twice corrupts
+	// the LTHash. Fetch the authoritative delta instead (one extra IQ on 409).
+	// This also retains the fork's full-snapshot boundaries/provenance at v0.
+	return s.fetch(ctx, name)
 }
 
 func (s sdkRegularAppStateSender) fetch(ctx context.Context, name appstate.WAPatchName) ([]any, error) {

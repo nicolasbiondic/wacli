@@ -105,6 +105,37 @@ func TestRegularRealTransport(t *testing.T) {
 		t.Log("PASS: SDK applied v2 foreign then v3 retry; owner persisted conflict before retry")
 	})
 
+	t.Run("409_already_applied_before_response", func(t *testing.T) {
+		e := newRegularTransport(t, root)
+		e.captureOnly()
+		q := e.create()
+		e.server.mu.Lock()
+		e.server.foreign = transportReply(q.ID, "foreign", false)
+		e.server.beforeConflictResponse = func(raw []byte) error {
+			// Model the SDK state advanced by a notification fetch while SET was
+			// in flight. The response still contains that now-already-applied v2.
+			version, hash, err := e.cli.Store.AppState.GetAppStateVersion(e.ctx, "regular")
+			if err != nil {
+				return err
+			}
+			var patch waServerSync.SyncdPatch
+			if err := proto.Unmarshal(raw, &patch); err != nil {
+				return err
+			}
+			var batch []any
+			_, err = e.cli.DangerousInternals().ApplyAppStatePatches(e.ctx, appstate.WAPatchRegular,
+				appstate.HashState{Version: version, Hash: hash},
+				&appstate.PatchList{Name: appstate.WAPatchRegular, Patches: []*waServerSync.SyncdPatch{&patch}}, false, &batch)
+			return err
+		}
+		e.server.mu.Unlock()
+		if _, err := e.app.EditQuickReply(e.ctx, q.ID, app.QuickReplyInput{Message: proto.String("retry wins")}); err != nil {
+			t.Fatal(err)
+		}
+		e.row(q.ID, "retry wins", false)
+		e.checkServer([]transportRow{{"created", false}, {"foreign", false}, {"retry wins", false}}, 1)
+	})
+
 	t.Run("legacy_delayed_dispatch_control", func(t *testing.T) {
 		e := newRegularTransport(t, root)
 		entered, release := make(chan struct{}), make(chan struct{})
@@ -393,15 +424,16 @@ func transportReply(id, message string, deleted bool) *appstate.PatchInfo {
 }
 
 type transportSyncd struct {
-	t         *testing.T
-	mu        sync.Mutex
-	processor *appstate.Processor
-	keyID     []byte
-	state     appstate.HashState
-	patches   [][]byte
-	accepted  []transportRow
-	foreign   *appstate.PatchInfo
-	conflicts int
+	t                      *testing.T
+	mu                     sync.Mutex
+	processor              *appstate.Processor
+	keyID                  []byte
+	state                  appstate.HashState
+	patches                [][]byte
+	accepted               []transportRow
+	foreign                *appstate.PatchInfo
+	conflicts              int
+	beforeConflictResponse func([]byte) error
 }
 
 func (s *transportSyncd) append(ctx context.Context, raw []byte) error {
@@ -471,6 +503,12 @@ func (s *transportSyncd) iq(ctx context.Context, iq *waBinary.Node) (waBinary.No
 			s.conflicts++
 			result.Attrs["type"] = "error"
 			result.Content = []waBinary.Node{{Tag: "error", Attrs: waBinary.Attrs{"code": "409"}}, {Tag: "patches", Content: s.since(version)}}
+			if s.beforeConflictResponse != nil {
+				if err := s.beforeConflictResponse(s.patches[len(s.patches)-1]); err != nil {
+					return response, err
+				}
+				s.beforeConflictResponse = nil
+			}
 			s.t.Logf("IQ IN 409 regular pending=v%d..v%d", version+1, s.state.Version)
 		} else {
 			raw, ok := patch.Content.([]byte)
