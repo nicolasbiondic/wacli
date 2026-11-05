@@ -25,7 +25,8 @@ func (a *App) handleListEvent(ctx context.Context, evt any) error {
 			ID: v.LabelID, Name: act.Name, Color: act.Color, PredefinedID: act.PredefinedID,
 			Type: listType, OrderIndex: act.OrderIndex, IsActive: act.IsActive,
 			IsImmutable: act.IsImmutable, Deleted: act.Deleted,
-			Timestamp: v.Timestamp, FromFullSync: v.FromFullSync,
+			MuteEndTimeMS: act.MuteEndTimeMS,
+			Timestamp:     v.Timestamp, FromFullSync: v.FromFullSync,
 		})
 	case *events.LabelAssociationChat:
 		if v == nil || v.Action == nil || v.JID.IsEmpty() || v.LabelID == "" || v.Action.Labeled == nil {

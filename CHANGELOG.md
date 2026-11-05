@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Candidate: merge upstream 0.25.1 and reviewed regular app-state writes. Preserve the production SDK and its ordered snapshot boundaries; capture regular send/409 batches synchronously, arbitrate by application order, preserve list mute times, and initialize independent quick-reply coverage as incomplete. Known-broken resync has no force override. Keep the production write opt-in and read-view guarantees.
+
 - SQLite errors: preserve the JSON error string and add `sqlite_error` with primary/extended codes, symbolic name and read-only retryability (also in lifecycle errors). Only known read-only WAL init failures 264/1288 can be retryable; other errors and mutations stay non-retryable.
 - Read-only store: include `SQLITE_READONLY_CANTINIT` (1288) in the existing four-attempt read retry. Retry the entire rolled-back read view, never writable connections or mutations.
 - Lists: resolve active definitions, exact-ID tombstones and filtered chat memberships in one SQLite read view, so concurrent undeletes cannot redirect an ID to another list's name.
@@ -19,7 +21,21 @@
 - Messages: keep Click-to-WhatsApp ad referrals (ad ID, source, headline, media type, click ID) and expose them as `ad_referral` in message JSON, sync webhook payloads, and a `messages show` line. Each text field is capped at 1024 bytes and thumbnails are not stored. Thanks @nicolasbiondic (#473).
 - Lists: persist WhatsApp List/Business label definitions and chat membership events; add read-only `lists list` (`labels list`) and `chats list --list ID_OR_NAME`, with explicit unknown completeness and LID/phone membership reconciliation. Message memberships and favorites/system-list filtering remain out of scope.
 - Labels and quick replies: add `lists create|edit|delete` (`labels ...`), `chats label add|remove` and `quick-replies list|create|edit|delete`, sent as `regular` app-state patches after a pre-write sync and delegated to a running `sync --follow` like archiving. Quick replies seen during sync are now stored (migration 38). New label IDs are only guessed after a full sync was observed (otherwise pass `--id`); LID-only chats cannot be labeled yet.
-- Quick replies: send action version 3, report observed full-sync completeness, and add delegated `app-state resync regular` using existing recovery debt. Known-broken full syncs require explicit `--force`. Label writes reject retired/non-numeric IDs and duplicate renames, preserve absent colors, and report the patched phone JID; shortcut conflicts fail closed.
+- Quick replies: send action version 3, report observed full-sync completeness, and add delegated `app-state resync regular` using existing recovery debt. Known-broken full syncs are refused without an override. Label writes reject retired/non-numeric IDs and duplicate renames, preserve absent colors and mute times, and report the patched phone JID; shortcut conflicts fail closed.
+
+## 0.25.1 - 2026-10-26
+
+- Send: extend file and voice upload timeouts by one second per 64 KiB (#535).
+- Messages: decode wrapped history, iPhone contacts and round video notes (#529).
+- Sync: retain valid receipts from partially malformed batches (#537).
+- Dependencies: update GraphQL parser and Levenshtein.
+
+## 0.25.0 - 2026-10-23
+
+- Send: support opt-in file sizes up to 2048 MiB (#525).
+- Polls: persist timestamped vote retractions (#516).
+- Media: close read-only cache before uncached download writes (#524).
+- Dependencies: refresh SQL parser and Google API/RPC modules.
 
 ## 0.24.0 - 2026-10-21
 

@@ -139,10 +139,13 @@ func TestCompletenessAndRowsShareOneWALSnapshot(t *testing.T) {
 	for _, lists := range []bool{false, true} {
 		t.Run(fmt.Sprintf("lists=%t", lists), func(t *testing.T) {
 			writer := openTestDB(t)
-			if _, err := writer.sql.Exec(`ALTER TABLE list_sync_state RENAME TO snapshot_state;
-				CREATE VIEW list_sync_state AS SELECT id,
-				round3_flag(full_sync_events_seen) AS full_sync_events_seen,
-				round3_flag(full_sync_complete) AS full_sync_complete FROM snapshot_state`); err != nil {
+			table := "quick_reply_sync_state"
+			if lists {
+				table = "list_sync_state"
+			}
+			if _, err := writer.sql.Exec(`ALTER TABLE ` + table + ` RENAME TO snapshot_state;
+				CREATE VIEW ` + table + ` AS SELECT id,
+				round3_flag(full_sync_events_seen) AS full_sync_events_seen FROM snapshot_state`); err != nil {
 				t.Fatal(err)
 			}
 			ctx, cancel := context.WithTimeout(t.Context(), 15*time.Second)
@@ -199,7 +202,7 @@ func TestCompletenessAndRowsShareOneWALSnapshot(t *testing.T) {
 							}
 						}
 					} else {
-						_, err = writer.sql.ExecContext(ctx, `UPDATE snapshot_state SET full_sync_complete=0 WHERE id=1`)
+						_, err = writer.sql.ExecContext(ctx, `UPDATE snapshot_state SET full_sync_events_seen=0 WHERE id=1`)
 						if err == nil {
 							err = writer.UpsertQuickReply(QuickReply{ID: "1", Shortcut: "fixture", Message: fmt.Sprintf("partial-%d", r.n)}, time.Unix(int64(2*r.n+2), 0))
 						}
@@ -223,7 +226,7 @@ func TestCompletenessAndRowsShareOneWALSnapshot(t *testing.T) {
 				} else if err := writer.UpsertQuickReply(QuickReply{ID: "1", Shortcut: "fixture", Message: full}, time.Unix(int64(2*n+1), 0)); err != nil {
 					t.Fatal(err)
 				}
-				if _, err := writer.sql.Exec(`UPDATE snapshot_state SET full_sync_complete=1,full_sync_events_seen=0 WHERE id=1`); err != nil {
+				if _, err := writer.sql.Exec(`UPDATE snapshot_state SET full_sync_events_seen=? WHERE id=1`, !lists); err != nil {
 					t.Fatal(err)
 				}
 				b := &completenessReadBarrier{seen: make(chan struct{}), written: make(chan struct{})}

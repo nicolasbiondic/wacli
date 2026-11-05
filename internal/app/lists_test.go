@@ -59,8 +59,11 @@ func TestListsLiveSyncAndOneShotPersistence(t *testing.T) {
 		}
 		f.emit(&events.LabelEdit{LabelID: "7", Timestamp: at.Add(time.Second), Action: &waSyncAction.LabelEditAction{Name: proto.String("Renamed")}})
 		f.emit(&events.LabelAssociationChat{LabelID: "7", JID: lid, Timestamp: at.Add(time.Second), Action: &waSyncAction.LabelAssociationAction{Labeled: proto.Bool(false)}})
-		// Replaying an older snapshot cannot restore a removed membership.
-		for _, evt := range listFixtureEvents(at, lid) {
+		// Authoritative replay has current values, independent of device clocks.
+		current := listFixtureEvents(at, lid)
+		current[0].(*events.LabelEdit).Action.Name = proto.String("Renamed")
+		current[1].(*events.LabelAssociationChat).Action.Labeled = proto.Bool(false)
+		for _, evt := range current {
 			f.emit(evt)
 		}
 		assertAppListMembers(t, a)
@@ -154,7 +157,7 @@ func TestListsOrderedSnapshotDoesNotOvertakeNewerLiveRemoval(t *testing.T) {
 	at := time.Unix(100, 0)
 	ticket := a.appStatePersist.reserve()
 	a.handleAppStatePersistenceEvent(t.Context(), &events.LabelAssociationChat{LabelID: "7", JID: jid,
-		Timestamp: at.Add(time.Second), Action: &waSyncAction.LabelAssociationAction{Labeled: proto.Bool(false)}}, nil)
+		Timestamp: at.Add(-time.Second), Action: &waSyncAction.LabelAssociationAction{Labeled: proto.Bool(false)}}, nil)
 	pending, err := a.db.AppStateRecoveryRequired(string(appstate.WAPatchRegular))
 	if err != nil || !pending {
 		t.Fatalf("queued event has no durable recovery marker: %t, %v", pending, err)

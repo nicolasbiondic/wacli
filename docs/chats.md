@@ -97,13 +97,14 @@ stderr. Inspect `lists list --json` alongside them.
 
 Sync persists live, startup full-sync, and recovery-snapshot events through the
 existing ordered app-state writer. Membership removals and definition deletions
-are retained as tombstones, and older timestamped replay cannot restore them.
-On an equal timestamp, removal/deletion wins conservatively. A newer undelete
+are retained as tombstones; the later accepted action wins in persistence order,
+even with an equal or lower device timestamp. A later accepted undelete
 makes the definition and its retained memberships visible again. Snapshots are
 merged, not treated as authoritative replacement sets: absence from a replay
 does not remove a previously observed row. Known LID/phone mappings use the
-existing identity normalization and historical merge, keeping the newest
-membership state across aliases. Unresolved LIDs remain usable until a later
+existing identity normalization and historical merge, keeping the last-applied
+membership state across aliases. Legacy rows start at application order zero;
+only ambiguous ties retain removals. Unresolved LIDs remain usable until a later
 authenticated startup can resolve them.
 
 The next writable store open adds the list tables without changing existing
@@ -143,7 +144,7 @@ normal startup sync do not require the opt-in.
   `CUSTOM` and active. This account-model heuristic has not been verified on a
   real phone. Duplicate names are refused on create and rename.
 - `lists edit` and `lists delete` resend every stored field (predefined ID, type,
-  order, active and immutable flags), since WhatsApp replaces the whole value.
+  order, active and immutable flags, and optional `muteEndTimeMS`), since WhatsApp replaces the whole value.
   An unobserved color stays unset rather than being replaced with color 0.
   Immutable definitions and system list types are refused. Deleting sends a
   definition tombstone; how each phone removes its chat associations is not yet
@@ -160,10 +161,13 @@ normal startup sync do not require the opt-in.
   keywords, usage count and label IDs. Shortcuts are matched with or without the
   leading `/`.
 
-The local label and quick reply indexes order values by action timestamp, while
-WhatsApp orders app state by patch. A phone clock ahead of this machine can make
-a newer local write and its echo lose to an older timestamped value; a replay
-does not necessarily fix this clock-skew limitation. Each write keeps a durable
+Label definitions, memberships and quick replies use the existing ordered
+app-state persistence owner, not device-clock arbitration. Regular sends return
+their result and 409-conflict batches synchronously through the pinned SDK's
+encode/apply/fetch primitives, before releasing that owner. No detached regular
+send echo can overtake a following edit. The same owner consumes the fork's
+snapshot boundaries and failed closes; there is no second ordering queue.
+Each write keeps a durable
 `regular` recovery intent, so the next pre-write sync or `sync --follow` recovery
 normally performs a full `regular` replay. This is intentional but costs more
 than incremental sync; known-broken collections retain the existing degraded
@@ -175,7 +179,9 @@ preceding snapshot writes have persisted successfully, otherwise `"incomplete"`;
 text output warns when incomplete. `full_sync_events_seen` remains informational
 and is not evidence of completion. Legacy indexes start incomplete on upgrade,
 and a partial or failed full replay cannot mark them complete. The new
-`list_sync_state.full_sync_complete` bit is independent of the legacy flag.
+`quick_reply_sync_state.full_sync_events_seen` bit starts incomplete even if the
+older Lists build recorded a complete snapshot. The legacy
+`list_sync_state.full_sync_complete` bit is maintained only for binary rollback.
 Readers load completeness and rows in one deferred SQLite read transaction, so
 a concurrent WAL writer cannot combine an old complete flag with new partial
 rows. List metadata, label-ID selection and resync counts also share read views.
@@ -206,8 +212,6 @@ Only WhatsApp Business accounts show quick replies on the phone.
 
 ```bash
 WACLI_REGULAR_WRITES=1 wacli --json app-state resync regular
-# Only after understanding the risk on an account with a known-broken full sync:
-WACLI_REGULAR_WRITES=1 wacli --json app-state resync regular --force
 ```
 
 This requests a full `regular` sync through the existing serialized recovery and
@@ -217,10 +221,11 @@ Older owners refuse it; upgrade and restart `wacli sync`. `--read-only` refuses 
 The result is `{"collection":"regular","completeness":"complete"|"incomplete",
 "quick_replies":N,"lists":N}`, counting nondeleted local rows after recovery.
 
-A collection flagged in `app_state_full_sync_broken` is refused unless `--force`
-is explicit. Stock whatsmeow discards the saved collection version before a full
+A collection flagged in `app_state_full_sync_broken` is always refused; there is
+no force override. Stock whatsmeow discards the saved collection version before a full
 sync verifies; if verification fails, usable local app state can be lost until
-the primary provides a recovery snapshot. `--force` accepts that risk; it does
+the primary provides a recovery snapshot. Keep the primary online and let the
+existing `sync --follow` owner request primary recovery instead. Resync does
 not bypass verification or guarantee recovery. Failed fetches or persistence
 leave recovery debt for the existing recovery path. No live-phone proof has been
 completed yet.

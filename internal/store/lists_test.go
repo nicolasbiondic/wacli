@@ -38,18 +38,19 @@ func TestListsDefinitionsMembershipReplayAndDeletion(t *testing.T) {
 		t.Fatalf("definition = %+v, want %+v", result.Lists[0], want)
 	}
 	assertListChats(t, db, "7", chat)
-	if err := db.UpsertList(ListUpdate{ID: "7", Name: listPtr("Renamed"), Timestamp: at.Add(time.Second)}); err != nil {
+	if err := db.UpsertList(ListUpdate{ID: "7", Name: listPtr("Renamed"), Timestamp: at.Add(-time.Second)}); err != nil {
 		t.Fatal(err)
 	}
-	// A snapshot's older create must not undo a rename or a membership removal.
-	if err := db.SetChatList(chat, "7", false, at.Add(time.Second), false); err != nil {
+	// Store operations already arrive in authoritative persistence order.
+	// Repeating a current snapshot with an older device clock keeps the value.
+	if err := db.SetChatList(chat, "7", false, at.Add(-time.Second), false); err != nil {
 		t.Fatal(err)
 	}
 	for range 2 {
-		if err := db.UpsertList(create); err != nil {
+		if err := db.UpsertList(ListUpdate{ID: "7", Name: listPtr("Renamed"), Timestamp: at.Add(-time.Second)}); err != nil {
 			t.Fatal(err)
 		}
-		if err := db.SetChatList(chat, "7", true, at, true); err != nil {
+		if err := db.SetChatList(chat, "7", false, at.Add(-time.Second), true); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -63,9 +64,6 @@ func TestListsDefinitionsMembershipReplayAndDeletion(t *testing.T) {
 	}
 	assertListChats(t, db, "7", chat)
 	if err := db.UpsertList(ListUpdate{ID: "7", Deleted: listPtr(true), Timestamp: at.Add(3 * time.Second)}); err != nil {
-		t.Fatal(err)
-	}
-	if err := db.UpsertList(create); err != nil {
 		t.Fatal(err)
 	}
 	assertListChats(t, db, "7")
@@ -85,7 +83,7 @@ func TestListsDefinitionsMembershipReplayAndDeletion(t *testing.T) {
 	if err != nil || len(result.Lists) != 1 || result.Lists[0].Name != "Renamed" {
 		t.Fatalf("undeleted list = %+v, %v", result, err)
 	}
-	// Equal timestamps resolve to deletion, whichever event arrives last.
+	// Equal timestamps are also data: the final accepted action wins.
 	tie := at.Add(5 * time.Second)
 	for _, deleted := range []bool{true, false} {
 		if err := db.UpsertList(ListUpdate{ID: "7", Deleted: listPtr(deleted), Timestamp: tie}); err != nil {
@@ -93,8 +91,8 @@ func TestListsDefinitionsMembershipReplayAndDeletion(t *testing.T) {
 		}
 	}
 	result, err = db.Lists()
-	if err != nil || len(result.Lists) != 0 {
-		t.Fatalf("equal-timestamp undelete won: %+v, %v", result, err)
+	if err != nil || len(result.Lists) != 1 {
+		t.Fatalf("later equal-timestamp undelete lost: %+v, %v", result, err)
 	}
 }
 
@@ -148,6 +146,83 @@ func TestListsIdentityMergeUsesNewestMembershipIncludingRemovals(t *testing.T) {
 		if err := db.sql.QueryRow(`SELECT count(*) FROM chat_lists WHERE chat_jid=?`, lid).Scan(&count); err != nil || count != 0 {
 			t.Fatalf("LID rows remain: %d, %v", count, err)
 		}
+	}
+}
+
+func TestMembershipOrderIgnoresSkewAcrossAliases(t *testing.T) {
+	for _, laterLID := range []bool{false, true} {
+		db := openTestDB(t)
+		at := time.Unix(100, 0)
+		lid, pn := "999@lid", "123@s.whatsapp.net"
+		if err := db.UpsertChat(pn, "dm", "Synthetic", at); err != nil {
+			t.Fatal(err)
+		}
+		if err := db.UpsertList(ListUpdate{ID: "1", Name: listPtr("Label")}); err != nil {
+			t.Fatal(err)
+		}
+		older, later := lid, pn
+		if laterLID {
+			older, later = pn, lid
+		}
+		if err := db.SetChatList(older, "1", true, at.Add(time.Hour), false); err != nil {
+			t.Fatal(err)
+		}
+		if err := db.SetChatList(later, "1", true, at.Add(time.Hour), false); err != nil {
+			t.Fatal(err)
+		}
+		if err := db.SetChatList(later, "1", false, at, false); err != nil {
+			t.Fatal(err)
+		}
+		if err := db.MigrateLIDToPN(lid, pn); err != nil {
+			t.Fatal(err)
+		}
+		assertListChats(t, db, "1")
+	}
+}
+
+func TestListsMuteColumnUpgradeSurvivesMigrationCollision(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "wacli.db")
+	db := mustOpen(t, path)
+	if err := db.UpsertList(ListUpdate{ID: "7", Name: listPtr("Existing")}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.sql.Exec(`ALTER TABLE lists DROP COLUMN mute_end_time_ms;
+		UPDATE schema_migrations SET name='foreign owner' WHERE version=36`); err != nil {
+		t.Fatal(err)
+	}
+	db.Close()
+	ro, err := OpenReadOnly(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, err := ro.Lists()
+	if err != nil || len(rows.Lists) != 1 || rows.Lists[0].MuteEndTimeMS != nil {
+		t.Fatalf("legacy read-only = %+v, %v", rows, err)
+	}
+	old, found, err := ro.ListByID("7")
+	if err != nil || !found || old.Name != "Existing" || old.MuteEndTimeMS != nil {
+		t.Fatalf("legacy ID = %+v, %v, %v", old, found, err)
+	}
+	ro.Close()
+	db = mustOpen(t, path)
+	defer db.Close()
+	old, found, err = db.ListByID("7")
+	if err != nil || !found || old.Name != "Existing" || old.MuteEndTimeMS != nil {
+		t.Fatalf("upgrade changed legacy row = %+v, %v", old, err)
+	}
+	if err := db.UpsertList(ListUpdate{ID: "7", MuteEndTimeMS: listPtr(int64(1900000000123))}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.UpsertList(ListUpdate{ID: "7", Name: listPtr("Renamed")}); err != nil {
+		t.Fatal(err)
+	}
+	rows, err = db.Lists()
+	if err != nil || rows.Lists[0].MuteEndTimeMS == nil || *rows.Lists[0].MuteEndTimeMS != 1900000000123 {
+		t.Fatalf("mute roundtrip = %+v, %v", rows, err)
+	}
+	var owner string
+	if err := db.sql.QueryRow(`SELECT name FROM schema_migrations WHERE version=36`).Scan(&owner); err != nil || owner != "foreign owner" {
+		t.Fatalf("foreign migration changed: %q, %v", owner, err)
 	}
 }
 
@@ -404,13 +479,13 @@ func TestListsOverlappingMembershipsAndFilterBeforeLimit(t *testing.T) {
 			t.Fatalf("filter before limit / overlapping list %s: %+v, %v", id, chats, err)
 		}
 	}
-	// At equal timestamps, ambiguous replay must not undo a removal.
+	// At equal timestamps, the ordered later SET wins.
 	if err := db.SetChatList("123@s.whatsapp.net", "a", false, at, false); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.SetChatList("123@s.whatsapp.net", "a", true, at, true); err != nil {
 		t.Fatal(err)
 	}
-	assertListChats(t, db, "a")
+	assertListChats(t, db, "a", "123@s.whatsapp.net")
 	assertListChats(t, db, "b", "123@s.whatsapp.net")
 }

@@ -14,14 +14,15 @@ func TestQuickRepliesUpsertOrderingAndResolution(t *testing.T) {
 	if err := db.UpsertQuickReply(q, at); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.UpsertQuickReply(QuickReply{ID: "1700000000", Shortcut: "viejo", Message: "older"}, at.Add(-time.Second)); err != nil {
+	q.Message = "Accepted with a lower device clock"
+	if err := db.UpsertQuickReply(q, at.Add(-time.Second)); err != nil {
 		t.Fatal(err)
 	}
 	got, err := db.QuickReplies()
 	if err != nil || len(got.QuickReplies) != 1 || got.Completeness != "incomplete" {
 		t.Fatalf("QuickReplies = %+v, %v", got, err)
 	}
-	if want := (QuickReply{ID: q.ID, Shortcut: "hola", Message: "Hola", Keywords: []string{"saludo"}, LabelIDs: []string{}, Count: listPtr(int32(2))}); !reflect.DeepEqual(got.QuickReplies[0], want) {
+	if want := (QuickReply{ID: q.ID, Shortcut: "hola", Message: q.Message, Keywords: []string{"saludo"}, LabelIDs: []string{}, Count: listPtr(int32(2))}); !reflect.DeepEqual(got.QuickReplies[0], want) {
 		t.Fatalf("stored = %+v, want %+v", got.QuickReplies[0], want)
 	}
 	for _, ref := range []string{"1700000000", "hola", "/hola"} {
@@ -29,12 +30,8 @@ func TestQuickRepliesUpsertOrderingAndResolution(t *testing.T) {
 			t.Fatalf("ResolveQuickReply(%q) = %+v, %v", ref, r, err)
 		}
 	}
-	// Equal timestamps keep a deletion; older replays cannot undo it.
+	// Deletion remains indexed as a tombstone until a later authoritative SET.
 	q.Deleted = true
-	if err := db.UpsertQuickReply(q, at); err != nil {
-		t.Fatal(err)
-	}
-	q.Deleted = false
 	if err := db.UpsertQuickReply(q, at); err != nil {
 		t.Fatal(err)
 	}
@@ -47,6 +44,13 @@ func TestQuickRepliesUpsertOrderingAndResolution(t *testing.T) {
 	if _, err := db.ResolveQuickReply("hola"); err == nil {
 		t.Fatal("deleted reply resolved")
 	}
+	q.Deleted = false
+	if err := db.UpsertQuickReply(q, at); err != nil {
+		t.Fatal(err)
+	}
+	if restored, err := db.ResolveQuickReply("hola"); err != nil || restored.Deleted {
+		t.Fatalf("later equal-clock undelete = %+v, %v", restored, err)
+	}
 	for _, id := range []string{"a", "b"} {
 		if err := db.UpsertQuickReply(QuickReply{ID: id, Shortcut: "dup", Message: "x"}, at); err != nil {
 			t.Fatal(err)
@@ -57,7 +61,7 @@ func TestQuickRepliesUpsertOrderingAndResolution(t *testing.T) {
 	}
 }
 
-func TestQuickRepliesCompletenessRequiresRegularCompletion(t *testing.T) {
+func TestQuickRepliesCompletenessFollowsRegularFullSyncEvents(t *testing.T) {
 	db := openTestDB(t)
 	got, err := db.QuickReplies()
 	if err != nil || got.Completeness != "incomplete" {
@@ -68,38 +72,14 @@ func TestQuickRepliesCompletenessRequiresRegularCompletion(t *testing.T) {
 	}
 	got, err = db.QuickReplies()
 	if err != nil || got.Completeness != "incomplete" {
-		t.Fatalf("partial full sync = %+v, %v", got, err)
+		t.Fatalf("Lists full sync must not imply reply coverage = %+v, %v", got, err)
 	}
-	if err := db.MarkRegularFullSyncComplete(); err != nil {
+	if err := db.MarkRegularFullSyncEventsSeen(); err != nil {
 		t.Fatal(err)
 	}
 	got, err = db.QuickReplies()
 	if err != nil || got.Completeness != "complete" {
-		t.Fatalf("after full sync = %+v, %v", got, err)
-	}
-}
-
-func TestQuickRepliesLegacySeenFlagDoesNotProveCompletion(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "wacli.db")
-	db := mustOpen(t, path)
-	if _, err := db.sql.Exec(`DROP TABLE list_sync_state;
-		CREATE TABLE list_sync_state(id INTEGER PRIMARY KEY,full_sync_events_seen INTEGER NOT NULL DEFAULT 0);
-		INSERT INTO list_sync_state VALUES(1,1)`); err != nil {
-		t.Fatal(err)
-	}
-	db.Close()
-	ro, err := OpenReadOnly(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got, err := ro.QuickReplies(); err != nil || got.Completeness != "incomplete" {
-		t.Fatalf("legacy read-only = %+v, %v", got, err)
-	}
-	ro.Close()
-	db = mustOpen(t, path)
-	defer db.Close()
-	if got, err := db.QuickReplies(); err != nil || got.Completeness != "incomplete" {
-		t.Fatalf("legacy upgrade = %+v, %v", got, err)
+		t.Fatalf("after reply-aware full sync = %+v, %v", got, err)
 	}
 }
 
@@ -164,6 +144,48 @@ func TestQuickRepliesMigrationSurvivesVersionCollision(t *testing.T) {
 			defer db.Close()
 			if err := db.UpsertQuickReply(QuickReply{ID: "1", Shortcut: "a", Message: "b"}, time.Unix(1, 0)); err != nil {
 				t.Fatalf("table not recreated: %v", err)
+			}
+		})
+	}
+}
+
+func TestQuickReplyCoverageUpgradeIsIndependentOfLists(t *testing.T) {
+	for _, listsBuild := range []bool{false, true} {
+		t.Run(map[bool]string{false: "stock-0.25.1", true: "lists-498"}[listsBuild], func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "wacli.db")
+			db := mustOpen(t, path)
+			if listsBuild {
+				if err := db.UpsertList(ListUpdate{ID: "7", Name: listPtr("Existing"), FromFullSync: true}); err != nil {
+					t.Fatal(err)
+				}
+			} else if _, err := db.sql.Exec(`DROP TABLE lists; DROP TABLE chat_lists; DROP TABLE list_sync_state; DELETE FROM schema_migrations WHERE version=36`); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := db.sql.Exec(`DROP TABLE quick_replies; DROP TABLE IF EXISTS quick_reply_sync_state; DELETE FROM schema_migrations WHERE version=38`); err != nil {
+				t.Fatal(err)
+			}
+			db.Close()
+			ro, err := OpenReadOnly(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := ro.QuickReplies()
+			if err != nil || got.Completeness != "incomplete" {
+				t.Errorf("legacy read-only = %+v, %v", got, err)
+			}
+			ro.Close()
+			db = mustOpen(t, path)
+			defer db.Close()
+			got, err = db.QuickReplies()
+			if err != nil || got.Completeness != "incomplete" {
+				t.Fatalf("upgrade inherited Lists coverage: %+v, %v", got, err)
+			}
+			if err := db.MarkRegularFullSyncEventsSeen(); err != nil {
+				t.Fatal(err)
+			}
+			got, err = db.QuickReplies()
+			if err != nil || got.Completeness != "complete" {
+				t.Fatalf("new full replay = %+v, %v", got, err)
 			}
 		})
 	}
