@@ -1,0 +1,12 @@
+{
+  "added_migration_versions": [
+    36
+  ],
+  "changed_original_tables": [],
+  "missing_tables": [],
+  "new_tables": [
+    "chat_lists",
+    "list_sync_state",
+    "lists"
+  ]
+}

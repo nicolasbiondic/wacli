@@ -1,0 +1,481 @@
+PR #498 offline proof; counts and hashes only; no session database or daemon access.
+PR source: fa41b76bfa5e83709a4d88565ed179c7b75a5cf1
+Build FTS CLI: stock250 (committed source)
+Build FTS CLI: stock251 (committed source)
+Build FTS CLI: head (committed source)
+
+=== synthetic-stock250 ===
+  Source boundary: synthetic fixture written by committed stock API (plus legacy #498 API for legacy36 fixture).
+  CLI head read-only lists list exit=0 success=True
+  lists list: definitions=0, completeness=unknown, full_sync_events_seen=False
+  PASS read-only: fingerprints and migration versions unchanged
+  CLI head writable lists list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  retained retrieval rows=3
+  CLI head read-only contacts search exit=0 success=True
+  retained retrieval rows=2
+  CLI head read-only messages show exit=0 success=True
+  CLI head read-only messages search exit=0 success=True
+  FTS search executed successfully (contents suppressed)
+  Upgrade comparison: {"added_migration_versions": [36], "changed_original_tables": [], "missing_tables": [], "new_tables": ["chat_lists", "list_sync_state", "lists"]}
+  CLI head read-only lists list exit=0 success=True
+  lists list: definitions=0, completeness=unknown, full_sync_events_seen=False
+  CLI stock250 read-only chats list exit=0 success=True
+  retained retrieval rows=3
+  CLI stock250 read-only contacts search exit=0 success=True
+  retained retrieval rows=2
+  CLI stock250 read-only messages show exit=0 success=True
+  CLI stock250 read-only messages search exit=0 success=True
+  FTS search executed successfully (contents suppressed)
+  CLI stock250 writable chats list exit=0 success=True
+  retained retrieval rows=3
+  CLI stock250 writable contacts search exit=0 success=True
+  retained retrieval rows=2
+  CLI stock250 writable messages show exit=0 success=True
+  CLI stock250 writable messages search exit=0 success=True
+  FTS search executed successfully (contents suppressed)
+  Stock reopen comparison: {"added_migration_versions": [36], "changed_original_tables": [], "missing_tables": [], "new_tables": ["chat_lists", "list_sync_state", "lists"]}
+  CLI head read-only lists list exit=0 success=True
+  lists list: definitions=0, completeness=unknown, full_sync_events_seen=False
+PASS: original rows/settings/Lists retained; stock read-only+writable reopen; integrity/FKs clean.
+
+=== synthetic-stock251 ===
+  Source boundary: synthetic fixture written by committed stock API (plus legacy #498 API for legacy36 fixture).
+  CLI head read-only lists list exit=0 success=True
+  lists list: definitions=0, completeness=unknown, full_sync_events_seen=False
+  PASS read-only: fingerprints and migration versions unchanged
+  CLI head writable lists list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  retained retrieval rows=3
+  CLI head read-only contacts search exit=0 success=True
+  retained retrieval rows=2
+  CLI head read-only messages show exit=0 success=True
+  CLI head read-only messages search exit=0 success=True
+  FTS search executed successfully (contents suppressed)
+  Upgrade comparison: {"added_migration_versions": [36], "changed_original_tables": [], "missing_tables": [], "new_tables": ["chat_lists", "list_sync_state", "lists"]}
+  CLI head read-only lists list exit=0 success=True
+  lists list: definitions=0, completeness=unknown, full_sync_events_seen=False
+  CLI stock251 read-only chats list exit=0 success=True
+  retained retrieval rows=3
+  CLI stock251 read-only contacts search exit=0 success=True
+  retained retrieval rows=2
+  CLI stock251 read-only messages show exit=0 success=True
+  CLI stock251 read-only messages search exit=0 success=True
+  FTS search executed successfully (contents suppressed)
+  CLI stock251 writable chats list exit=0 success=True
+  retained retrieval rows=3
+  CLI stock251 writable contacts search exit=0 success=True
+  retained retrieval rows=2
+  CLI stock251 writable messages show exit=0 success=True
+  CLI stock251 writable messages search exit=0 success=True
+  FTS search executed successfully (contents suppressed)
+  Stock reopen comparison: {"added_migration_versions": [36], "changed_original_tables": [], "missing_tables": [], "new_tables": ["chat_lists", "list_sync_state", "lists"]}
+  CLI head read-only lists list exit=0 success=True
+  lists list: definitions=0, completeness=unknown, full_sync_events_seen=False
+PASS: original rows/settings/Lists retained; stock read-only+writable reopen; integrity/FKs clean.
+
+=== synthetic-legacy36 ===
+  Source boundary: synthetic fixture written by committed stock API (plus legacy #498 API for legacy36 fixture).
+  CLI head read-only lists list exit=0 success=True
+  lists list: definitions=2, completeness=unknown, full_sync_events_seen=True
+  CLI head read-only chats list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  REDACTED {"chat_memberships_supported": true, "color": 4, "id_name_filter_agree": true, "matched_chats": 1, "name": "<private-list>", "ordinal": 1, "type": null}
+  CLI head read-only chats list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  REDACTED {"chat_memberships_supported": true, "color": 3, "id_name_filter_agree": true, "matched_chats": 1, "name": "<private-list>", "ordinal": 2, "type": 5}
+  CLI head read-only chats list exit=1 success=False
+  Deleted definition omitted; ID filter refuses tombstone (expected).
+  PASS read-only: fingerprints and migration versions unchanged
+  CLI head writable lists list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  retained retrieval rows=3
+  CLI head read-only contacts search exit=0 success=True
+  retained retrieval rows=2
+  CLI head read-only messages show exit=0 success=True
+  CLI head read-only messages search exit=0 success=True
+  FTS search executed successfully (contents suppressed)
+  Upgrade comparison: {"added_migration_versions": [], "changed_original_tables": [], "missing_tables": [], "new_tables": []}
+  CLI head read-only lists list exit=0 success=True
+  lists list: definitions=2, completeness=unknown, full_sync_events_seen=True
+  CLI head read-only chats list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  REDACTED {"chat_memberships_supported": true, "color": 4, "id_name_filter_agree": true, "matched_chats": 1, "name": "<private-list>", "ordinal": 1, "type": null}
+  CLI head read-only chats list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  REDACTED {"chat_memberships_supported": true, "color": 3, "id_name_filter_agree": true, "matched_chats": 1, "name": "<private-list>", "ordinal": 2, "type": 5}
+  CLI head read-only chats list exit=1 success=False
+  Deleted definition omitted; ID filter refuses tombstone (expected).
+  CLI stock251 read-only chats list exit=0 success=True
+  retained retrieval rows=3
+  CLI stock251 read-only contacts search exit=0 success=True
+  retained retrieval rows=2
+  CLI stock251 read-only messages show exit=0 success=True
+  CLI stock251 read-only messages search exit=0 success=True
+  FTS search executed successfully (contents suppressed)
+  CLI stock251 writable chats list exit=0 success=True
+  retained retrieval rows=3
+  CLI stock251 writable contacts search exit=0 success=True
+  retained retrieval rows=2
+  CLI stock251 writable messages show exit=0 success=True
+  CLI stock251 writable messages search exit=0 success=True
+  FTS search executed successfully (contents suppressed)
+  Stock reopen comparison: {"added_migration_versions": [], "changed_original_tables": [], "missing_tables": [], "new_tables": []}
+  CLI head read-only lists list exit=0 success=True
+  lists list: definitions=2, completeness=unknown, full_sync_events_seen=True
+  CLI head read-only chats list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  REDACTED {"chat_memberships_supported": true, "color": 4, "id_name_filter_agree": true, "matched_chats": 1, "name": "<private-list>", "ordinal": 1, "type": null}
+  CLI head read-only chats list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  REDACTED {"chat_memberships_supported": true, "color": 3, "id_name_filter_agree": true, "matched_chats": 1, "name": "<private-list>", "ordinal": 2, "type": 5}
+  CLI head read-only chats list exit=1 success=False
+  Deleted definition omitted; ID filter refuses tombstone (expected).
+PASS: original rows/settings/Lists retained; stock read-only+writable reopen; integrity/FKs clean.
+
+Backup production-copy-1: SQLite backup API, source mode=ro, ONLY wacli.db, source path withheld.
+
+=== production-copy-1 ===
+  Source boundary: real-account fork-ingested Lists snapshot, registered migration36=True; not a stock-to-Lists upgrade.
+  Existing migration versions: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 36, 38, 9033, 9035]
+  CLI head read-only lists list exit=0 success=True
+  lists list: definitions=7, completeness=unknown, full_sync_events_seen=True
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "<private-list>", "ordinal": 1, "type": 1}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Favoritos", "ordinal": 2, "type": 3}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Grupos", "ordinal": 3, "type": 2}
+  CLI head read-only chats list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  REDACTED {"chat_memberships_supported": true, "color": 2, "id_name_filter_agree": true, "matched_chats": 9, "name": "<private-list>", "ordinal": 4, "type": 5}
+  CLI head read-only chats list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  REDACTED {"chat_memberships_supported": true, "color": 4, "id_name_filter_agree": true, "matched_chats": 0, "name": "<private-list>", "ordinal": 5, "type": 5}
+  CLI head read-only chats list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  REDACTED {"chat_memberships_supported": true, "color": 11, "id_name_filter_agree": true, "matched_chats": 3, "name": "<private-list>", "ordinal": 6, "type": 5}
+  CLI head read-only chats list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  REDACTED {"chat_memberships_supported": true, "color": 12, "id_name_filter_agree": true, "matched_chats": 3, "name": "<private-list>", "ordinal": 7, "type": 5}
+  PASS read-only: fingerprints and migration versions unchanged
+  CLI head writable lists list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  retained retrieval rows=3
+  CLI head read-only contacts search exit=0 success=True
+  retained retrieval rows=0
+  CLI head read-only messages show exit=0 success=True
+  CLI head read-only messages search exit=0 success=True
+  FTS search executed successfully (contents suppressed)
+  Upgrade comparison: {"added_migration_versions": [], "changed_original_tables": [], "missing_tables": [], "new_tables": []}
+  CLI head read-only lists list exit=0 success=True
+  lists list: definitions=7, completeness=unknown, full_sync_events_seen=True
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "<private-list>", "ordinal": 1, "type": 1}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Favoritos", "ordinal": 2, "type": 3}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Grupos", "ordinal": 3, "type": 2}
+  CLI head read-only chats list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  REDACTED {"chat_memberships_supported": true, "color": 2, "id_name_filter_agree": true, "matched_chats": 9, "name": "<private-list>", "ordinal": 4, "type": 5}
+  CLI head read-only chats list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  REDACTED {"chat_memberships_supported": true, "color": 4, "id_name_filter_agree": true, "matched_chats": 0, "name": "<private-list>", "ordinal": 5, "type": 5}
+  CLI head read-only chats list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  REDACTED {"chat_memberships_supported": true, "color": 11, "id_name_filter_agree": true, "matched_chats": 3, "name": "<private-list>", "ordinal": 6, "type": 5}
+  CLI head read-only chats list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  REDACTED {"chat_memberships_supported": true, "color": 12, "id_name_filter_agree": true, "matched_chats": 3, "name": "<private-list>", "ordinal": 7, "type": 5}
+  CLI stock251 read-only chats list exit=0 success=True
+  retained retrieval rows=3
+  CLI stock251 read-only contacts search exit=0 success=True
+  retained retrieval rows=0
+  CLI stock251 read-only messages show exit=0 success=True
+  CLI stock251 read-only messages search exit=0 success=True
+  FTS search executed successfully (contents suppressed)
+  CLI stock251 writable chats list exit=0 success=True
+  retained retrieval rows=3
+  CLI stock251 writable contacts search exit=0 success=True
+  retained retrieval rows=0
+  CLI stock251 writable messages show exit=0 success=True
+  CLI stock251 writable messages search exit=0 success=True
+  FTS search executed successfully (contents suppressed)
+  Stock reopen comparison: {"added_migration_versions": [], "changed_original_tables": [], "missing_tables": [], "new_tables": []}
+  CLI head read-only lists list exit=0 success=True
+  lists list: definitions=7, completeness=unknown, full_sync_events_seen=True
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "<private-list>", "ordinal": 1, "type": 1}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Favoritos", "ordinal": 2, "type": 3}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Grupos", "ordinal": 3, "type": 2}
+  CLI head read-only chats list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  REDACTED {"chat_memberships_supported": true, "color": 2, "id_name_filter_agree": true, "matched_chats": 9, "name": "<private-list>", "ordinal": 4, "type": 5}
+  CLI head read-only chats list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  REDACTED {"chat_memberships_supported": true, "color": 4, "id_name_filter_agree": true, "matched_chats": 0, "name": "<private-list>", "ordinal": 5, "type": 5}
+  CLI head read-only chats list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  REDACTED {"chat_memberships_supported": true, "color": 11, "id_name_filter_agree": true, "matched_chats": 3, "name": "<private-list>", "ordinal": 6, "type": 5}
+  CLI head read-only chats list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  REDACTED {"chat_memberships_supported": true, "color": 12, "id_name_filter_agree": true, "matched_chats": 3, "name": "<private-list>", "ordinal": 7, "type": 5}
+PASS: original rows/settings/Lists retained; stock read-only+writable reopen; integrity/FKs clean.
+
+Backup production-copy-2: SQLite backup API, source mode=ro, ONLY wacli.db, source path withheld.
+
+=== production-copy-2 ===
+  Source boundary: real-account fork-ingested Lists snapshot, registered migration36=True; not a stock-to-Lists upgrade.
+  Existing migration versions: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 36, 38, 9033, 9035]
+  CLI head read-only lists list exit=0 success=True
+  lists list: definitions=4, completeness=unknown, full_sync_events_seen=True
+  CLI head read-only chats list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  REDACTED {"chat_memberships_supported": true, "color": 0, "id_name_filter_agree": true, "matched_chats": 0, "name": "<private-list>", "ordinal": 1, "type": 5}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "<private-list>", "ordinal": 2, "type": 1}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Favoritos", "ordinal": 3, "type": 3}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Grupos", "ordinal": 4, "type": 2}
+  PASS read-only: fingerprints and migration versions unchanged
+  CLI head writable lists list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  retained retrieval rows=3
+  CLI head read-only contacts search exit=0 success=True
+  retained retrieval rows=0
+  CLI head read-only messages show exit=0 success=True
+  CLI head read-only messages search exit=0 success=True
+  FTS search executed successfully (contents suppressed)
+  Upgrade comparison: {"added_migration_versions": [], "changed_original_tables": [], "missing_tables": [], "new_tables": []}
+  CLI head read-only lists list exit=0 success=True
+  lists list: definitions=4, completeness=unknown, full_sync_events_seen=True
+  CLI head read-only chats list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  REDACTED {"chat_memberships_supported": true, "color": 0, "id_name_filter_agree": true, "matched_chats": 0, "name": "<private-list>", "ordinal": 1, "type": 5}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "<private-list>", "ordinal": 2, "type": 1}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Favoritos", "ordinal": 3, "type": 3}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Grupos", "ordinal": 4, "type": 2}
+  CLI stock251 read-only chats list exit=0 success=True
+  retained retrieval rows=3
+  CLI stock251 read-only contacts search exit=0 success=True
+  retained retrieval rows=0
+  CLI stock251 read-only messages show exit=0 success=True
+  CLI stock251 read-only messages search exit=0 success=True
+  FTS search executed successfully (contents suppressed)
+  CLI stock251 writable chats list exit=0 success=True
+  retained retrieval rows=3
+  CLI stock251 writable contacts search exit=0 success=True
+  retained retrieval rows=0
+  CLI stock251 writable messages show exit=0 success=True
+  CLI stock251 writable messages search exit=0 success=True
+  FTS search executed successfully (contents suppressed)
+  Stock reopen comparison: {"added_migration_versions": [], "changed_original_tables": [], "missing_tables": [], "new_tables": []}
+  CLI head read-only lists list exit=0 success=True
+  lists list: definitions=4, completeness=unknown, full_sync_events_seen=True
+  CLI head read-only chats list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  REDACTED {"chat_memberships_supported": true, "color": 0, "id_name_filter_agree": true, "matched_chats": 0, "name": "<private-list>", "ordinal": 1, "type": 5}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "<private-list>", "ordinal": 2, "type": 1}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Favoritos", "ordinal": 3, "type": 3}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Grupos", "ordinal": 4, "type": 2}
+PASS: original rows/settings/Lists retained; stock read-only+writable reopen; integrity/FKs clean.
+
+Backup production-copy-3: SQLite backup API, source mode=ro, ONLY wacli.db, source path withheld.
+
+=== production-copy-3 ===
+  Source boundary: real-account fork-ingested Lists snapshot, registered migration36=True; not a stock-to-Lists upgrade.
+  Existing migration versions: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 36, 38, 9033, 9035]
+  CLI head read-only lists list exit=0 success=True
+  lists list: definitions=4, completeness=unknown, full_sync_events_seen=True
+  CLI head read-only chats list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  REDACTED {"chat_memberships_supported": true, "color": 1, "id_name_filter_agree": true, "matched_chats": 0, "name": "<private-list>", "ordinal": 1, "type": 5}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "<private-list>", "ordinal": 2, "type": 1}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Favoritos", "ordinal": 3, "type": 3}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Grupos", "ordinal": 4, "type": 2}
+  CLI head read-only chats list exit=1 success=False
+  Deleted definition omitted; ID filter refuses tombstone (expected).
+  PASS read-only: fingerprints and migration versions unchanged
+  CLI head writable lists list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  retained retrieval rows=3
+  CLI head read-only contacts search exit=0 success=True
+  retained retrieval rows=0
+  CLI head read-only messages show exit=0 success=True
+  CLI head read-only messages search exit=0 success=True
+  FTS search executed successfully (contents suppressed)
+  Upgrade comparison: {"added_migration_versions": [], "changed_original_tables": [], "missing_tables": [], "new_tables": []}
+  CLI head read-only lists list exit=0 success=True
+  lists list: definitions=4, completeness=unknown, full_sync_events_seen=True
+  CLI head read-only chats list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  REDACTED {"chat_memberships_supported": true, "color": 1, "id_name_filter_agree": true, "matched_chats": 0, "name": "<private-list>", "ordinal": 1, "type": 5}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "<private-list>", "ordinal": 2, "type": 1}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Favoritos", "ordinal": 3, "type": 3}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Grupos", "ordinal": 4, "type": 2}
+  CLI head read-only chats list exit=1 success=False
+  Deleted definition omitted; ID filter refuses tombstone (expected).
+  CLI stock251 read-only chats list exit=0 success=True
+  retained retrieval rows=3
+  CLI stock251 read-only contacts search exit=0 success=True
+  retained retrieval rows=0
+  CLI stock251 read-only messages show exit=0 success=True
+  CLI stock251 read-only messages search exit=0 success=True
+  FTS search executed successfully (contents suppressed)
+  CLI stock251 writable chats list exit=0 success=True
+  retained retrieval rows=3
+  CLI stock251 writable contacts search exit=0 success=True
+  retained retrieval rows=0
+  CLI stock251 writable messages show exit=0 success=True
+  CLI stock251 writable messages search exit=0 success=True
+  FTS search executed successfully (contents suppressed)
+  Stock reopen comparison: {"added_migration_versions": [], "changed_original_tables": [], "missing_tables": [], "new_tables": []}
+  CLI head read-only lists list exit=0 success=True
+  lists list: definitions=4, completeness=unknown, full_sync_events_seen=True
+  CLI head read-only chats list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  REDACTED {"chat_memberships_supported": true, "color": 1, "id_name_filter_agree": true, "matched_chats": 0, "name": "<private-list>", "ordinal": 1, "type": 5}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "<private-list>", "ordinal": 2, "type": 1}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Favoritos", "ordinal": 3, "type": 3}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Grupos", "ordinal": 4, "type": 2}
+  CLI head read-only chats list exit=1 success=False
+  Deleted definition omitted; ID filter refuses tombstone (expected).
+PASS: original rows/settings/Lists retained; stock read-only+writable reopen; integrity/FKs clean.
+
+Backup production-copy-4: SQLite backup API, source mode=ro, ONLY wacli.db, source path withheld.
+
+=== production-copy-4 ===
+  Source boundary: real-account fork-ingested Lists snapshot, registered migration36=True; not a stock-to-Lists upgrade.
+  Existing migration versions: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 36, 38, 9035]
+  CLI head read-only lists list exit=0 success=True
+  lists list: definitions=3, completeness=unknown, full_sync_events_seen=True
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "<private-list>", "ordinal": 1, "type": 1}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Favoritos", "ordinal": 2, "type": 3}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Grupos", "ordinal": 3, "type": 2}
+  PASS read-only: fingerprints and migration versions unchanged
+  CLI head writable lists list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  retained retrieval rows=3
+  CLI head read-only contacts search exit=0 success=True
+  retained retrieval rows=0
+  CLI head read-only messages show exit=0 success=True
+  CLI head read-only messages search exit=0 success=True
+  FTS search executed successfully (contents suppressed)
+  Upgrade comparison: {"added_migration_versions": [], "changed_original_tables": [], "missing_tables": [], "new_tables": []}
+  CLI head read-only lists list exit=0 success=True
+  lists list: definitions=3, completeness=unknown, full_sync_events_seen=True
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "<private-list>", "ordinal": 1, "type": 1}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Favoritos", "ordinal": 2, "type": 3}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Grupos", "ordinal": 3, "type": 2}
+  CLI stock251 read-only chats list exit=0 success=True
+  retained retrieval rows=3
+  CLI stock251 read-only contacts search exit=0 success=True
+  retained retrieval rows=0
+  CLI stock251 read-only messages show exit=0 success=True
+  CLI stock251 read-only messages search exit=0 success=True
+  FTS search executed successfully (contents suppressed)
+  CLI stock251 writable chats list exit=0 success=True
+  retained retrieval rows=3
+  CLI stock251 writable contacts search exit=0 success=True
+  retained retrieval rows=0
+  CLI stock251 writable messages show exit=0 success=True
+  CLI stock251 writable messages search exit=0 success=True
+  FTS search executed successfully (contents suppressed)
+  Stock reopen comparison: {"added_migration_versions": [], "changed_original_tables": [], "missing_tables": [], "new_tables": []}
+  CLI head read-only lists list exit=0 success=True
+  lists list: definitions=3, completeness=unknown, full_sync_events_seen=True
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "<private-list>", "ordinal": 1, "type": 1}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Favoritos", "ordinal": 2, "type": 3}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Grupos", "ordinal": 3, "type": 2}
+PASS: original rows/settings/Lists retained; stock read-only+writable reopen; integrity/FKs clean.
+
+Backup production-copy-5: SQLite backup API, source mode=ro, ONLY wacli.db, source path withheld.
+
+=== production-copy-5 ===
+  Source boundary: real-account fork-ingested Lists snapshot, registered migration36=False; not a stock-to-Lists upgrade.
+  Existing migration versions: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 9033, 9034, 9035]
+  CLI head read-only lists list exit=0 success=True
+  lists list: definitions=3, completeness=unknown, full_sync_events_seen=True
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Unread", "ordinal": 1, "type": 1}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Favorites", "ordinal": 2, "type": 3}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Groups", "ordinal": 3, "type": 2}
+  CLI head read-only chats list exit=1 success=False
+  Deleted definition omitted; ID filter refuses tombstone (expected).
+  PASS read-only: fingerprints and migration versions unchanged
+  CLI head writable lists list exit=0 success=True
+  CLI head read-only chats list exit=0 success=True
+  retained retrieval rows=3
+  CLI head read-only contacts search exit=0 success=True
+  retained retrieval rows=0
+  CLI head read-only messages show exit=0 success=True
+  CLI head read-only messages search exit=0 success=True
+  FTS search executed successfully (contents suppressed)
+  Upgrade comparison: {"added_migration_versions": [36], "changed_original_tables": [], "missing_tables": [], "new_tables": []}
+  CLI head read-only lists list exit=0 success=True
+  lists list: definitions=3, completeness=unknown, full_sync_events_seen=True
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Unread", "ordinal": 1, "type": 1}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Favorites", "ordinal": 2, "type": 3}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Groups", "ordinal": 3, "type": 2}
+  CLI head read-only chats list exit=1 success=False
+  Deleted definition omitted; ID filter refuses tombstone (expected).
+  CLI stock251 read-only chats list exit=0 success=True
+  retained retrieval rows=3
+  CLI stock251 read-only contacts search exit=0 success=True
+  retained retrieval rows=0
+  CLI stock251 read-only messages show exit=0 success=True
+  CLI stock251 read-only messages search exit=0 success=True
+  FTS search executed successfully (contents suppressed)
+  CLI stock251 writable chats list exit=0 success=True
+  retained retrieval rows=3
+  CLI stock251 writable contacts search exit=0 success=True
+  retained retrieval rows=0
+  CLI stock251 writable messages show exit=0 success=True
+  CLI stock251 writable messages search exit=0 success=True
+  FTS search executed successfully (contents suppressed)
+  Stock reopen comparison: {"added_migration_versions": [36], "changed_original_tables": [], "missing_tables": [], "new_tables": []}
+  CLI head read-only lists list exit=0 success=True
+  lists list: definitions=3, completeness=unknown, full_sync_events_seen=True
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Unread", "ordinal": 1, "type": 1}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Favorites", "ordinal": 2, "type": 3}
+  CLI head read-only chats list exit=1 success=False
+  REDACTED {"chat_memberships_supported": false, "color": 0, "filter": "unsupported system/computed membership (expected refusal)", "name": "Groups", "ordinal": 3, "type": 2}
+  CLI head read-only chats list exit=1 success=False
+  Deleted definition omitted; ID filter refuses tombstone (expected).
+PASS: original rows/settings/Lists retained; stock read-only+writable reopen; integrity/FKs clean.
+PASS: all scenarios complete; deleting every private database copy, binary and source archive.

@@ -1,0 +1,706 @@
+[
+  {
+    "after_behavior": {
+      "completeness": "unknown",
+      "definitions": 0,
+      "filters": [],
+      "full_sync_events_seen": false,
+      "label": "synthetic-stock250",
+      "phase": "after-upgrade"
+    },
+    "before_behavior": {
+      "completeness": "unknown",
+      "definitions": 0,
+      "filters": [],
+      "full_sync_events_seen": false,
+      "label": "synthetic-stock250",
+      "phase": "before-upgrade"
+    },
+    "passed": true,
+    "preexisting_lists_migration36": false,
+    "production_lineage": false,
+    "scenario": "synthetic-stock250",
+    "stock_reopen": "stock250",
+    "stock_reopen_comparison": {
+      "added_migration_versions": [
+        36
+      ],
+      "changed_original_tables": [],
+      "missing_tables": [],
+      "new_tables": [
+        "chat_lists",
+        "list_sync_state",
+        "lists"
+      ]
+    },
+    "upgrade": {
+      "added_migration_versions": [
+        36
+      ],
+      "changed_original_tables": [],
+      "missing_tables": [],
+      "new_tables": [
+        "chat_lists",
+        "list_sync_state",
+        "lists"
+      ]
+    }
+  },
+  {
+    "after_behavior": {
+      "completeness": "unknown",
+      "definitions": 0,
+      "filters": [],
+      "full_sync_events_seen": false,
+      "label": "synthetic-stock251",
+      "phase": "after-upgrade"
+    },
+    "before_behavior": {
+      "completeness": "unknown",
+      "definitions": 0,
+      "filters": [],
+      "full_sync_events_seen": false,
+      "label": "synthetic-stock251",
+      "phase": "before-upgrade"
+    },
+    "passed": true,
+    "preexisting_lists_migration36": false,
+    "production_lineage": false,
+    "scenario": "synthetic-stock251",
+    "stock_reopen": "stock251",
+    "stock_reopen_comparison": {
+      "added_migration_versions": [
+        36
+      ],
+      "changed_original_tables": [],
+      "missing_tables": [],
+      "new_tables": [
+        "chat_lists",
+        "list_sync_state",
+        "lists"
+      ]
+    },
+    "upgrade": {
+      "added_migration_versions": [
+        36
+      ],
+      "changed_original_tables": [],
+      "missing_tables": [],
+      "new_tables": [
+        "chat_lists",
+        "list_sync_state",
+        "lists"
+      ]
+    }
+  },
+  {
+    "after_behavior": {
+      "completeness": "unknown",
+      "definitions": 2,
+      "filters": [
+        {
+          "chat_memberships_supported": true,
+          "color": 4,
+          "id_name_filter_agree": true,
+          "matched_chats": 1,
+          "name": "<private-list>",
+          "ordinal": 1,
+          "type": null
+        },
+        {
+          "chat_memberships_supported": true,
+          "color": 3,
+          "id_name_filter_agree": true,
+          "matched_chats": 1,
+          "name": "<private-list>",
+          "ordinal": 2,
+          "type": 5
+        }
+      ],
+      "full_sync_events_seen": true,
+      "label": "synthetic-legacy36",
+      "phase": "after-upgrade"
+    },
+    "before_behavior": {
+      "completeness": "unknown",
+      "definitions": 2,
+      "filters": [
+        {
+          "chat_memberships_supported": true,
+          "color": 4,
+          "id_name_filter_agree": true,
+          "matched_chats": 1,
+          "name": "<private-list>",
+          "ordinal": 1,
+          "type": null
+        },
+        {
+          "chat_memberships_supported": true,
+          "color": 3,
+          "id_name_filter_agree": true,
+          "matched_chats": 1,
+          "name": "<private-list>",
+          "ordinal": 2,
+          "type": 5
+        }
+      ],
+      "full_sync_events_seen": true,
+      "label": "synthetic-legacy36",
+      "phase": "before-upgrade"
+    },
+    "passed": true,
+    "preexisting_lists_migration36": true,
+    "production_lineage": false,
+    "scenario": "synthetic-legacy36",
+    "stock_reopen": "stock251",
+    "stock_reopen_comparison": {
+      "added_migration_versions": [],
+      "changed_original_tables": [],
+      "missing_tables": [],
+      "new_tables": []
+    },
+    "upgrade": {
+      "added_migration_versions": [],
+      "changed_original_tables": [],
+      "missing_tables": [],
+      "new_tables": []
+    }
+  },
+  {
+    "after_behavior": {
+      "completeness": "unknown",
+      "definitions": 7,
+      "filters": [
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "<private-list>",
+          "ordinal": 1,
+          "type": 1
+        },
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "Favoritos",
+          "ordinal": 2,
+          "type": 3
+        },
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "Grupos",
+          "ordinal": 3,
+          "type": 2
+        },
+        {
+          "chat_memberships_supported": true,
+          "color": 2,
+          "id_name_filter_agree": true,
+          "matched_chats": 9,
+          "name": "<private-list>",
+          "ordinal": 4,
+          "type": 5
+        },
+        {
+          "chat_memberships_supported": true,
+          "color": 4,
+          "id_name_filter_agree": true,
+          "matched_chats": 0,
+          "name": "<private-list>",
+          "ordinal": 5,
+          "type": 5
+        },
+        {
+          "chat_memberships_supported": true,
+          "color": 11,
+          "id_name_filter_agree": true,
+          "matched_chats": 3,
+          "name": "<private-list>",
+          "ordinal": 6,
+          "type": 5
+        },
+        {
+          "chat_memberships_supported": true,
+          "color": 12,
+          "id_name_filter_agree": true,
+          "matched_chats": 3,
+          "name": "<private-list>",
+          "ordinal": 7,
+          "type": 5
+        }
+      ],
+      "full_sync_events_seen": true,
+      "label": "production-copy-1",
+      "phase": "after-upgrade"
+    },
+    "before_behavior": {
+      "completeness": "unknown",
+      "definitions": 7,
+      "filters": [
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "<private-list>",
+          "ordinal": 1,
+          "type": 1
+        },
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "Favoritos",
+          "ordinal": 2,
+          "type": 3
+        },
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "Grupos",
+          "ordinal": 3,
+          "type": 2
+        },
+        {
+          "chat_memberships_supported": true,
+          "color": 2,
+          "id_name_filter_agree": true,
+          "matched_chats": 9,
+          "name": "<private-list>",
+          "ordinal": 4,
+          "type": 5
+        },
+        {
+          "chat_memberships_supported": true,
+          "color": 4,
+          "id_name_filter_agree": true,
+          "matched_chats": 0,
+          "name": "<private-list>",
+          "ordinal": 5,
+          "type": 5
+        },
+        {
+          "chat_memberships_supported": true,
+          "color": 11,
+          "id_name_filter_agree": true,
+          "matched_chats": 3,
+          "name": "<private-list>",
+          "ordinal": 6,
+          "type": 5
+        },
+        {
+          "chat_memberships_supported": true,
+          "color": 12,
+          "id_name_filter_agree": true,
+          "matched_chats": 3,
+          "name": "<private-list>",
+          "ordinal": 7,
+          "type": 5
+        }
+      ],
+      "full_sync_events_seen": true,
+      "label": "production-copy-1",
+      "phase": "before-upgrade"
+    },
+    "passed": true,
+    "preexisting_lists_migration36": true,
+    "production_lineage": true,
+    "scenario": "production-copy-1",
+    "stock_reopen": "stock251",
+    "stock_reopen_comparison": {
+      "added_migration_versions": [],
+      "changed_original_tables": [],
+      "missing_tables": [],
+      "new_tables": []
+    },
+    "upgrade": {
+      "added_migration_versions": [],
+      "changed_original_tables": [],
+      "missing_tables": [],
+      "new_tables": []
+    }
+  },
+  {
+    "after_behavior": {
+      "completeness": "unknown",
+      "definitions": 4,
+      "filters": [
+        {
+          "chat_memberships_supported": true,
+          "color": 0,
+          "id_name_filter_agree": true,
+          "matched_chats": 0,
+          "name": "<private-list>",
+          "ordinal": 1,
+          "type": 5
+        },
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "<private-list>",
+          "ordinal": 2,
+          "type": 1
+        },
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "Favoritos",
+          "ordinal": 3,
+          "type": 3
+        },
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "Grupos",
+          "ordinal": 4,
+          "type": 2
+        }
+      ],
+      "full_sync_events_seen": true,
+      "label": "production-copy-2",
+      "phase": "after-upgrade"
+    },
+    "before_behavior": {
+      "completeness": "unknown",
+      "definitions": 4,
+      "filters": [
+        {
+          "chat_memberships_supported": true,
+          "color": 0,
+          "id_name_filter_agree": true,
+          "matched_chats": 0,
+          "name": "<private-list>",
+          "ordinal": 1,
+          "type": 5
+        },
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "<private-list>",
+          "ordinal": 2,
+          "type": 1
+        },
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "Favoritos",
+          "ordinal": 3,
+          "type": 3
+        },
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "Grupos",
+          "ordinal": 4,
+          "type": 2
+        }
+      ],
+      "full_sync_events_seen": true,
+      "label": "production-copy-2",
+      "phase": "before-upgrade"
+    },
+    "passed": true,
+    "preexisting_lists_migration36": true,
+    "production_lineage": true,
+    "scenario": "production-copy-2",
+    "stock_reopen": "stock251",
+    "stock_reopen_comparison": {
+      "added_migration_versions": [],
+      "changed_original_tables": [],
+      "missing_tables": [],
+      "new_tables": []
+    },
+    "upgrade": {
+      "added_migration_versions": [],
+      "changed_original_tables": [],
+      "missing_tables": [],
+      "new_tables": []
+    }
+  },
+  {
+    "after_behavior": {
+      "completeness": "unknown",
+      "definitions": 4,
+      "filters": [
+        {
+          "chat_memberships_supported": true,
+          "color": 1,
+          "id_name_filter_agree": true,
+          "matched_chats": 0,
+          "name": "<private-list>",
+          "ordinal": 1,
+          "type": 5
+        },
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "<private-list>",
+          "ordinal": 2,
+          "type": 1
+        },
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "Favoritos",
+          "ordinal": 3,
+          "type": 3
+        },
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "Grupos",
+          "ordinal": 4,
+          "type": 2
+        }
+      ],
+      "full_sync_events_seen": true,
+      "label": "production-copy-3",
+      "phase": "after-upgrade"
+    },
+    "before_behavior": {
+      "completeness": "unknown",
+      "definitions": 4,
+      "filters": [
+        {
+          "chat_memberships_supported": true,
+          "color": 1,
+          "id_name_filter_agree": true,
+          "matched_chats": 0,
+          "name": "<private-list>",
+          "ordinal": 1,
+          "type": 5
+        },
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "<private-list>",
+          "ordinal": 2,
+          "type": 1
+        },
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "Favoritos",
+          "ordinal": 3,
+          "type": 3
+        },
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "Grupos",
+          "ordinal": 4,
+          "type": 2
+        }
+      ],
+      "full_sync_events_seen": true,
+      "label": "production-copy-3",
+      "phase": "before-upgrade"
+    },
+    "passed": true,
+    "preexisting_lists_migration36": true,
+    "production_lineage": true,
+    "scenario": "production-copy-3",
+    "stock_reopen": "stock251",
+    "stock_reopen_comparison": {
+      "added_migration_versions": [],
+      "changed_original_tables": [],
+      "missing_tables": [],
+      "new_tables": []
+    },
+    "upgrade": {
+      "added_migration_versions": [],
+      "changed_original_tables": [],
+      "missing_tables": [],
+      "new_tables": []
+    }
+  },
+  {
+    "after_behavior": {
+      "completeness": "unknown",
+      "definitions": 3,
+      "filters": [
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "<private-list>",
+          "ordinal": 1,
+          "type": 1
+        },
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "Favoritos",
+          "ordinal": 2,
+          "type": 3
+        },
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "Grupos",
+          "ordinal": 3,
+          "type": 2
+        }
+      ],
+      "full_sync_events_seen": true,
+      "label": "production-copy-4",
+      "phase": "after-upgrade"
+    },
+    "before_behavior": {
+      "completeness": "unknown",
+      "definitions": 3,
+      "filters": [
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "<private-list>",
+          "ordinal": 1,
+          "type": 1
+        },
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "Favoritos",
+          "ordinal": 2,
+          "type": 3
+        },
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "Grupos",
+          "ordinal": 3,
+          "type": 2
+        }
+      ],
+      "full_sync_events_seen": true,
+      "label": "production-copy-4",
+      "phase": "before-upgrade"
+    },
+    "passed": true,
+    "preexisting_lists_migration36": true,
+    "production_lineage": true,
+    "scenario": "production-copy-4",
+    "stock_reopen": "stock251",
+    "stock_reopen_comparison": {
+      "added_migration_versions": [],
+      "changed_original_tables": [],
+      "missing_tables": [],
+      "new_tables": []
+    },
+    "upgrade": {
+      "added_migration_versions": [],
+      "changed_original_tables": [],
+      "missing_tables": [],
+      "new_tables": []
+    }
+  },
+  {
+    "after_behavior": {
+      "completeness": "unknown",
+      "definitions": 3,
+      "filters": [
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "Unread",
+          "ordinal": 1,
+          "type": 1
+        },
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "Favorites",
+          "ordinal": 2,
+          "type": 3
+        },
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "Groups",
+          "ordinal": 3,
+          "type": 2
+        }
+      ],
+      "full_sync_events_seen": true,
+      "label": "production-copy-5",
+      "phase": "after-upgrade"
+    },
+    "before_behavior": {
+      "completeness": "unknown",
+      "definitions": 3,
+      "filters": [
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "Unread",
+          "ordinal": 1,
+          "type": 1
+        },
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "Favorites",
+          "ordinal": 2,
+          "type": 3
+        },
+        {
+          "chat_memberships_supported": false,
+          "color": 0,
+          "filter": "unsupported system/computed membership (expected refusal)",
+          "name": "Groups",
+          "ordinal": 3,
+          "type": 2
+        }
+      ],
+      "full_sync_events_seen": true,
+      "label": "production-copy-5",
+      "phase": "before-upgrade"
+    },
+    "passed": true,
+    "preexisting_lists_migration36": false,
+    "production_lineage": true,
+    "scenario": "production-copy-5",
+    "stock_reopen": "stock251",
+    "stock_reopen_comparison": {
+      "added_migration_versions": [
+        36
+      ],
+      "changed_original_tables": [],
+      "missing_tables": [],
+      "new_tables": []
+    },
+    "upgrade": {
+      "added_migration_versions": [
+        36
+      ],
+      "changed_original_tables": [],
+      "missing_tables": [],
+      "new_tables": []
+    }
+  }
+]

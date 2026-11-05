@@ -1,0 +1,447 @@
+{
+  "foreign_key_errors": 0,
+  "integrity": "ok",
+  "migration_versions": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    36,
+    38,
+    9033,
+    9035
+  ],
+  "tables": {
+    "app_state_full_sync_broken": {
+      "columns": [
+        "collection",
+        "marked_at"
+      ],
+      "original_column_schema_sha256": "097f8f9d5d89681db0d9b185b112f0beea908800348b4abf47f38c949c08123a",
+      "rows": 1,
+      "sha256": "f0fd11eb251227fab1a96710dd248aef37c0da30f2e2fb8c435b8ec76b251928"
+    },
+    "app_state_recovery_intents": {
+      "columns": [
+        "id",
+        "collection"
+      ],
+      "original_column_schema_sha256": "e5ded60898b0960f4f2b67eaeb9d6525ec429c91d7fabe02fb60179e06899280",
+      "rows": 3503,
+      "sha256": "95a7ddb154a182b998d7ae345618f56a64c7b567db7b27d582df54d166d585dd"
+    },
+    "call_events": {
+      "columns": [
+        "rowid",
+        "chat_jid",
+        "chat_name",
+        "sender_jid",
+        "sender_name",
+        "call_id",
+        "msg_id",
+        "event_type",
+        "direction",
+        "media",
+        "outcome",
+        "reason",
+        "call_type",
+        "duration_secs",
+        "ts",
+        "participants"
+      ],
+      "original_column_schema_sha256": "dcb54d3a12dac43665bf6fdf57df3e2d976386aeb33c9b825a17af6601304778",
+      "rows": 821,
+      "sha256": "f2419b781aa1a4e9f872652fbb9a45920d20923d385026f1dfefe0d24dcd5727"
+    },
+    "change_state": {
+      "columns": [
+        "id",
+        "floor",
+        "retained_count",
+        "suppress"
+      ],
+      "original_column_schema_sha256": "e762e023adf66cfa3bbe90de8f4fc34770e6252627e38878f79c5e80e35869c4",
+      "rows": 1,
+      "sha256": "3187b1d0537f16afaebf1ed943be75f94c53fe7db0b06786d3ae0a814105a04a"
+    },
+    "chat_archive_setting": {
+      "columns": [
+        "id",
+        "enabled",
+        "timestamp_ms"
+      ],
+      "original_column_schema_sha256": "f1d2b2f72c6310c7091d965ac029b4291f03548c8d1b46817ec1c1d38326ff63",
+      "rows": 1,
+      "sha256": "cf7dcf23b1de1f4535981f0daa0b1a05a0b812695a214eb50c94974130fded5a"
+    },
+    "chat_lists": {
+      "columns": [
+        "chat_jid",
+        "list_id",
+        "labeled",
+        "updated_at"
+      ],
+      "original_column_schema_sha256": "d0fa6fdf2f5f6cd57857513e5b7f985695663f167b60daccdf1d1d03b7319a9c",
+      "rows": 15,
+      "sha256": "2b8cd91ddbc1388592c21850312a506933782a56c7c5934f3162286932c6e3a1"
+    },
+    "chats": {
+      "columns": [
+        "jid",
+        "kind",
+        "name",
+        "last_message_ts",
+        "archived",
+        "pinned",
+        "muted_until",
+        "unread",
+        "unread_count",
+        "archive_action_ms",
+        "archive_incoming_ms",
+        "archive_cleared_ms",
+        "archive_setting_min_ms"
+      ],
+      "original_column_schema_sha256": "67ebf2a57337ae691c23718366bb3fa69088028a0e410a85f042497ce92d1e43",
+      "rows": 35511,
+      "sha256": "156993e804b5f749918fcea6ff132a87998b31259db66ec60722408e32e8c0e4"
+    },
+    "contact_aliases": {
+      "columns": [
+        "jid",
+        "alias",
+        "notes",
+        "updated_at"
+      ],
+      "original_column_schema_sha256": "533b1e6007033fdc5d83696c96fd3c49fcb2352cbbf3b88844701e2aec2001c7",
+      "rows": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "contact_tags": {
+      "columns": [
+        "jid",
+        "tag",
+        "updated_at"
+      ],
+      "original_column_schema_sha256": "e870d10b8293a3686ffdbe8f5f0a320f2314abe525f9074421b0a8b55e0f1031",
+      "rows": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "contacts": {
+      "columns": [
+        "jid",
+        "phone",
+        "push_name",
+        "full_name",
+        "first_name",
+        "business_name",
+        "system_name",
+        "updated_at"
+      ],
+      "original_column_schema_sha256": "43cc9ed66f337a0cc2dcfe4f7af26a42b48f14f4d77cfb0912110323486b6c96",
+      "rows": 28225,
+      "sha256": "1ece3aee0ace680abc497f51e1ec16c87f44be8ae3e67c4296d5feab3f445cb0"
+    },
+    "group_participants": {
+      "columns": [
+        "group_jid",
+        "user_jid",
+        "role",
+        "updated_at"
+      ],
+      "original_column_schema_sha256": "041b489e43e28450e3c19420ea61950f30a9d3cc0a6b16f7b52103d3bb6309c0",
+      "rows": 144,
+      "sha256": "b06e5b6e50352cbd81e4be18ff36616b3cc798a9b28bbbaaf7e9ebe6a845119e"
+    },
+    "groups": {
+      "columns": [
+        "jid",
+        "name",
+        "owner_jid",
+        "created_ts",
+        "is_parent",
+        "linked_parent_jid",
+        "left_at",
+        "updated_at"
+      ],
+      "original_column_schema_sha256": "f2119813c970e98b4838a8e1324afd7cc62f5172a517a44f1830884029a4d387",
+      "rows": 18,
+      "sha256": "17da97bfbbcbf09dce7c5c376a307580038e31020ee6319129483e0bd4b77e24"
+    },
+    "list_sync_state": {
+      "columns": [
+        "id",
+        "full_sync_events_seen",
+        "full_sync_complete"
+      ],
+      "original_column_schema_sha256": "0a21c900af5745c2b9f7bb346133fc4326e9aa927556a1b1f2d017fd248f71e1",
+      "rows": 1,
+      "sha256": "fb387eee4625b73f6bee293cae03e9a9d007f1fdbadf058ea5693dae48005b42"
+    },
+    "lists": {
+      "columns": [
+        "id",
+        "name",
+        "color",
+        "predefined_id",
+        "type",
+        "order_index",
+        "is_active",
+        "is_immutable",
+        "deleted",
+        "updated_at"
+      ],
+      "original_column_schema_sha256": "8031c4e208d5779cf527b9a2a65dfcc9a6993e59b0521f6466ef8e378b5ecd0e",
+      "rows": 7,
+      "sha256": "d1a2cfb747223ceaa54c32aea69676e7203baeeb6dcdea7c4c71ee635bc10352"
+    },
+    "message_changes": {
+      "columns": [
+        "sequence",
+        "recorded_at",
+        "operation",
+        "chat_jid",
+        "msg_id",
+        "new_chat_jid",
+        "new_msg_id",
+        "reason",
+        "message_ts"
+      ],
+      "original_column_schema_sha256": "0fe3342c10d471bc7b8d86af32405952197250fc65c5fa9205fe132d303c824b",
+      "rows": 100000,
+      "sha256": "edf814c902be7df92a2d49ad98ffc96edde47331193d960b3e2657540b1e3a07"
+    },
+    "message_local_media_aliases": {
+      "columns": [
+        "chat_jid",
+        "msg_id",
+        "local_path",
+        "downloaded_at"
+      ],
+      "original_column_schema_sha256": "09e453407954912fc17bd165f5773c953c5983879bfcae27b574234346eb4ef1",
+      "rows": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "message_locations": {
+      "columns": [
+        "chat_jid",
+        "msg_id",
+        "latitude",
+        "longitude",
+        "name",
+        "address",
+        "is_live"
+      ],
+      "original_column_schema_sha256": "5470d581b8793c08da108d1ce61d68ee615d432bdcbc115a2f6c018c47e910a1",
+      "rows": 1243,
+      "sha256": "b545632582d923f4d49e7ae4883c716e2809e077fce2f2e462d9b71974af7817"
+    },
+    "message_payload_purges": {
+      "columns": [
+        "chat_jid",
+        "msg_id",
+        "purged_at",
+        "deleted_at",
+        "deletion_reason"
+      ],
+      "original_column_schema_sha256": "ec2df50665b05d81cf6ad52f26fc1fe8cac30c50843548a1f910fa4ce57ba45a",
+      "rows": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "message_receipts": {
+      "columns": [
+        "chat_jid",
+        "msg_id",
+        "recipient_jid",
+        "status",
+        "ts"
+      ],
+      "original_column_schema_sha256": "64c325c1c4afdf386facc05b0892bc7ae77c81faa012df0a80610afd5c4678d3",
+      "rows": 23657,
+      "sha256": "3717677dc08bb1006e3c3c1a01895fbf9b65735e138b5234ab57cb1192b9ee61"
+    },
+    "messages": {
+      "columns": [
+        "rowid",
+        "chat_jid",
+        "chat_name",
+        "msg_id",
+        "sender_jid",
+        "sender_name",
+        "ts",
+        "from_me",
+        "text",
+        "display_text",
+        "quoted_msg_id",
+        "quoted_sender_jid",
+        "is_forwarded",
+        "forwarding_score",
+        "reaction_to_id",
+        "reaction_emoji",
+        "media_type",
+        "media_caption",
+        "filename",
+        "mime_type",
+        "direct_path",
+        "media_key",
+        "file_sha256",
+        "file_enc_sha256",
+        "file_length",
+        "local_path",
+        "downloaded_at",
+        "media_unavailable_at",
+        "revoked",
+        "deleted_for_me",
+        "deleted_at",
+        "deletion_reason",
+        "payload_purged_at",
+        "edited",
+        "edited_ts",
+        "buttons",
+        "ad_referral",
+        "kind"
+      ],
+      "original_column_schema_sha256": "eedc2ea69cd40be42ba24a8fa64e39444a5972534adcf362c2febc8ffcfc259b",
+      "rows": 206177,
+      "sha256": "536de1a3456f20f3e9273d85897e8e0ac28fa132695995ee2c8e60cf12edd688"
+    },
+    "poll_votes": {
+      "columns": [
+        "chat_jid",
+        "poll_msg_id",
+        "voter_jid",
+        "vote_msg_id",
+        "selected_options_json",
+        "ts"
+      ],
+      "original_column_schema_sha256": "013545165ff6a7649ec0bee63475e68aa004f797534c02d14aacb506f7926aa3",
+      "rows": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "polls": {
+      "columns": [
+        "chat_jid",
+        "msg_id",
+        "sender_jid",
+        "question",
+        "options_json",
+        "selectable_count",
+        "created_ts"
+      ],
+      "original_column_schema_sha256": "9c8b37f988a93e1ffe650c3729d7df013e39d71f65ea98b00936ac268cb7d4c4",
+      "rows": 1,
+      "sha256": "e4d8ba716378572b155cc2d5d9a852c889e1131f361a96e3e233014b7f356eca"
+    },
+    "quick_replies": {
+      "columns": [
+        "id",
+        "shortcut",
+        "message",
+        "keywords",
+        "label_ids",
+        "count",
+        "deleted",
+        "updated_at"
+      ],
+      "original_column_schema_sha256": "570d173cc05b4e184501f2564dff89919fb10ffdcb75246a51fdf6a7c22e8228",
+      "rows": 24,
+      "sha256": "7c5244fd89c8578b64e200dc53577659c2960b757556f45bbf79949e0befd517"
+    },
+    "retrieval_state": {
+      "columns": [
+        "id",
+        "store_id",
+        "revision",
+        "last_sync_at"
+      ],
+      "original_column_schema_sha256": "c06f6795aee3a57bd9948b5f6d83fdf91171b53ff1e357d121ecf65ba7866ab5",
+      "rows": 1,
+      "sha256": "0e69b222435ab6c8a6757d1c74ce4e00c5ee8f88cd00a841cfe28958a649b744"
+    },
+    "schema_migrations": {
+      "columns": [
+        "version",
+        "name",
+        "applied_at"
+      ],
+      "original_column_schema_sha256": "0640b7fd4eaab6931bcd6c623a1305bb2a961cc5b5e44e33188a7f9f6b792415",
+      "rows": 38,
+      "sha256": "3d2fec732cfd0652480b413a5d6658aa1495342785b31734aca3cb6135aa7e9b"
+    },
+    "starred": {
+      "columns": [
+        "chat_jid",
+        "msg_id",
+        "sender_jid",
+        "from_me",
+        "starred_at"
+      ],
+      "original_column_schema_sha256": "b9f01aa1c2dd0ab312517e8201e573d494fbe90978f0c6c71a7462b51c94fc42",
+      "rows": 76,
+      "sha256": "84a6ad66d07a4b6cbc058bddd9eebf5e20d014e15cbd1e018a0d132d6fe57e06"
+    },
+    "status_messages": {
+      "columns": [
+        "rowid",
+        "msg_id",
+        "ts",
+        "from_me",
+        "sender_jid",
+        "sender_name",
+        "text",
+        "media_type",
+        "media_caption",
+        "filename",
+        "mime_type",
+        "direct_path",
+        "media_key",
+        "file_sha256",
+        "file_enc_sha256",
+        "file_length",
+        "background_color",
+        "font"
+      ],
+      "original_column_schema_sha256": "ec38f8a5b8e1b8e587ad7d8b500db5261a8d575c37e22d608d09ffa3c0870734",
+      "rows": 1038,
+      "sha256": "cabf8a2a396b1f3368cd0a7aa8d49e6c4046c192666d965f9a8166105dcc6dfe"
+    },
+    "unavailable_app_state_keys": {
+      "columns": [
+        "account_jid",
+        "key_id"
+      ],
+      "original_column_schema_sha256": "bfd9aa283e288aaa0ba7d6cc10b03aaf1d81818819e0ff8027029f25a02c9100",
+      "rows": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  }
+}

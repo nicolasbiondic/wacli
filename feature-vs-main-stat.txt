@@ -1,0 +1,18 @@
+ CHANGELOG.md                        |   1 +
+ cmd/wacli/chats.go                  |   9 +
+ cmd/wacli/lists.go                  |  55 +++++
+ cmd/wacli/lists_test.go             | 124 +++++++++++
+ cmd/wacli/root.go                   |   1 +
+ docs/chats.md                       |  56 +++++
+ docs/overview.md                    |   1 +
+ internal/app/chat_state.go          |   2 +-
+ internal/app/lists.go               |  50 +++++
+ internal/app/lists_test.go          | 252 ++++++++++++++++++++++
+ internal/app/sync_events.go         |   6 +-
+ internal/store/chat_archive_test.go |   2 +-
+ internal/store/chats.go             |  13 ++
+ internal/store/lid_migration.go     |   5 +
+ internal/store/lists.go             | 213 ++++++++++++++++++
+ internal/store/lists_test.go        | 416 ++++++++++++++++++++++++++++++++++++
+ internal/store/migrations.go        |   6 +
+ 17 files changed, 1209 insertions(+), 3 deletions(-)
