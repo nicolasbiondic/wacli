@@ -1,0 +1,213 @@
+=== RUN   TestExplicitReadBoundaryPreservesNewerSameSecondMessages
+=== RUN   TestExplicitReadBoundaryPreservesNewerSameSecondMessages/app-state
+=== RUN   TestExplicitReadBoundaryPreservesNewerSameSecondMessages/receipts
+--- PASS: TestExplicitReadBoundaryPreservesNewerSameSecondMessages (0.28s)
+    --- PASS: TestExplicitReadBoundaryPreservesNewerSameSecondMessages/app-state (0.17s)
+    --- PASS: TestExplicitReadBoundaryPreservesNewerSameSecondMessages/receipts (0.10s)
+=== RUN   TestExplicitReadBoundaryRejectsInvalidAnchorsBeforeUpdates
+--- PASS: TestExplicitReadBoundaryRejectsInvalidAnchorsBeforeUpdates (0.30s)
+=== RUN   TestExplicitReadBoundaryGroupReceiptsRetainPrivacyAndPartialFailure
+=== RUN   TestExplicitReadBoundaryGroupReceiptsRetainPrivacyAndPartialFailure/false
+=== RUN   TestExplicitReadBoundaryGroupReceiptsRetainPrivacyAndPartialFailure/true
+--- PASS: TestExplicitReadBoundaryGroupReceiptsRetainPrivacyAndPartialFailure (0.43s)
+    --- PASS: TestExplicitReadBoundaryGroupReceiptsRetainPrivacyAndPartialFailure/false (0.22s)
+    --- PASS: TestExplicitReadBoundaryGroupReceiptsRetainPrivacyAndPartialFailure/true (0.20s)
+=== RUN   TestExplicitReadBoundaryReceiptsRespectUnreadSuffixAndCap
+--- PASS: TestExplicitReadBoundaryReceiptsRespectUnreadSuffixAndCap (0.51s)
+=== RUN   TestExplicitReadBoundaryGroupPatchUsesAnchorSender
+--- PASS: TestExplicitReadBoundaryGroupPatchUsesAnchorSender (0.09s)
+=== RUN   TestExplicitReadBoundaryPreservesMarkerBeyondAnchor
+=== RUN   TestExplicitReadBoundaryPreservesMarkerBeyondAnchor/false
+=== RUN   TestExplicitReadBoundaryPreservesMarkerBeyondAnchor/true
+--- PASS: TestExplicitReadBoundaryPreservesMarkerBeyondAnchor (0.16s)
+    --- PASS: TestExplicitReadBoundaryPreservesMarkerBeyondAnchor/false (0.05s)
+    --- PASS: TestExplicitReadBoundaryPreservesMarkerBeyondAnchor/true (0.12s)
+=== RUN   TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay
+=== RUN   TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay/before-apply
+=== RUN   TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay/after-apply
+=== RUN   TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay/after-completion
+=== RUN   TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay/full-replay-after-reopen
+--- PASS: TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay (0.51s)
+    --- PASS: TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay/before-apply (0.13s)
+    --- PASS: TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay/after-apply (0.15s)
+    --- PASS: TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay/after-completion (0.10s)
+    --- PASS: TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay/full-replay-after-reopen (0.13s)
+=== RUN   TestLiveOwnReplyMarksChatReadDirectAndGroup
+=== RUN   TestLiveOwnReplyMarksChatReadDirectAndGroup/s.whatsapp.net
+=== RUN   TestLiveOwnReplyMarksChatReadDirectAndGroup/g.us
+--- PASS: TestLiveOwnReplyMarksChatReadDirectAndGroup (0.27s)
+    --- PASS: TestLiveOwnReplyMarksChatReadDirectAndGroup/s.whatsapp.net (0.12s)
+    --- PASS: TestLiveOwnReplyMarksChatReadDirectAndGroup/g.us (0.15s)
+=== RUN   TestLiveOwnReplyClearsManualUnreadMarker
+--- PASS: TestLiveOwnReplyClearsManualUnreadMarker (0.13s)
+=== RUN   TestLiveOwnReplyOlderThanIncomingKeepsUnread
+--- PASS: TestLiveOwnReplyOlderThanIncomingKeepsUnread (0.13s)
+=== RUN   TestLiveOwnNonReplyEventsKeepChatUnread
+=== RUN   TestLiveOwnNonReplyEventsKeepChatUnread/reaction
+=== RUN   TestLiveOwnNonReplyEventsKeepChatUnread/edit
+=== RUN   TestLiveOwnNonReplyEventsKeepChatUnread/revoke
+=== RUN   TestLiveOwnNonReplyEventsKeepChatUnread/protocol
+stored message own-x in <synthetic-chat> without content: unhandled payload protocolMessage:EPHEMERAL_SETTING
+--- PASS: TestLiveOwnNonReplyEventsKeepChatUnread (0.47s)
+    --- PASS: TestLiveOwnNonReplyEventsKeepChatUnread/reaction (0.12s)
+    --- PASS: TestLiveOwnNonReplyEventsKeepChatUnread/edit (0.08s)
+    --- PASS: TestLiveOwnNonReplyEventsKeepChatUnread/revoke (0.05s)
+    --- PASS: TestLiveOwnNonReplyEventsKeepChatUnread/protocol (0.22s)
+=== RUN   TestHistoryOldOwnMessageDoesNotClearLaterUnread
+
+Processing history sync (1 conversations)...
+
+Synced 3 messages...
+Processing history sync (1 conversations)...
+
+Synced 3 messages...
+Processing history sync (1 conversations)...
+
+Synced 2 messages...
+Processing history sync (1 conversations)...
+
+Synced 2 messages...--- PASS: TestHistoryOldOwnMessageDoesNotClearLaterUnread (0.36s)
+=== RUN   TestHistoryNewestOwnMessageClearsUnreadWhenConversationIsSilent
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...
+Processing history sync (1 conversations)...
+
+Synced 2 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...--- PASS: TestHistoryNewestOwnMessageClearsUnreadWhenConversationIsSilent (0.08s)
+=== RUN   TestHistoryReportedUnreadStateWinsOverNewestOwnMessage
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...--- PASS: TestHistoryReportedUnreadStateWinsOverNewestOwnMessage (0.03s)
+=== RUN   TestHistoryOwnReactionDoesNotClearUnread
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...--- PASS: TestHistoryOwnReactionDoesNotClearUnread (0.04s)
+=== RUN   TestHistoryStoredOwnReplyPreservesManualUnread
+=== RUN   TestHistoryStoredOwnReplyPreservesManualUnread/stored_reply
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...=== RUN   TestHistoryStoredOwnReplyPreservesManualUnread/newly_decoded_reply
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...--- PASS: TestHistoryStoredOwnReplyPreservesManualUnread (0.08s)
+    --- PASS: TestHistoryStoredOwnReplyPreservesManualUnread/stored_reply (0.04s)
+    --- PASS: TestHistoryStoredOwnReplyPreservesManualUnread/newly_decoded_reply (0.04s)
+=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond
+=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=false
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=true
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=false
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=true
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...--- PASS: TestHistoryOwnReplyPreservesUnresolvedSameSecond (0.17s)
+    --- PASS: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=false (0.04s)
+    --- PASS: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=true (0.04s)
+    --- PASS: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=false (0.05s)
+    --- PASS: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=true (0.05s)
+=== RUN   TestLiveTombstonedOwnReplyReplayPreservesUnread
+=== RUN   TestLiveTombstonedOwnReplyReplayPreservesUnread/deleted-for-me
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...=== RUN   TestLiveTombstonedOwnReplyReplayPreservesUnread/revoked
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...--- PASS: TestLiveTombstonedOwnReplyReplayPreservesUnread (0.09s)
+    --- PASS: TestLiveTombstonedOwnReplyReplayPreservesUnread/deleted-for-me (0.04s)
+    --- PASS: TestLiveTombstonedOwnReplyReplayPreservesUnread/revoked (0.05s)
+=== RUN   TestLiveSyncPlaceholderUpgradeDoesNotCountOwnMessagesOrReactions
+=== RUN   TestLiveSyncPlaceholderUpgradeDoesNotCountOwnMessagesOrReactions/own
+=== RUN   TestLiveSyncPlaceholderUpgradeDoesNotCountOwnMessagesOrReactions/reaction
+--- PASS: TestLiveSyncPlaceholderUpgradeDoesNotCountOwnMessagesOrReactions (0.12s)
+    --- PASS: TestLiveSyncPlaceholderUpgradeDoesNotCountOwnMessagesOrReactions/own (0.07s)
+    --- PASS: TestLiveSyncPlaceholderUpgradeDoesNotCountOwnMessagesOrReactions/reaction (0.05s)
+=== RUN   TestLiveSyncDoesNotIncrementUnreadForOwnMessagesOrStatus
+--- PASS: TestLiveSyncDoesNotIncrementUnreadForOwnMessagesOrStatus (0.03s)
+PASS
+ok  	github.com/openclaw/wacli/internal/app	4.307s
+=== RUN   TestOwnMessageClearsUnreadCountAndMarker
+=== RUN   TestOwnMessageClearsUnreadCountAndMarker/direct_count
+=== RUN   TestOwnMessageClearsUnreadCountAndMarker/direct_manual_marker
+=== RUN   TestOwnMessageClearsUnreadCountAndMarker/group_count
+=== RUN   TestOwnMessageClearsUnreadCountAndMarker/group_manual_marker
+--- PASS: TestOwnMessageClearsUnreadCountAndMarker (0.55s)
+    --- PASS: TestOwnMessageClearsUnreadCountAndMarker/direct_count (0.18s)
+    --- PASS: TestOwnMessageClearsUnreadCountAndMarker/direct_manual_marker (0.10s)
+    --- PASS: TestOwnMessageClearsUnreadCountAndMarker/group_count (0.12s)
+    --- PASS: TestOwnMessageClearsUnreadCountAndMarker/group_manual_marker (0.15s)
+=== RUN   TestOwnMessageNotNewerThanIncomingKeepsUnread
+--- PASS: TestOwnMessageNotNewerThanIncomingKeepsUnread (0.24s)
+=== RUN   TestOwnMessageIgnoresNonReadableIncomingWhenComparing
+--- PASS: TestOwnMessageIgnoresNonReadableIncomingWhenComparing (0.21s)
+=== RUN   TestOwnMessageMarksReadIsIdempotentAndReplaySafe
+--- PASS: TestOwnMessageMarksReadIsIdempotentAndReplaySafe (0.19s)
+=== RUN   TestOwnPlaceholderLaterDecodedCountsOnce
+--- PASS: TestOwnPlaceholderLaterDecodedCountsOnce (0.11s)
+PASS
+ok  	github.com/openclaw/wacli/internal/store	1.319s
+=== RUN   TestExplicitReadBoundaryRequestValidation
+--- PASS: TestExplicitReadBoundaryRequestValidation (0.01s)
+=== RUN   TestExplicitReadBoundaryOldOwnerRejectsWithoutFallback
+--- PASS: TestExplicitReadBoundaryOldOwnerRejectsWithoutFallback (0.03s)
+=== RUN   TestPersistOutboundVotePreservesUnread
+=== RUN   TestPersistOutboundVotePreservesUnread/count=0
+=== RUN   TestPersistOutboundVotePreservesUnread/count=2
+--- PASS: TestPersistOutboundVotePreservesUnread (0.59s)
+    --- PASS: TestPersistOutboundVotePreservesUnread/count=0 (0.25s)
+    --- PASS: TestPersistOutboundVotePreservesUnread/count=2 (0.34s)
+=== RUN   TestPollVoteExecutionPathsPreserveUnread
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=0
+    send_poll_test.go:281: before vote: unread=true unread_count=0
+    send_poll_test.go:297: direct command output: {"success":true,"data":{"id":"vote","selected":["Yes"],"sent":true,"target":"poll","to":"<synthetic-chat>"},"error":null}
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=0
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=2
+    send_poll_test.go:281: before vote: unread=true unread_count=2
+    send_poll_test.go:297: direct command output: {"success":true,"data":{"id":"vote","selected":["Yes"],"sent":true,"target":"poll","to":"<synthetic-chat>"},"error":null}
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=2
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=0
+    send_poll_test.go:281: before vote: unread=true unread_count=0
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=0
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=2
+    send_poll_test.go:281: before vote: unread=true unread_count=2
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=2
+--- PASS: TestPollVoteExecutionPathsPreserveUnread (0.62s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=0 (0.12s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=2 (0.19s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=0 (0.12s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=2 (0.19s)
+PASS
+ok  	github.com/openclaw/wacli/cmd/wacli	1.253s

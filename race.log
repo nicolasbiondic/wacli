@@ -1,0 +1,111 @@
+=== RUN   TestOwnReplyRealTransport
+    own_message_transport_test.go:94: NOISE XX: ConnectContext verified test-CA certificate; synthetic paired device
+    own_message_transport_test.go:101: PEER received tag=iq id=102.41-1 type=set
+
+App state regular_low resolved via full sync
+    own_message_transport_test.go:101: PEER received tag=iq id=102.41-2 type=set
+    own_message_transport_test.go:101: PEER received tag=iq id=102.41-3 type=set
+    own_message_transport_test.go:101: PEER received tag=receipt id=incoming type=inactive
+    own_message_transport_test.go:184: STORE before own reply: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own type=sender
+    own_message_transport_test.go:186: STORE after own reply: unread=false unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own type=sender
+    own_message_transport_test.go:191: STORE replay preserves newer manual marker: unread=true unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=same-second-before type=inactive
+    own_message_transport_test.go:193: STORE incoming before boundary: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own-fresh type=sender
+    own_message_transport_test.go:195: STORE fresh identity covers earlier same-second arrival: unread=false unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=same-second-after type=inactive
+    own_message_transport_test.go:197: STORE arrival beyond own reply: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own-fresh type=sender
+    own_message_transport_test.go:199: STORE replay retains later same-second arrival: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+
+Idle for 20ms, exiting.
+--- PASS: TestOwnReplyRealTransport (1.24s)
+PASS
+ok  	github.com/openclaw/wacli/internal/wa	2.277s
+=== RUN   TestHistoryStoredOwnReplyPreservesManualUnread
+=== RUN   TestHistoryStoredOwnReplyPreservesManualUnread/stored_reply
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...=== RUN   TestHistoryStoredOwnReplyPreservesManualUnread/newly_decoded_reply
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...--- PASS: TestHistoryStoredOwnReplyPreservesManualUnread (0.40s)
+    --- PASS: TestHistoryStoredOwnReplyPreservesManualUnread/stored_reply (0.21s)
+    --- PASS: TestHistoryStoredOwnReplyPreservesManualUnread/newly_decoded_reply (0.19s)
+=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond
+=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=false
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=true
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=false
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=true
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...--- PASS: TestHistoryOwnReplyPreservesUnresolvedSameSecond (0.62s)
+    --- PASS: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=false (0.21s)
+    --- PASS: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=true (0.18s)
+    --- PASS: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=false (0.12s)
+    --- PASS: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=true (0.11s)
+=== RUN   TestLiveTombstonedOwnReplyReplayPreservesUnread
+=== RUN   TestLiveTombstonedOwnReplyReplayPreservesUnread/deleted-for-me
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...=== RUN   TestLiveTombstonedOwnReplyReplayPreservesUnread/revoked
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...--- PASS: TestLiveTombstonedOwnReplyReplayPreservesUnread (0.23s)
+    --- PASS: TestLiveTombstonedOwnReplyReplayPreservesUnread/deleted-for-me (0.11s)
+    --- PASS: TestLiveTombstonedOwnReplyReplayPreservesUnread/revoked (0.12s)
+PASS
+ok  	github.com/openclaw/wacli/internal/app	2.320s
+testing: warning: no tests to run
+PASS
+ok  	github.com/openclaw/wacli/internal/store	1.024s [no tests to run]
+=== RUN   TestPollVoteExecutionPathsPreserveUnread
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=0
+    send_poll_test.go:281: before vote: unread=true unread_count=0
+    send_poll_test.go:297: direct command output: {"success":true,"data":{"id":"vote","selected":["Yes"],"sent":true,"target":"poll","to":"<synthetic-chat>"},"error":null}
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=0
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=2
+    send_poll_test.go:281: before vote: unread=true unread_count=2
+    send_poll_test.go:297: direct command output: {"success":true,"data":{"id":"vote","selected":["Yes"],"sent":true,"target":"poll","to":"<synthetic-chat>"},"error":null}
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=2
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=0
+    send_poll_test.go:281: before vote: unread=true unread_count=0
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=0
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=2
+    send_poll_test.go:281: before vote: unread=true unread_count=2
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=2
+--- PASS: TestPollVoteExecutionPathsPreserveUnread (0.70s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=0 (0.13s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=2 (0.19s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=0 (0.18s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=2 (0.21s)
+PASS
+ok  	github.com/openclaw/wacli/cmd/wacli	1.753s

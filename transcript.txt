@@ -1,0 +1,784 @@
+PR #533 proof transcript
+Baseline 75ba671; main 616b348 merged as c110b31.
+All heavy commands use flock $TMP and wait-load.sh 1400.
+Synthetic numeric JIDs redacted; no real account traffic.
+
+===== Exact reviewed head: expected regression failures (regressions-before.log) =====
+=== RUN   TestHistoryStoredOwnReplyPreservesManualUnread
+=== RUN   TestHistoryStoredOwnReplyPreservesManualUnread/stored_reply
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...    own_message_read_test.go:266: unread state = (false, 0), want (true, 0)
+=== RUN   TestHistoryStoredOwnReplyPreservesManualUnread/newly_decoded_reply
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...    own_message_read_test.go:274: unread state = (false, 0), want (true, 0)
+--- FAIL: TestHistoryStoredOwnReplyPreservesManualUnread (0.65s)
+    --- FAIL: TestHistoryStoredOwnReplyPreservesManualUnread/stored_reply (0.27s)
+    --- FAIL: TestHistoryStoredOwnReplyPreservesManualUnread/newly_decoded_reply (0.38s)
+=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond
+=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=false
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...    own_message_read_test.go:307: unread state = (false, 0), want (true, 1)
+=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=true
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...    own_message_read_test.go:307: unread state = (false, 0), want (true, 0)
+=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=false
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...    own_message_read_test.go:307: unread state = (false, 0), want (true, 1)
+=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=true
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...    own_message_read_test.go:307: unread state = (false, 0), want (true, 0)
+--- FAIL: TestHistoryOwnReplyPreservesUnresolvedSameSecond (0.83s)
+    --- FAIL: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=false (0.16s)
+    --- FAIL: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=true (0.31s)
+    --- FAIL: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=false (0.17s)
+    --- FAIL: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=true (0.18s)
+=== RUN   TestLiveTombstonedOwnReplyReplayPreservesUnread
+=== RUN   TestLiveTombstonedOwnReplyReplayPreservesUnread/deleted-for-me
+    own_message_read_test.go:334: unread state = (false, 0), want (true, 0)
+=== RUN   TestLiveTombstonedOwnReplyReplayPreservesUnread/revoked
+    own_message_read_test.go:334: unread state = (false, 0), want (true, 0)
+--- FAIL: TestLiveTombstonedOwnReplyReplayPreservesUnread (0.35s)
+    --- FAIL: TestLiveTombstonedOwnReplyReplayPreservesUnread/deleted-for-me (0.18s)
+    --- FAIL: TestLiveTombstonedOwnReplyReplayPreservesUnread/revoked (0.17s)
+FAIL
+FAIL	github.com/openclaw/wacli/internal/app	1.840s
+=== RUN   TestPersistOutboundVotePreservesUnread
+=== RUN   TestPersistOutboundVotePreservesUnread/count=0
+    send_poll_test.go:227: vote acknowledged chat: {JID:<synthetic-chat> Kind:dm Name:<synthetic-chat> LastMessageTS:2023-11-14 22:13:20 +0000 UTC Archived:false Pinned:false MutedUntil:0 Unread:false UnreadCount:0}, <nil>
+=== RUN   TestPersistOutboundVotePreservesUnread/count=2
+    send_poll_test.go:227: vote acknowledged chat: {JID:<synthetic-chat> Kind:dm Name:<synthetic-chat> LastMessageTS:2023-11-14 22:13:20 +0000 UTC Archived:false Pinned:false MutedUntil:0 Unread:false UnreadCount:0}, <nil>
+--- FAIL: TestPersistOutboundVotePreservesUnread (0.98s)
+    --- FAIL: TestPersistOutboundVotePreservesUnread/count=0 (0.61s)
+    --- FAIL: TestPersistOutboundVotePreservesUnread/count=2 (0.37s)
+FAIL
+FAIL	github.com/openclaw/wacli/cmd/wacli	0.987s
+FAIL
+
+===== Repaired plain targeted regressions (regressions-after.log) =====
+=== RUN   TestExplicitReadBoundaryPreservesNewerSameSecondMessages
+=== RUN   TestExplicitReadBoundaryPreservesNewerSameSecondMessages/app-state
+=== RUN   TestExplicitReadBoundaryPreservesNewerSameSecondMessages/receipts
+--- PASS: TestExplicitReadBoundaryPreservesNewerSameSecondMessages (0.28s)
+    --- PASS: TestExplicitReadBoundaryPreservesNewerSameSecondMessages/app-state (0.17s)
+    --- PASS: TestExplicitReadBoundaryPreservesNewerSameSecondMessages/receipts (0.10s)
+=== RUN   TestExplicitReadBoundaryRejectsInvalidAnchorsBeforeUpdates
+--- PASS: TestExplicitReadBoundaryRejectsInvalidAnchorsBeforeUpdates (0.30s)
+=== RUN   TestExplicitReadBoundaryGroupReceiptsRetainPrivacyAndPartialFailure
+=== RUN   TestExplicitReadBoundaryGroupReceiptsRetainPrivacyAndPartialFailure/false
+=== RUN   TestExplicitReadBoundaryGroupReceiptsRetainPrivacyAndPartialFailure/true
+--- PASS: TestExplicitReadBoundaryGroupReceiptsRetainPrivacyAndPartialFailure (0.43s)
+    --- PASS: TestExplicitReadBoundaryGroupReceiptsRetainPrivacyAndPartialFailure/false (0.22s)
+    --- PASS: TestExplicitReadBoundaryGroupReceiptsRetainPrivacyAndPartialFailure/true (0.20s)
+=== RUN   TestExplicitReadBoundaryReceiptsRespectUnreadSuffixAndCap
+--- PASS: TestExplicitReadBoundaryReceiptsRespectUnreadSuffixAndCap (0.51s)
+=== RUN   TestExplicitReadBoundaryGroupPatchUsesAnchorSender
+--- PASS: TestExplicitReadBoundaryGroupPatchUsesAnchorSender (0.09s)
+=== RUN   TestExplicitReadBoundaryPreservesMarkerBeyondAnchor
+=== RUN   TestExplicitReadBoundaryPreservesMarkerBeyondAnchor/false
+=== RUN   TestExplicitReadBoundaryPreservesMarkerBeyondAnchor/true
+--- PASS: TestExplicitReadBoundaryPreservesMarkerBeyondAnchor (0.16s)
+    --- PASS: TestExplicitReadBoundaryPreservesMarkerBeyondAnchor/false (0.05s)
+    --- PASS: TestExplicitReadBoundaryPreservesMarkerBeyondAnchor/true (0.12s)
+=== RUN   TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay
+=== RUN   TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay/before-apply
+=== RUN   TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay/after-apply
+=== RUN   TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay/after-completion
+=== RUN   TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay/full-replay-after-reopen
+--- PASS: TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay (0.51s)
+    --- PASS: TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay/before-apply (0.13s)
+    --- PASS: TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay/after-apply (0.15s)
+    --- PASS: TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay/after-completion (0.10s)
+    --- PASS: TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay/full-replay-after-reopen (0.13s)
+=== RUN   TestLiveOwnReplyMarksChatReadDirectAndGroup
+=== RUN   TestLiveOwnReplyMarksChatReadDirectAndGroup/s.whatsapp.net
+=== RUN   TestLiveOwnReplyMarksChatReadDirectAndGroup/g.us
+--- PASS: TestLiveOwnReplyMarksChatReadDirectAndGroup (0.27s)
+    --- PASS: TestLiveOwnReplyMarksChatReadDirectAndGroup/s.whatsapp.net (0.12s)
+    --- PASS: TestLiveOwnReplyMarksChatReadDirectAndGroup/g.us (0.15s)
+=== RUN   TestLiveOwnReplyClearsManualUnreadMarker
+--- PASS: TestLiveOwnReplyClearsManualUnreadMarker (0.13s)
+=== RUN   TestLiveOwnReplyOlderThanIncomingKeepsUnread
+--- PASS: TestLiveOwnReplyOlderThanIncomingKeepsUnread (0.13s)
+=== RUN   TestLiveOwnNonReplyEventsKeepChatUnread
+=== RUN   TestLiveOwnNonReplyEventsKeepChatUnread/reaction
+=== RUN   TestLiveOwnNonReplyEventsKeepChatUnread/edit
+=== RUN   TestLiveOwnNonReplyEventsKeepChatUnread/revoke
+=== RUN   TestLiveOwnNonReplyEventsKeepChatUnread/protocol
+stored message own-x in <synthetic-chat> without content: unhandled payload protocolMessage:EPHEMERAL_SETTING
+--- PASS: TestLiveOwnNonReplyEventsKeepChatUnread (0.47s)
+    --- PASS: TestLiveOwnNonReplyEventsKeepChatUnread/reaction (0.12s)
+    --- PASS: TestLiveOwnNonReplyEventsKeepChatUnread/edit (0.08s)
+    --- PASS: TestLiveOwnNonReplyEventsKeepChatUnread/revoke (0.05s)
+    --- PASS: TestLiveOwnNonReplyEventsKeepChatUnread/protocol (0.22s)
+=== RUN   TestHistoryOldOwnMessageDoesNotClearLaterUnread
+
+Processing history sync (1 conversations)...
+
+Synced 3 messages...
+Processing history sync (1 conversations)...
+
+Synced 3 messages...
+Processing history sync (1 conversations)...
+
+Synced 2 messages...
+Processing history sync (1 conversations)...
+
+Synced 2 messages...--- PASS: TestHistoryOldOwnMessageDoesNotClearLaterUnread (0.36s)
+=== RUN   TestHistoryNewestOwnMessageClearsUnreadWhenConversationIsSilent
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...
+Processing history sync (1 conversations)...
+
+Synced 2 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...--- PASS: TestHistoryNewestOwnMessageClearsUnreadWhenConversationIsSilent (0.08s)
+=== RUN   TestHistoryReportedUnreadStateWinsOverNewestOwnMessage
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...--- PASS: TestHistoryReportedUnreadStateWinsOverNewestOwnMessage (0.03s)
+=== RUN   TestHistoryOwnReactionDoesNotClearUnread
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...--- PASS: TestHistoryOwnReactionDoesNotClearUnread (0.04s)
+=== RUN   TestHistoryStoredOwnReplyPreservesManualUnread
+=== RUN   TestHistoryStoredOwnReplyPreservesManualUnread/stored_reply
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...=== RUN   TestHistoryStoredOwnReplyPreservesManualUnread/newly_decoded_reply
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...--- PASS: TestHistoryStoredOwnReplyPreservesManualUnread (0.08s)
+    --- PASS: TestHistoryStoredOwnReplyPreservesManualUnread/stored_reply (0.04s)
+    --- PASS: TestHistoryStoredOwnReplyPreservesManualUnread/newly_decoded_reply (0.04s)
+=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond
+=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=false
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=true
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=false
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=true
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...--- PASS: TestHistoryOwnReplyPreservesUnresolvedSameSecond (0.17s)
+    --- PASS: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=false (0.04s)
+    --- PASS: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=true (0.04s)
+    --- PASS: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=false (0.05s)
+    --- PASS: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=true (0.05s)
+=== RUN   TestLiveTombstonedOwnReplyReplayPreservesUnread
+=== RUN   TestLiveTombstonedOwnReplyReplayPreservesUnread/deleted-for-me
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...=== RUN   TestLiveTombstonedOwnReplyReplayPreservesUnread/revoked
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...--- PASS: TestLiveTombstonedOwnReplyReplayPreservesUnread (0.09s)
+    --- PASS: TestLiveTombstonedOwnReplyReplayPreservesUnread/deleted-for-me (0.04s)
+    --- PASS: TestLiveTombstonedOwnReplyReplayPreservesUnread/revoked (0.05s)
+=== RUN   TestLiveSyncPlaceholderUpgradeDoesNotCountOwnMessagesOrReactions
+=== RUN   TestLiveSyncPlaceholderUpgradeDoesNotCountOwnMessagesOrReactions/own
+=== RUN   TestLiveSyncPlaceholderUpgradeDoesNotCountOwnMessagesOrReactions/reaction
+--- PASS: TestLiveSyncPlaceholderUpgradeDoesNotCountOwnMessagesOrReactions (0.12s)
+    --- PASS: TestLiveSyncPlaceholderUpgradeDoesNotCountOwnMessagesOrReactions/own (0.07s)
+    --- PASS: TestLiveSyncPlaceholderUpgradeDoesNotCountOwnMessagesOrReactions/reaction (0.05s)
+=== RUN   TestLiveSyncDoesNotIncrementUnreadForOwnMessagesOrStatus
+--- PASS: TestLiveSyncDoesNotIncrementUnreadForOwnMessagesOrStatus (0.03s)
+PASS
+ok  	github.com/openclaw/wacli/internal/app	4.307s
+=== RUN   TestOwnMessageClearsUnreadCountAndMarker
+=== RUN   TestOwnMessageClearsUnreadCountAndMarker/direct_count
+=== RUN   TestOwnMessageClearsUnreadCountAndMarker/direct_manual_marker
+=== RUN   TestOwnMessageClearsUnreadCountAndMarker/group_count
+=== RUN   TestOwnMessageClearsUnreadCountAndMarker/group_manual_marker
+--- PASS: TestOwnMessageClearsUnreadCountAndMarker (0.55s)
+    --- PASS: TestOwnMessageClearsUnreadCountAndMarker/direct_count (0.18s)
+    --- PASS: TestOwnMessageClearsUnreadCountAndMarker/direct_manual_marker (0.10s)
+    --- PASS: TestOwnMessageClearsUnreadCountAndMarker/group_count (0.12s)
+    --- PASS: TestOwnMessageClearsUnreadCountAndMarker/group_manual_marker (0.15s)
+=== RUN   TestOwnMessageNotNewerThanIncomingKeepsUnread
+--- PASS: TestOwnMessageNotNewerThanIncomingKeepsUnread (0.24s)
+=== RUN   TestOwnMessageIgnoresNonReadableIncomingWhenComparing
+--- PASS: TestOwnMessageIgnoresNonReadableIncomingWhenComparing (0.21s)
+=== RUN   TestOwnMessageMarksReadIsIdempotentAndReplaySafe
+--- PASS: TestOwnMessageMarksReadIsIdempotentAndReplaySafe (0.19s)
+=== RUN   TestOwnPlaceholderLaterDecodedCountsOnce
+--- PASS: TestOwnPlaceholderLaterDecodedCountsOnce (0.11s)
+PASS
+ok  	github.com/openclaw/wacli/internal/store	1.319s
+=== RUN   TestExplicitReadBoundaryRequestValidation
+--- PASS: TestExplicitReadBoundaryRequestValidation (0.01s)
+=== RUN   TestExplicitReadBoundaryOldOwnerRejectsWithoutFallback
+--- PASS: TestExplicitReadBoundaryOldOwnerRejectsWithoutFallback (0.03s)
+=== RUN   TestPersistOutboundVotePreservesUnread
+=== RUN   TestPersistOutboundVotePreservesUnread/count=0
+=== RUN   TestPersistOutboundVotePreservesUnread/count=2
+--- PASS: TestPersistOutboundVotePreservesUnread (0.59s)
+    --- PASS: TestPersistOutboundVotePreservesUnread/count=0 (0.25s)
+    --- PASS: TestPersistOutboundVotePreservesUnread/count=2 (0.34s)
+=== RUN   TestPollVoteExecutionPathsPreserveUnread
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=0
+    send_poll_test.go:281: before vote: unread=true unread_count=0
+    send_poll_test.go:297: direct command output: {"success":true,"data":{"id":"vote","selected":["Yes"],"sent":true,"target":"poll","to":"<synthetic-chat>"},"error":null}
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=0
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=2
+    send_poll_test.go:281: before vote: unread=true unread_count=2
+    send_poll_test.go:297: direct command output: {"success":true,"data":{"id":"vote","selected":["Yes"],"sent":true,"target":"poll","to":"<synthetic-chat>"},"error":null}
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=2
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=0
+    send_poll_test.go:281: before vote: unread=true unread_count=0
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=0
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=2
+    send_poll_test.go:281: before vote: unread=true unread_count=2
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=2
+--- PASS: TestPollVoteExecutionPathsPreserveUnread (0.62s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=0 (0.12s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=2 (0.19s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=0 (0.12s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=2 (0.19s)
+PASS
+ok  	github.com/openclaw/wacli/cmd/wacli	1.253s
+
+===== Direct/delegated poll-vote paths (poll-paths.log) =====
+=== RUN   TestPersistOutboundVotePreservesUnread
+=== RUN   TestPersistOutboundVotePreservesUnread/count=0
+=== RUN   TestPersistOutboundVotePreservesUnread/count=2
+--- PASS: TestPersistOutboundVotePreservesUnread (0.32s)
+    --- PASS: TestPersistOutboundVotePreservesUnread/count=0 (0.18s)
+    --- PASS: TestPersistOutboundVotePreservesUnread/count=2 (0.14s)
+=== RUN   TestPollVoteExecutionPathsPreserveUnread
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=0
+    send_poll_test.go:281: before vote: unread=true unread_count=0
+    send_poll_test.go:297: direct command output: {"success":true,"data":{"id":"vote","selected":["Yes"],"sent":true,"target":"poll","to":"<synthetic-chat>"},"error":null}
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=0
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=2
+    send_poll_test.go:281: before vote: unread=true unread_count=2
+    send_poll_test.go:297: direct command output: {"success":true,"data":{"id":"vote","selected":["Yes"],"sent":true,"target":"poll","to":"<synthetic-chat>"},"error":null}
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=2
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=0
+    send_poll_test.go:281: before vote: unread=true unread_count=0
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=0
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=2
+    send_poll_test.go:281: before vote: unread=true unread_count=2
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=2
+--- PASS: TestPollVoteExecutionPathsPreserveUnread (0.38s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=0 (0.08s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=2 (0.12s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=0 (0.10s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=2 (0.09s)
+PASS
+ok  	github.com/openclaw/wacli/cmd/wacli	0.708s
+
+===== Real Noise/Signal runtime: three consecutive runs (transport.log) =====
+=== RUN   TestOwnReplyRealTransport
+    own_message_transport_test.go:94: NOISE XX: ConnectContext verified test-CA certificate; synthetic paired device
+    own_message_transport_test.go:101: PEER received tag=iq id=51.181-1 type=set
+
+App state regular_low resolved via full sync
+    own_message_transport_test.go:101: PEER received tag=iq id=51.181-2 type=set
+    own_message_transport_test.go:101: PEER received tag=iq id=51.181-3 type=set
+    own_message_transport_test.go:101: PEER received tag=receipt id=incoming type=inactive
+    own_message_transport_test.go:184: STORE before own reply: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own type=sender
+    own_message_transport_test.go:186: STORE after own reply: unread=false unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own type=sender
+    own_message_transport_test.go:191: STORE replay preserves newer manual marker: unread=true unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=same-second-before type=inactive
+    own_message_transport_test.go:193: STORE incoming before boundary: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own-fresh type=sender
+    own_message_transport_test.go:195: STORE fresh identity covers earlier same-second arrival: unread=false unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=same-second-after type=inactive
+    own_message_transport_test.go:197: STORE arrival beyond own reply: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own-fresh type=sender
+    own_message_transport_test.go:199: STORE replay retains later same-second arrival: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+
+Idle for 20ms, exiting.
+--- PASS: TestOwnReplyRealTransport (0.98s)
+=== RUN   TestOwnReplyRealTransport
+    own_message_transport_test.go:94: NOISE XX: ConnectContext verified test-CA certificate; synthetic paired device
+    own_message_transport_test.go:101: PEER received tag=iq id=11.98-1 type=set
+
+App state regular_low resolved via full sync
+    own_message_transport_test.go:101: PEER received tag=iq id=11.98-2 type=set
+    own_message_transport_test.go:101: PEER received tag=iq id=11.98-3 type=set
+    own_message_transport_test.go:101: PEER received tag=receipt id=incoming type=inactive
+    own_message_transport_test.go:184: STORE before own reply: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own type=sender
+    own_message_transport_test.go:186: STORE after own reply: unread=false unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own type=sender
+    own_message_transport_test.go:191: STORE replay preserves newer manual marker: unread=true unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=same-second-before type=inactive
+    own_message_transport_test.go:193: STORE incoming before boundary: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own-fresh type=sender
+    own_message_transport_test.go:195: STORE fresh identity covers earlier same-second arrival: unread=false unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=same-second-after type=inactive
+    own_message_transport_test.go:197: STORE arrival beyond own reply: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own-fresh type=sender
+    own_message_transport_test.go:199: STORE replay retains later same-second arrival: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+
+Idle for 20ms, exiting.
+--- PASS: TestOwnReplyRealTransport (0.93s)
+=== RUN   TestOwnReplyRealTransport
+    own_message_transport_test.go:94: NOISE XX: ConnectContext verified test-CA certificate; synthetic paired device
+    own_message_transport_test.go:101: PEER received tag=iq id=96.0-1 type=set
+
+App state regular_low resolved via full sync
+    own_message_transport_test.go:101: PEER received tag=iq id=96.0-2 type=set
+    own_message_transport_test.go:101: PEER received tag=iq id=96.0-3 type=set
+    own_message_transport_test.go:101: PEER received tag=receipt id=incoming type=inactive
+    own_message_transport_test.go:184: STORE before own reply: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own type=sender
+    own_message_transport_test.go:186: STORE after own reply: unread=false unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own type=sender
+    own_message_transport_test.go:191: STORE replay preserves newer manual marker: unread=true unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=same-second-before type=inactive
+    own_message_transport_test.go:193: STORE incoming before boundary: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own-fresh type=sender
+    own_message_transport_test.go:195: STORE fresh identity covers earlier same-second arrival: unread=false unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=same-second-after type=inactive
+    own_message_transport_test.go:197: STORE arrival beyond own reply: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own-fresh type=sender
+    own_message_transport_test.go:199: STORE replay retains later same-second arrival: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+
+Idle for 20ms, exiting.
+--- PASS: TestOwnReplyRealTransport (0.94s)
+PASS
+ok  	github.com/openclaw/wacli/internal/wa	2.858s
+
+===== FTS targeted regressions and real transport (regressions-after-fts.log) =====
+=== RUN   TestExplicitReadBoundaryPreservesNewerSameSecondMessages
+=== RUN   TestExplicitReadBoundaryPreservesNewerSameSecondMessages/app-state
+=== RUN   TestExplicitReadBoundaryPreservesNewerSameSecondMessages/receipts
+--- PASS: TestExplicitReadBoundaryPreservesNewerSameSecondMessages (0.10s)
+    --- PASS: TestExplicitReadBoundaryPreservesNewerSameSecondMessages/app-state (0.06s)
+    --- PASS: TestExplicitReadBoundaryPreservesNewerSameSecondMessages/receipts (0.05s)
+=== RUN   TestExplicitReadBoundaryRejectsInvalidAnchorsBeforeUpdates
+--- PASS: TestExplicitReadBoundaryRejectsInvalidAnchorsBeforeUpdates (0.11s)
+=== RUN   TestExplicitReadBoundaryGroupReceiptsRetainPrivacyAndPartialFailure
+=== RUN   TestExplicitReadBoundaryGroupReceiptsRetainPrivacyAndPartialFailure/false
+=== RUN   TestExplicitReadBoundaryGroupReceiptsRetainPrivacyAndPartialFailure/true
+--- PASS: TestExplicitReadBoundaryGroupReceiptsRetainPrivacyAndPartialFailure (0.09s)
+    --- PASS: TestExplicitReadBoundaryGroupReceiptsRetainPrivacyAndPartialFailure/false (0.05s)
+    --- PASS: TestExplicitReadBoundaryGroupReceiptsRetainPrivacyAndPartialFailure/true (0.05s)
+=== RUN   TestExplicitReadBoundaryReceiptsRespectUnreadSuffixAndCap
+--- PASS: TestExplicitReadBoundaryReceiptsRespectUnreadSuffixAndCap (0.34s)
+=== RUN   TestExplicitReadBoundaryGroupPatchUsesAnchorSender
+--- PASS: TestExplicitReadBoundaryGroupPatchUsesAnchorSender (0.04s)
+=== RUN   TestExplicitReadBoundaryPreservesMarkerBeyondAnchor
+=== RUN   TestExplicitReadBoundaryPreservesMarkerBeyondAnchor/false
+=== RUN   TestExplicitReadBoundaryPreservesMarkerBeyondAnchor/true
+--- PASS: TestExplicitReadBoundaryPreservesMarkerBeyondAnchor (0.10s)
+    --- PASS: TestExplicitReadBoundaryPreservesMarkerBeyondAnchor/false (0.05s)
+    --- PASS: TestExplicitReadBoundaryPreservesMarkerBeyondAnchor/true (0.04s)
+=== RUN   TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay
+=== RUN   TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay/before-apply
+=== RUN   TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay/after-apply
+=== RUN   TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay/after-completion
+=== RUN   TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay/full-replay-after-reopen
+--- PASS: TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay (0.18s)
+    --- PASS: TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay/before-apply (0.04s)
+    --- PASS: TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay/after-apply (0.04s)
+    --- PASS: TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay/after-completion (0.04s)
+    --- PASS: TestExplicitReadBoundaryMarkerSurvivesAppStateEchoAndReplay/full-replay-after-reopen (0.06s)
+=== RUN   TestLiveOwnReplyMarksChatReadDirectAndGroup
+=== RUN   TestLiveOwnReplyMarksChatReadDirectAndGroup/s.whatsapp.net
+=== RUN   TestLiveOwnReplyMarksChatReadDirectAndGroup/g.us
+--- PASS: TestLiveOwnReplyMarksChatReadDirectAndGroup (0.13s)
+    --- PASS: TestLiveOwnReplyMarksChatReadDirectAndGroup/s.whatsapp.net (0.08s)
+    --- PASS: TestLiveOwnReplyMarksChatReadDirectAndGroup/g.us (0.05s)
+=== RUN   TestLiveOwnReplyClearsManualUnreadMarker
+--- PASS: TestLiveOwnReplyClearsManualUnreadMarker (0.04s)
+=== RUN   TestLiveOwnReplyOlderThanIncomingKeepsUnread
+--- PASS: TestLiveOwnReplyOlderThanIncomingKeepsUnread (0.04s)
+=== RUN   TestLiveOwnNonReplyEventsKeepChatUnread
+=== RUN   TestLiveOwnNonReplyEventsKeepChatUnread/reaction
+=== RUN   TestLiveOwnNonReplyEventsKeepChatUnread/edit
+=== RUN   TestLiveOwnNonReplyEventsKeepChatUnread/revoke
+=== RUN   TestLiveOwnNonReplyEventsKeepChatUnread/protocol
+stored message own-x in <synthetic-chat> without content: unhandled payload protocolMessage:EPHEMERAL_SETTING
+--- PASS: TestLiveOwnNonReplyEventsKeepChatUnread (0.19s)
+    --- PASS: TestLiveOwnNonReplyEventsKeepChatUnread/reaction (0.04s)
+    --- PASS: TestLiveOwnNonReplyEventsKeepChatUnread/edit (0.05s)
+    --- PASS: TestLiveOwnNonReplyEventsKeepChatUnread/revoke (0.04s)
+    --- PASS: TestLiveOwnNonReplyEventsKeepChatUnread/protocol (0.06s)
+=== RUN   TestHistoryOldOwnMessageDoesNotClearLaterUnread
+
+Processing history sync (1 conversations)...
+
+Synced 3 messages...
+Processing history sync (1 conversations)...
+
+Synced 3 messages...
+Processing history sync (1 conversations)...
+
+Synced 2 messages...
+Processing history sync (1 conversations)...
+
+Synced 2 messages...--- PASS: TestHistoryOldOwnMessageDoesNotClearLaterUnread (0.17s)
+=== RUN   TestHistoryNewestOwnMessageClearsUnreadWhenConversationIsSilent
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...
+Processing history sync (1 conversations)...
+
+Synced 2 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...--- PASS: TestHistoryNewestOwnMessageClearsUnreadWhenConversationIsSilent (0.09s)
+=== RUN   TestHistoryReportedUnreadStateWinsOverNewestOwnMessage
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...--- PASS: TestHistoryReportedUnreadStateWinsOverNewestOwnMessage (0.04s)
+=== RUN   TestHistoryOwnReactionDoesNotClearUnread
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...--- PASS: TestHistoryOwnReactionDoesNotClearUnread (0.04s)
+=== RUN   TestHistoryStoredOwnReplyPreservesManualUnread
+=== RUN   TestHistoryStoredOwnReplyPreservesManualUnread/stored_reply
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...=== RUN   TestHistoryStoredOwnReplyPreservesManualUnread/newly_decoded_reply
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...--- PASS: TestHistoryStoredOwnReplyPreservesManualUnread (0.08s)
+    --- PASS: TestHistoryStoredOwnReplyPreservesManualUnread/stored_reply (0.04s)
+    --- PASS: TestHistoryStoredOwnReplyPreservesManualUnread/newly_decoded_reply (0.04s)
+=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond
+=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=false
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=true
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=false
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=true
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...--- PASS: TestHistoryOwnReplyPreservesUnresolvedSameSecond (0.18s)
+    --- PASS: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=false (0.04s)
+    --- PASS: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=true (0.05s)
+    --- PASS: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=false (0.04s)
+    --- PASS: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=true (0.05s)
+=== RUN   TestLiveTombstonedOwnReplyReplayPreservesUnread
+=== RUN   TestLiveTombstonedOwnReplyReplayPreservesUnread/deleted-for-me
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...=== RUN   TestLiveTombstonedOwnReplyReplayPreservesUnread/revoked
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...--- PASS: TestLiveTombstonedOwnReplyReplayPreservesUnread (0.09s)
+    --- PASS: TestLiveTombstonedOwnReplyReplayPreservesUnread/deleted-for-me (0.05s)
+    --- PASS: TestLiveTombstonedOwnReplyReplayPreservesUnread/revoked (0.05s)
+=== RUN   TestLiveSyncPlaceholderUpgradeDoesNotCountOwnMessagesOrReactions
+=== RUN   TestLiveSyncPlaceholderUpgradeDoesNotCountOwnMessagesOrReactions/own
+=== RUN   TestLiveSyncPlaceholderUpgradeDoesNotCountOwnMessagesOrReactions/reaction
+--- PASS: TestLiveSyncPlaceholderUpgradeDoesNotCountOwnMessagesOrReactions (0.14s)
+    --- PASS: TestLiveSyncPlaceholderUpgradeDoesNotCountOwnMessagesOrReactions/own (0.05s)
+    --- PASS: TestLiveSyncPlaceholderUpgradeDoesNotCountOwnMessagesOrReactions/reaction (0.08s)
+=== RUN   TestLiveSyncDoesNotIncrementUnreadForOwnMessagesOrStatus
+--- PASS: TestLiveSyncDoesNotIncrementUnreadForOwnMessagesOrStatus (0.04s)
+PASS
+ok  	github.com/openclaw/wacli/internal/app	2.242s
+=== RUN   TestOwnMessageClearsUnreadCountAndMarker
+=== RUN   TestOwnMessageClearsUnreadCountAndMarker/direct_count
+=== RUN   TestOwnMessageClearsUnreadCountAndMarker/direct_manual_marker
+=== RUN   TestOwnMessageClearsUnreadCountAndMarker/group_count
+=== RUN   TestOwnMessageClearsUnreadCountAndMarker/group_manual_marker
+--- PASS: TestOwnMessageClearsUnreadCountAndMarker (0.21s)
+    --- PASS: TestOwnMessageClearsUnreadCountAndMarker/direct_count (0.05s)
+    --- PASS: TestOwnMessageClearsUnreadCountAndMarker/direct_manual_marker (0.05s)
+    --- PASS: TestOwnMessageClearsUnreadCountAndMarker/group_count (0.05s)
+    --- PASS: TestOwnMessageClearsUnreadCountAndMarker/group_manual_marker (0.06s)
+=== RUN   TestOwnMessageNotNewerThanIncomingKeepsUnread
+--- PASS: TestOwnMessageNotNewerThanIncomingKeepsUnread (0.05s)
+=== RUN   TestOwnMessageIgnoresNonReadableIncomingWhenComparing
+--- PASS: TestOwnMessageIgnoresNonReadableIncomingWhenComparing (0.06s)
+=== RUN   TestOwnMessageMarksReadIsIdempotentAndReplaySafe
+--- PASS: TestOwnMessageMarksReadIsIdempotentAndReplaySafe (0.06s)
+=== RUN   TestOwnPlaceholderLaterDecodedCountsOnce
+--- PASS: TestOwnPlaceholderLaterDecodedCountsOnce (0.05s)
+PASS
+ok  	github.com/openclaw/wacli/internal/store	0.432s
+=== RUN   TestExplicitReadBoundaryRequestValidation
+--- PASS: TestExplicitReadBoundaryRequestValidation (0.01s)
+=== RUN   TestExplicitReadBoundaryOldOwnerRejectsWithoutFallback
+--- PASS: TestExplicitReadBoundaryOldOwnerRejectsWithoutFallback (0.03s)
+=== RUN   TestPersistOutboundVotePreservesUnread
+=== RUN   TestPersistOutboundVotePreservesUnread/count=0
+=== RUN   TestPersistOutboundVotePreservesUnread/count=2
+--- PASS: TestPersistOutboundVotePreservesUnread (0.13s)
+    --- PASS: TestPersistOutboundVotePreservesUnread/count=0 (0.07s)
+    --- PASS: TestPersistOutboundVotePreservesUnread/count=2 (0.06s)
+=== RUN   TestPollVoteExecutionPathsPreserveUnread
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=0
+    send_poll_test.go:281: before vote: unread=true unread_count=0
+    send_poll_test.go:297: direct command output: {"success":true,"data":{"id":"vote","selected":["Yes"],"sent":true,"target":"poll","to":"<synthetic-chat>"},"error":null}
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=0
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=2
+    send_poll_test.go:281: before vote: unread=true unread_count=2
+    send_poll_test.go:297: direct command output: {"success":true,"data":{"id":"vote","selected":["Yes"],"sent":true,"target":"poll","to":"<synthetic-chat>"},"error":null}
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=2
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=0
+    send_poll_test.go:281: before vote: unread=true unread_count=0
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=0
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=2
+    send_poll_test.go:281: before vote: unread=true unread_count=2
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=2
+--- PASS: TestPollVoteExecutionPathsPreserveUnread (0.18s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=0 (0.04s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=2 (0.04s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=0 (0.05s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=2 (0.05s)
+PASS
+ok  	github.com/openclaw/wacli/cmd/wacli	0.362s
+=== RUN   TestOwnReplyRealTransport
+    own_message_transport_test.go:94: NOISE XX: ConnectContext verified test-CA certificate; synthetic paired device
+    own_message_transport_test.go:101: PEER received tag=iq id=68.1-1 type=set
+
+App state regular_low resolved via full sync
+    own_message_transport_test.go:101: PEER received tag=iq id=68.1-2 type=set
+    own_message_transport_test.go:101: PEER received tag=iq id=68.1-3 type=set
+    own_message_transport_test.go:101: PEER received tag=receipt id=incoming type=inactive
+    own_message_transport_test.go:184: STORE before own reply: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own type=sender
+    own_message_transport_test.go:186: STORE after own reply: unread=false unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own type=sender
+    own_message_transport_test.go:191: STORE replay preserves newer manual marker: unread=true unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=same-second-before type=inactive
+    own_message_transport_test.go:193: STORE incoming before boundary: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own-fresh type=sender
+    own_message_transport_test.go:195: STORE fresh identity covers earlier same-second arrival: unread=false unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=same-second-after type=inactive
+    own_message_transport_test.go:197: STORE arrival beyond own reply: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own-fresh type=sender
+    own_message_transport_test.go:199: STORE replay retains later same-second arrival: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+
+Idle for 20ms, exiting.
+--- PASS: TestOwnReplyRealTransport (0.58s)
+PASS
+ok  	github.com/openclaw/wacli/internal/wa	0.593s
+
+===== Targeted race check (race.log) =====
+=== RUN   TestOwnReplyRealTransport
+    own_message_transport_test.go:94: NOISE XX: ConnectContext verified test-CA certificate; synthetic paired device
+    own_message_transport_test.go:101: PEER received tag=iq id=102.41-1 type=set
+
+App state regular_low resolved via full sync
+    own_message_transport_test.go:101: PEER received tag=iq id=102.41-2 type=set
+    own_message_transport_test.go:101: PEER received tag=iq id=102.41-3 type=set
+    own_message_transport_test.go:101: PEER received tag=receipt id=incoming type=inactive
+    own_message_transport_test.go:184: STORE before own reply: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own type=sender
+    own_message_transport_test.go:186: STORE after own reply: unread=false unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own type=sender
+    own_message_transport_test.go:191: STORE replay preserves newer manual marker: unread=true unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=same-second-before type=inactive
+    own_message_transport_test.go:193: STORE incoming before boundary: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own-fresh type=sender
+    own_message_transport_test.go:195: STORE fresh identity covers earlier same-second arrival: unread=false unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=same-second-after type=inactive
+    own_message_transport_test.go:197: STORE arrival beyond own reply: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own-fresh type=sender
+    own_message_transport_test.go:199: STORE replay retains later same-second arrival: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+
+Idle for 20ms, exiting.
+--- PASS: TestOwnReplyRealTransport (1.24s)
+PASS
+ok  	github.com/openclaw/wacli/internal/wa	2.277s
+=== RUN   TestHistoryStoredOwnReplyPreservesManualUnread
+=== RUN   TestHistoryStoredOwnReplyPreservesManualUnread/stored_reply
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...=== RUN   TestHistoryStoredOwnReplyPreservesManualUnread/newly_decoded_reply
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...--- PASS: TestHistoryStoredOwnReplyPreservesManualUnread (0.40s)
+    --- PASS: TestHistoryStoredOwnReplyPreservesManualUnread/stored_reply (0.21s)
+    --- PASS: TestHistoryStoredOwnReplyPreservesManualUnread/newly_decoded_reply (0.19s)
+=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond
+=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=false
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=true
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=false
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=true
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...--- PASS: TestHistoryOwnReplyPreservesUnresolvedSameSecond (0.62s)
+    --- PASS: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=false (0.21s)
+    --- PASS: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=true (0.18s)
+    --- PASS: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=false (0.12s)
+    --- PASS: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=true (0.11s)
+=== RUN   TestLiveTombstonedOwnReplyReplayPreservesUnread
+=== RUN   TestLiveTombstonedOwnReplyReplayPreservesUnread/deleted-for-me
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...=== RUN   TestLiveTombstonedOwnReplyReplayPreservesUnread/revoked
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...--- PASS: TestLiveTombstonedOwnReplyReplayPreservesUnread (0.23s)
+    --- PASS: TestLiveTombstonedOwnReplyReplayPreservesUnread/deleted-for-me (0.11s)
+    --- PASS: TestLiveTombstonedOwnReplyReplayPreservesUnread/revoked (0.12s)
+PASS
+ok  	github.com/openclaw/wacli/internal/app	2.320s
+testing: warning: no tests to run
+PASS
+ok  	github.com/openclaw/wacli/internal/store	1.024s [no tests to run]
+=== RUN   TestPollVoteExecutionPathsPreserveUnread
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=0
+    send_poll_test.go:281: before vote: unread=true unread_count=0
+    send_poll_test.go:297: direct command output: {"success":true,"data":{"id":"vote","selected":["Yes"],"sent":true,"target":"poll","to":"<synthetic-chat>"},"error":null}
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=0
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=2
+    send_poll_test.go:281: before vote: unread=true unread_count=2
+    send_poll_test.go:297: direct command output: {"success":true,"data":{"id":"vote","selected":["Yes"],"sent":true,"target":"poll","to":"<synthetic-chat>"},"error":null}
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=2
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=0
+    send_poll_test.go:281: before vote: unread=true unread_count=0
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=0
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=2
+    send_poll_test.go:281: before vote: unread=true unread_count=2
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=2
+--- PASS: TestPollVoteExecutionPathsPreserveUnread (0.70s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=0 (0.13s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=2 (0.19s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=0 (0.18s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=2 (0.21s)
+PASS
+ok  	github.com/openclaw/wacli/cmd/wacli	1.753s
+
+===== Offline compatibility and cleanup (compatibility.log) =====
+stock v0.25.1: wacli 0.25.1
+stock binary sha256: a211b0da0258858874ddd759a5357b21c581005d39bec64b326a4de7f7fef5cb
+stock-unread: PASS new writable retrieval + stock read-only/writable retrieval; 31 tables unchanged, 6 messages; 33 migrations unchanged; integrity_check=ok
+stock-tombstones: PASS new writable retrieval + stock read-only/writable retrieval; 31 tables unchanged, 6 messages; 33 migrations unchanged; integrity_check=ok
+production-1: mode=ro SQLite backup complete (wacli.db only)
+production-1: PASS new writable retrieval + stock read-only/writable retrieval; 35 tables unchanged, 206177 messages; 38 migrations unchanged; integrity_check=ok
+production-2: mode=ro SQLite backup complete (wacli.db only)
+production-2: PASS new writable retrieval + stock read-only/writable retrieval; 35 tables unchanged, 70080 messages; 38 migrations unchanged; integrity_check=ok
+production-3: mode=ro SQLite backup complete (wacli.db only)
+production-3: PASS new writable retrieval + stock read-only/writable retrieval; 35 tables unchanged, 42994 messages; 38 migrations unchanged; integrity_check=ok
+production-4: mode=ro SQLite backup complete (wacli.db only)
+production-4: PASS new writable retrieval + stock read-only/writable retrieval; 35 tables unchanged, 9950 messages; 37 migrations unchanged; integrity_check=ok
+production-5: mode=ro SQLite backup complete (wacli.db only)
+production-5: PASS new writable retrieval + stock read-only/writable retrieval; 34 tables unchanged, 5475 messages; 37 migrations unchanged; integrity_check=ok
+CLEANUP: all disposable stores/copies removed; no session.db copied/opened; no daemon commands
+
+===== Full make check: PASS (complete log: make-check.log) =====
+ℹ tests 32
+ℹ suites 0
+ℹ pass 32
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 269.186503
+GOWORK=off pnpm --silent build
+${GORELEASER:-goreleaser} check --config .goreleaser.yaml
+  • checking                                  path=.goreleaser.yaml
+  • 1 configuration file(s) validated
+  • thanks for using GoReleaser!
+${GORELEASER:-goreleaser} check --config .goreleaser-linux-windows.yaml
+  • checking                                  path=.goreleaser-linux-windows.yaml
+  • 1 configuration file(s) validated
+  • thanks for using GoReleaser!
+GOWORK=off pnpm --silent docs:site
+built docs site: dist/docs-site
+git diff --check

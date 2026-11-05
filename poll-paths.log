@@ -1,0 +1,28 @@
+=== RUN   TestPersistOutboundVotePreservesUnread
+=== RUN   TestPersistOutboundVotePreservesUnread/count=0
+=== RUN   TestPersistOutboundVotePreservesUnread/count=2
+--- PASS: TestPersistOutboundVotePreservesUnread (0.32s)
+    --- PASS: TestPersistOutboundVotePreservesUnread/count=0 (0.18s)
+    --- PASS: TestPersistOutboundVotePreservesUnread/count=2 (0.14s)
+=== RUN   TestPollVoteExecutionPathsPreserveUnread
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=0
+    send_poll_test.go:281: before vote: unread=true unread_count=0
+    send_poll_test.go:297: direct command output: {"success":true,"data":{"id":"vote","selected":["Yes"],"sent":true,"target":"poll","to":"<synthetic-chat>"},"error":null}
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=0
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=2
+    send_poll_test.go:281: before vote: unread=true unread_count=2
+    send_poll_test.go:297: direct command output: {"success":true,"data":{"id":"vote","selected":["Yes"],"sent":true,"target":"poll","to":"<synthetic-chat>"},"error":null}
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=2
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=0
+    send_poll_test.go:281: before vote: unread=true unread_count=0
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=0
+=== RUN   TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=2
+    send_poll_test.go:281: before vote: unread=true unread_count=2
+    send_poll_test.go:306: after successful vote and persistence: unread=true unread_count=2
+--- PASS: TestPollVoteExecutionPathsPreserveUnread (0.38s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=0 (0.08s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=false/count=2 (0.12s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=0 (0.10s)
+    --- PASS: TestPollVoteExecutionPathsPreserveUnread/delegated=true/count=2 (0.09s)
+PASS
+ok  	github.com/openclaw/wacli/cmd/wacli	0.708s

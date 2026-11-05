@@ -1,0 +1,15 @@
+stock v0.25.1: wacli 0.25.1
+stock binary sha256: a211b0da0258858874ddd759a5357b21c581005d39bec64b326a4de7f7fef5cb
+stock-unread: PASS new writable retrieval + stock read-only/writable retrieval; 31 tables unchanged, 6 messages; 33 migrations unchanged; integrity_check=ok
+stock-tombstones: PASS new writable retrieval + stock read-only/writable retrieval; 31 tables unchanged, 6 messages; 33 migrations unchanged; integrity_check=ok
+production-1: mode=ro SQLite backup complete (wacli.db only)
+production-1: PASS new writable retrieval + stock read-only/writable retrieval; 35 tables unchanged, 206177 messages; 38 migrations unchanged; integrity_check=ok
+production-2: mode=ro SQLite backup complete (wacli.db only)
+production-2: PASS new writable retrieval + stock read-only/writable retrieval; 35 tables unchanged, 70080 messages; 38 migrations unchanged; integrity_check=ok
+production-3: mode=ro SQLite backup complete (wacli.db only)
+production-3: PASS new writable retrieval + stock read-only/writable retrieval; 35 tables unchanged, 42994 messages; 38 migrations unchanged; integrity_check=ok
+production-4: mode=ro SQLite backup complete (wacli.db only)
+production-4: PASS new writable retrieval + stock read-only/writable retrieval; 35 tables unchanged, 9950 messages; 37 migrations unchanged; integrity_check=ok
+production-5: mode=ro SQLite backup complete (wacli.db only)
+production-5: PASS new writable retrieval + stock read-only/writable retrieval; 34 tables unchanged, 5475 messages; 37 migrations unchanged; integrity_check=ok
+CLEANUP: all disposable stores/copies removed; no session.db copied/opened; no daemon commands

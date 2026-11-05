@@ -1,0 +1,74 @@
+=== RUN   TestOwnReplyRealTransport
+    own_message_transport_test.go:94: NOISE XX: ConnectContext verified test-CA certificate; synthetic paired device
+    own_message_transport_test.go:101: PEER received tag=iq id=51.181-1 type=set
+
+App state regular_low resolved via full sync
+    own_message_transport_test.go:101: PEER received tag=iq id=51.181-2 type=set
+    own_message_transport_test.go:101: PEER received tag=iq id=51.181-3 type=set
+    own_message_transport_test.go:101: PEER received tag=receipt id=incoming type=inactive
+    own_message_transport_test.go:184: STORE before own reply: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own type=sender
+    own_message_transport_test.go:186: STORE after own reply: unread=false unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own type=sender
+    own_message_transport_test.go:191: STORE replay preserves newer manual marker: unread=true unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=same-second-before type=inactive
+    own_message_transport_test.go:193: STORE incoming before boundary: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own-fresh type=sender
+    own_message_transport_test.go:195: STORE fresh identity covers earlier same-second arrival: unread=false unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=same-second-after type=inactive
+    own_message_transport_test.go:197: STORE arrival beyond own reply: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own-fresh type=sender
+    own_message_transport_test.go:199: STORE replay retains later same-second arrival: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+
+Idle for 20ms, exiting.
+--- PASS: TestOwnReplyRealTransport (0.98s)
+=== RUN   TestOwnReplyRealTransport
+    own_message_transport_test.go:94: NOISE XX: ConnectContext verified test-CA certificate; synthetic paired device
+    own_message_transport_test.go:101: PEER received tag=iq id=11.98-1 type=set
+
+App state regular_low resolved via full sync
+    own_message_transport_test.go:101: PEER received tag=iq id=11.98-2 type=set
+    own_message_transport_test.go:101: PEER received tag=iq id=11.98-3 type=set
+    own_message_transport_test.go:101: PEER received tag=receipt id=incoming type=inactive
+    own_message_transport_test.go:184: STORE before own reply: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own type=sender
+    own_message_transport_test.go:186: STORE after own reply: unread=false unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own type=sender
+    own_message_transport_test.go:191: STORE replay preserves newer manual marker: unread=true unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=same-second-before type=inactive
+    own_message_transport_test.go:193: STORE incoming before boundary: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own-fresh type=sender
+    own_message_transport_test.go:195: STORE fresh identity covers earlier same-second arrival: unread=false unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=same-second-after type=inactive
+    own_message_transport_test.go:197: STORE arrival beyond own reply: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own-fresh type=sender
+    own_message_transport_test.go:199: STORE replay retains later same-second arrival: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+
+Idle for 20ms, exiting.
+--- PASS: TestOwnReplyRealTransport (0.93s)
+=== RUN   TestOwnReplyRealTransport
+    own_message_transport_test.go:94: NOISE XX: ConnectContext verified test-CA certificate; synthetic paired device
+    own_message_transport_test.go:101: PEER received tag=iq id=96.0-1 type=set
+
+App state regular_low resolved via full sync
+    own_message_transport_test.go:101: PEER received tag=iq id=96.0-2 type=set
+    own_message_transport_test.go:101: PEER received tag=iq id=96.0-3 type=set
+    own_message_transport_test.go:101: PEER received tag=receipt id=incoming type=inactive
+    own_message_transport_test.go:184: STORE before own reply: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own type=sender
+    own_message_transport_test.go:186: STORE after own reply: unread=false unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own type=sender
+    own_message_transport_test.go:191: STORE replay preserves newer manual marker: unread=true unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=same-second-before type=inactive
+    own_message_transport_test.go:193: STORE incoming before boundary: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own-fresh type=sender
+    own_message_transport_test.go:195: STORE fresh identity covers earlier same-second arrival: unread=false unread_count=0 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=same-second-after type=inactive
+    own_message_transport_test.go:197: STORE arrival beyond own reply: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+    own_message_transport_test.go:101: PEER received tag=receipt id=own-fresh type=sender
+    own_message_transport_test.go:199: STORE replay retains later same-second arrival: unread=true unread_count=1 (after SDK event and wire delivery/sender receipt)
+
+Idle for 20ms, exiting.
+--- PASS: TestOwnReplyRealTransport (0.94s)
+PASS
+ok  	github.com/openclaw/wacli/internal/wa	2.858s

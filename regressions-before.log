@@ -1,0 +1,64 @@
+=== RUN   TestHistoryStoredOwnReplyPreservesManualUnread
+=== RUN   TestHistoryStoredOwnReplyPreservesManualUnread/stored_reply
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...    own_message_read_test.go:266: unread state = (false, 0), want (true, 0)
+=== RUN   TestHistoryStoredOwnReplyPreservesManualUnread/newly_decoded_reply
+
+Processing history sync (1 conversations)...
+
+Synced 1 messages...
+Processing history sync (1 conversations)...
+
+Synced 1 messages...    own_message_read_test.go:274: unread state = (false, 0), want (true, 0)
+--- FAIL: TestHistoryStoredOwnReplyPreservesManualUnread (0.65s)
+    --- FAIL: TestHistoryStoredOwnReplyPreservesManualUnread/stored_reply (0.27s)
+    --- FAIL: TestHistoryStoredOwnReplyPreservesManualUnread/newly_decoded_reply (0.38s)
+=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond
+=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=false
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...    own_message_read_test.go:307: unread state = (false, 0), want (true, 1)
+=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=true
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...    own_message_read_test.go:307: unread state = (false, 0), want (true, 0)
+=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=false
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...    own_message_read_test.go:307: unread state = (false, 0), want (true, 1)
+=== RUN   TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=true
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...    own_message_read_test.go:307: unread state = (false, 0), want (true, 0)
+--- FAIL: TestHistoryOwnReplyPreservesUnresolvedSameSecond (0.83s)
+    --- FAIL: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=false (0.16s)
+    --- FAIL: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=false/markerOnly=true (0.31s)
+    --- FAIL: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=false (0.17s)
+    --- FAIL: TestHistoryOwnReplyPreservesUnresolvedSameSecond/ownFirst=true/markerOnly=true (0.18s)
+=== RUN   TestLiveTombstonedOwnReplyReplayPreservesUnread
+=== RUN   TestLiveTombstonedOwnReplyReplayPreservesUnread/deleted-for-me
+    own_message_read_test.go:334: unread state = (false, 0), want (true, 0)
+=== RUN   TestLiveTombstonedOwnReplyReplayPreservesUnread/revoked
+    own_message_read_test.go:334: unread state = (false, 0), want (true, 0)
+--- FAIL: TestLiveTombstonedOwnReplyReplayPreservesUnread (0.35s)
+    --- FAIL: TestLiveTombstonedOwnReplyReplayPreservesUnread/deleted-for-me (0.18s)
+    --- FAIL: TestLiveTombstonedOwnReplyReplayPreservesUnread/revoked (0.17s)
+FAIL
+FAIL	github.com/openclaw/wacli/internal/app	1.840s
+=== RUN   TestPersistOutboundVotePreservesUnread
+=== RUN   TestPersistOutboundVotePreservesUnread/count=0
+    send_poll_test.go:227: vote acknowledged chat: {JID:<synthetic-chat> Kind:dm Name:<synthetic-chat> LastMessageTS:2023-11-14 22:13:20 +0000 UTC Archived:false Pinned:false MutedUntil:0 Unread:false UnreadCount:0}, <nil>
+=== RUN   TestPersistOutboundVotePreservesUnread/count=2
+    send_poll_test.go:227: vote acknowledged chat: {JID:<synthetic-chat> Kind:dm Name:<synthetic-chat> LastMessageTS:2023-11-14 22:13:20 +0000 UTC Archived:false Pinned:false MutedUntil:0 Unread:false UnreadCount:0}, <nil>
+--- FAIL: TestPersistOutboundVotePreservesUnread (0.98s)
+    --- FAIL: TestPersistOutboundVotePreservesUnread/count=0 (0.61s)
+    --- FAIL: TestPersistOutboundVotePreservesUnread/count=2 (0.37s)
+FAIL
+FAIL	github.com/openclaw/wacli/cmd/wacli	0.987s
+FAIL
