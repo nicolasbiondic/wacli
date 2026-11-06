@@ -88,6 +88,9 @@ type sendDelegateRequest struct {
 
 	Collection string `json:"collection,omitempty"`
 	Force      bool   `json:"force,omitempty"`
+
+	// Business profile (kinds business_profile_get/set).
+	BusinessProfile *businessProfileUpdateRequest `json:"business_profile,omitempty"`
 }
 
 type sendDelegateResponse struct {
@@ -121,6 +124,9 @@ type sendDelegateResponse struct {
 	AppStateResync    *app.AppStateResyncResult `json:"app_state_resync,omitempty"`
 	GroupParticipants *groupParticipantsResult  `json:"group_participants,omitempty"`
 	GroupInviteLink   *groupInviteLinkResult    `json:"group_invite_link,omitempty"`
+
+	BusinessProfile    *wa.BusinessProfileFull   `json:"business_profile,omitempty"`
+	BusinessProfileSet *businessProfileSetResult `json:"business_profile_set,omitempty"`
 }
 
 type sendDelegateExecutor func(context.Context, sendDelegateRequest) (sendDelegateResponse, error)
@@ -316,7 +322,7 @@ func handleSendDelegateConn(ctx context.Context, conn net.Conn, execute sendDele
 		_ = json.NewEncoder(conn).Encode(resp)
 		return
 	}
-	if req.Kind == chatStateKind || req.Kind == contactsSaveKind || req.Kind == appStateWriteKind || req.Kind == appStateResyncKind || req.Kind == groupParticipantsKind || req.Kind == groupInviteLinkKind {
+	if req.Kind == chatStateKind || req.Kind == contactsSaveKind || req.Kind == appStateWriteKind || req.Kind == appStateResyncKind || req.Kind == groupParticipantsKind || req.Kind == groupInviteLinkKind || req.Kind == businessProfileSetKind {
 		// State operations must not hold the message-send queue (#454).
 		if requestCtx.Err() != nil {
 			_ = json.NewEncoder(conn).Encode(sendDelegateResponse{OK: false, Error: "request deadline passed before dispatch; it was not sent"})
@@ -326,7 +332,7 @@ func handleSendDelegateConn(ctx context.Context, conn net.Conn, execute sendDele
 		writeDelegateResult(conn, requestCtx, req, resp, err)
 		return
 	}
-	if req.Kind == presenceSubscribeKind || req.Kind == profilePictureInfoKind {
+	if req.Kind == presenceSubscribeKind || req.Kind == profilePictureInfoKind || req.Kind == businessProfileGetKind {
 		// Watching presence puts nothing in a chat, and it may wait for an
 		// answer: it neither queues behind sends nor takes a paced send slot,
 		// but it keeps the same budget.
@@ -458,6 +464,10 @@ func executeDelegatedSend(parent context.Context, a *app.App, req sendDelegateRe
 		return executeDelegatedAppStateWrite(ctx, a, req)
 	case appStateResyncKind:
 		return executeDelegatedAppStateResync(ctx, a, req)
+	case businessProfileGetKind:
+		return executeBusinessProfileGet(ctx, a.WA(), req)
+	case businessProfileSetKind:
+		return executeBusinessProfileSet(ctx, a.WA(), req)
 	default:
 		return sendDelegateResponse{}, fmt.Errorf("unsupported send kind %q", req.Kind)
 	}
