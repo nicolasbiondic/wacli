@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Send: add `--keep-unread` to preserve chat unread counts and manual markers for automated replies, including delegated sends and later echo/history replay. Opt-in delegation fails closed on older sync owners with an upgrade/restart hint; sends without the flag keep v0.26.0 behavior.
+
 - Messages: retain earliest observed self-read times in an additive fork-only migration 9039; expose nullable `read_at` without changing message rows or the existing delivery/read acknowledgements.
 
 - Candidate: merge upstream 0.25.1 and reviewed regular app-state writes. Preserve the production SDK and its ordered snapshot boundaries; capture regular send/409 batches synchronously, arbitrate by application order, preserve list mute times, and initialize independent quick-reply coverage as incomplete. Known-broken resync has no force override. Keep the production write opt-in and read-view guarantees.
