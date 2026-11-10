@@ -89,6 +89,16 @@ func (c *Client) IsAuthed() bool {
 	return c.client != nil && c.client.Store != nil && c.client.Store.ID != nil
 }
 
+// Whatsmeow exposes the underlying client for extensions that must hook it
+// before Connect (the call engine installs raw <call>/<ack> handlers). It is
+// nil before the session store is opened. Callers must not Connect, Disconnect
+// or Close through it; the wrapper owns the lifecycle.
+func (c *Client) Whatsmeow() *whatsmeow.Client {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.client
+}
+
 func (c *Client) LinkedJID() string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
