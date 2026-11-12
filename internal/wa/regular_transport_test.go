@@ -136,7 +136,11 @@ func TestRegularRealTransport(t *testing.T) {
 		e.checkServer([]transportRow{{"created", false}, {"foreign", false}, {"retry wins", false}}, 1)
 	})
 
-	t.Run("legacy_delayed_dispatch_control", func(t *testing.T) {
+	// The public SendAppState still dispatches from detached goroutines. The
+	// SDK used to let a later batch overtake one held in a handler, so a late
+	// A resurrected a deleted row. It now dispatches a collection's batches in
+	// commit order: B and the deletion wait behind A.
+	t.Run("legacy_dispatch_keeps_commit_order", func(t *testing.T) {
 		e := newRegularTransport(t, root)
 		entered, release := make(chan struct{}), make(chan struct{})
 		var releaseOnce sync.Once
@@ -181,23 +185,34 @@ func TestRegularRealTransport(t *testing.T) {
 			if err := e.cli.SendAppState(e.ctx, *transportReply(id, row.Message, row.Deleted)); err != nil {
 				t.Fatal(err)
 			}
-			if row.Message == "A" {
+			switch row.Message {
+			case "created":
+				wait(persisted, row)
+				e.row(id, row.Message, row.Deleted)
+			case "A":
 				select {
 				case <-entered:
 				case <-e.ctx.Done():
 					t.Fatal("legacy callback never entered gate")
 				}
-				continue
 			}
-			wait(persisted, row)
-			e.row(id, row.Message, row.Deleted)
 		}
-		unblock()
-		wait(persisted, transportRow{"A", false})
-		e.row(id, "A", false)
 		e.checkServer([]transportRow{{"created", false}, {"A", false}, {"B", false}, {"B", true}}, 0)
-		e.audit()
-		t.Log("EXPECTED CONTROL FAILURE: invariant latest=B/deleted=true is false; late A resurrected the row. New sender scenario above retains B/deleted=true.")
+		select {
+		case got := <-persisted:
+			t.Fatalf("callback %v overtook the held A batch", got)
+		case <-time.After(300 * time.Millisecond):
+		}
+		e.row(id, "created", false)
+		unblock()
+		want := []transportRow{{"A", false}, {"B", false}, {"B", true}}
+		for _, row := range want {
+			wait(persisted, row)
+		}
+		e.row(id, "B", true)
+		if rows := e.audit(); len(rows) < 3 || !reflect.DeepEqual(rows[len(rows)-3:], want) {
+			t.Fatalf("owner must persist A, B and the deletion in commit order: %v", rows)
+		}
 	})
 }
 

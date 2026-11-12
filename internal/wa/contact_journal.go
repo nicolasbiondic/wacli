@@ -162,6 +162,14 @@ type journaledAppStateStore struct {
 	journal *ContactStoreJournal
 }
 
+func (s *journaledAppStateStore) ReplaceAppStateVersion(ctx context.Context, name string, version uint64, hash [128]byte, macs []store.AppStateMutationMAC) error {
+	err := s.AppStateStore.ReplaceAppStateVersion(ctx, name, version, hash, macs)
+	if err == nil {
+		s.journal.NoteCursorWrite(name)
+	}
+	return err
+}
+
 func (s *journaledAppStateStore) PutAppStateVersion(ctx context.Context, name string, version uint64, hash [128]byte) error {
 	err := s.AppStateStore.PutAppStateVersion(ctx, name, version, hash)
 	if err == nil {

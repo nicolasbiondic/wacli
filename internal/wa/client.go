@@ -482,20 +482,70 @@ func (c *Client) FetchAppState(ctx context.Context, name string, fullSync, onlyI
 // resulting events, so callers can persist that exact collection atomically
 // with their own recovery marker protocol.
 func (c *Client) FetchAppStateEvents(ctx context.Context, name string, fullSync, onlyIfNotSynced bool) ([]any, error) {
+	cli, name, err := c.appStateEventsClient(name, fullSync)
+	if err != nil {
+		return nil, err
+	}
+	return cli.DangerousInternals().FetchAppState(ctx, appstate.WAPatchName(name), fullSync, onlyIfNotSynced)
+}
+
+// FetchAppStateEventsOrdered is FetchAppStateEvents with the batch admitted at
+// its place in the collection's commit order: admit runs once the SDK has
+// dispatched every batch of that collection it committed before this one, and
+// before it dispatches a later one. The SDK never makes a batch wait inside
+// its own locks, so the wait for an earlier batch still in a handler happens
+// here. admit is not called when the fetch fails or ctx ends first; the
+// events are then dropped like those of any failed fetch.
+func (c *Client) FetchAppStateEventsOrdered(ctx context.Context, name string, fullSync, onlyIfNotSynced bool, admit func()) ([]any, error) {
+	cli, name, err := c.appStateEventsClient(name, fullSync)
+	if err != nil {
+		return nil, err
+	}
+	var mu sync.Mutex
+	abandoned := false
+	delivered := make(chan []any, 1)
+	err = cli.DangerousInternals().FetchAppStateOrdered(ctx, appstate.WAPatchName(name), fullSync, onlyIfNotSynced, func(batch []any) {
+		mu.Lock()
+		defer mu.Unlock()
+		if !abandoned {
+			admit()
+			delivered <- batch
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
+	select {
+	case batch := <-delivered:
+		return batch, nil
+	case <-ctx.Done():
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	select {
+	case batch := <-delivered:
+		return batch, nil
+	default:
+		abandoned = true
+		return nil, fmt.Errorf("wait for earlier app state %s events: %w", name, ctx.Err())
+	}
+}
+
+func (c *Client) appStateEventsClient(name string, fullSync bool) (*whatsmeow.Client, string, error) {
 	c.mu.Lock()
 	cli := c.client
 	c.mu.Unlock()
 	if cli == nil || !cli.IsConnected() {
-		return nil, fmt.Errorf("not connected")
+		return nil, "", fmt.Errorf("not connected")
 	}
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return nil, fmt.Errorf("app state collection name is required")
+		return nil, "", fmt.Errorf("app state collection name is required")
 	}
 	if fullSync && !cli.EmitAppStateEventsOnFullSync {
-		return nil, fmt.Errorf("full app state replay mutation emission is disabled")
+		return nil, "", fmt.Errorf("full app state replay mutation emission is disabled")
 	}
-	return cli.DangerousInternals().FetchAppState(ctx, appstate.WAPatchName(name), fullSync, onlyIfNotSynced)
+	return cli, name, nil
 }
 
 func (c *Client) GetGroupInfo(ctx context.Context, jid types.JID) (*types.GroupInfo, error) {

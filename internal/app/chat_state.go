@@ -730,14 +730,34 @@ func (a *App) finishLateAppStateRecovery(collection appstate.WAPatchName, cont *
 	a.appStateRecoveryMu.Unlock()
 }
 
+// orderedAppStateFetcher is implemented by the real client. The SDK commits
+// and dispatches the batches of a collection in one order; admit reserves
+// this fetch's write position at its place in that order.
+type orderedAppStateFetcher interface {
+	FetchAppStateEventsOrdered(ctx context.Context, name string, fullSync, onlyIfNotSynced bool, admit func()) ([]any, error)
+}
+
 func (a *App) fetchAndPersistAppState(ctx context.Context, collection appstate.WAPatchName, fullSync bool, tracker *appStatePersistenceTracker) (fetchErr, persistenceErr error) {
-	ticket := a.appStatePersist.reserve()
+	var ticket uint64
+	reserved := false
+	reserve := func() { ticket, reserved = a.appStatePersist.reserve(), true }
 	var eventsToPersist []any
 	func() {
 		releaseFetch := a.beginManualAppStateFetch(collection)
 		defer releaseFetch()
+		if ordered, ok := a.wa.(orderedAppStateFetcher); ok {
+			// A position reserved before the fetch would put this batch ahead
+			// of an earlier one the SDK committed but has not dispatched yet.
+			eventsToPersist, fetchErr = ordered.FetchAppStateEventsOrdered(ctx, string(collection), fullSync, false, reserve)
+			return
+		}
+		reserve()
 		eventsToPersist, fetchErr = a.wa.FetchAppStateEvents(ctx, string(collection), fullSync, false)
 	}()
+	if !reserved {
+		// A failed fetch still persists its boundary work below.
+		reserve()
+	}
 	// Track whether full syncs of this collection verify. Set on an LTHash
 	// mismatch, cleared when a full sync verifies again.
 	if fullSync {

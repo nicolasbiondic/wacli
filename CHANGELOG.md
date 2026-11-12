@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Fork-only: build and verify with Go 1.27.4 to fix GO-2026-6859, retaining the Go 1.27.0 source minimum (upstream still pins 1.27.3). Pin the vendas SDK at `5dad57c0f1e4` for per-collection app-state serialization, stale-state rejection and cancellation-safe rollback; stale fetches are retried without declaring the collection broken or creating replay debt.
+- Fork-only: build and verify with Go 1.27.4 to fix GO-2026-6859, retaining the Go 1.27.0 source minimum (upstream still pins 1.27.3). Pin the vendas SDK at `5f7d4a575730` for per-collection app-state serialization, stale-state rejection (including recoveries that land during MAC reads), atomic rollback with a durable reset journal that survives a failed or interrupted full sync, and event batches published in each collection's commit order, so a fetch that committed before a recovery can no longer be applied after it. Stale fetches are retried without declaring the collection broken or creating replay debt, and a command's own fetch takes its write position at the SDK's ordered delivery instead of before the fetch.
 
 - Send: register `--keep-unread` intent by message ID before dispatch, protecting echoes that arrive before acknowledgement/persistence. Persist the opt-out with the message (fork migration 9040), consume successful intents, and clear failed/timed-out sends with a five-minute upper bound for abandoned intents. Default own-reply reads remain local-only.
 
