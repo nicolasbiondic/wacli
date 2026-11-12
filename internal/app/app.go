@@ -110,6 +110,8 @@ type WAClient interface {
 	SetStatusMessage(ctx context.Context, msg string) error
 	SetProfileName(ctx context.Context, name string) error
 	GetBusinessProfile(ctx context.Context, jid types.JID) (*types.BusinessProfile, error)
+	GetBusinessProfileFull(ctx context.Context, jid types.JID) (*wa.BusinessProfileFull, error)
+	UpdateBusinessProfile(ctx context.Context, update wa.BusinessProfileUpdate) error
 }
 
 type Options struct {
