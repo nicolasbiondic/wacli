@@ -75,6 +75,8 @@ github.com/ncruces/julianday v1.0.0 h1:fH0OKwa7NWvniGQtxdJRxAgkBMolni2BjDHaWTxqt
 github.com/ncruces/julianday v1.0.0/go.mod h1:Dusn2KvZrrovOMJuOt0TNXL6tB7U2E8kvza5fFc9G7g=
 github.com/nicolasbiondic/whatsmeow v0.0.0-20261106160035-5c0f84698afe h1:S2jg+YD9h/onFjVKEPdAHAaqLpTaw4YF9hpqQg5uwdg=
 github.com/nicolasbiondic/whatsmeow v0.0.0-20261106160035-5c0f84698afe/go.mod h1:p54VOTVQDX9n2/7ITAUkXD84fTqa+UTaE+7t0utC7sQ=
+github.com/nicolasbiondic/whatsmeow v0.0.0-20261112210718-5dad57c0f1e4 h1:dxggm7heLOYvYe36aG1yfTmQutkK4ySGNZD8NdhoJsc=
+github.com/nicolasbiondic/whatsmeow v0.0.0-20261112210718-5dad57c0f1e4/go.mod h1:p54VOTVQDX9n2/7ITAUkXD84fTqa+UTaE+7t0utC7sQ=
 github.com/petermattis/goid v0.0.0-20261102161117-2a3fffa09998 h1:YMOkH3Kah6tm9HIYLSe6ulnyJ8YVpliARdivIdN9WVE=
 github.com/petermattis/goid v0.0.0-20261102161117-2a3fffa09998/go.mod h1:pxMtw7cyUw6B2bRH0ZBANSPg+AoSud1I1iyJHI69jH4=
 github.com/pganalyze/pg_query_go/v6 v6.2.5 h1:i7dvkA5167th3rXtk0jv9+r5DeJd4GqeGOVKuMTda8s=

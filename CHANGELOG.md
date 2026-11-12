@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fork-only: build and verify with Go 1.27.4 to fix GO-2026-6859, retaining the Go 1.27.0 source minimum (upstream still pins 1.27.3). Pin the vendas SDK at `5dad57c0f1e4` for per-collection app-state serialization, stale-state rejection and cancellation-safe rollback; stale fetches are retried without declaring the collection broken or creating replay debt.
+
 - Send: register `--keep-unread` intent by message ID before dispatch, protecting echoes that arrive before acknowledgement/persistence. Persist the opt-out with the message (fork migration 9040), consume successful intents, and clear failed/timed-out sends with a five-minute upper bound for abandoned intents. Default own-reply reads remain local-only.
 
 - Send: add `--keep-unread` to preserve chat unread counts and manual markers for automated replies, including delegated sends and later echo/history replay. Opt-in delegation fails closed on older sync owners with an upgrade/restart hint; sends without the flag keep v0.26.0 behavior.

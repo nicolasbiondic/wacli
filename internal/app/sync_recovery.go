@@ -134,6 +134,13 @@ func (a *App) recoverAppStateCollection(ctx context.Context, name string, recove
 		a.warnAppStateRecovery(name, fmt.Errorf("persist full app state replay: %w", persistenceErr))
 		return
 	}
+	if errors.Is(fetchErr, appstate.ErrStateChanged) {
+		if err := a.db.ClearAppStateRecoveryIntent(name, generation); err != nil {
+			a.warnAppStateRecovery(name, err)
+		}
+		recoveries.Delete(name)
+		return
+	}
 	if fetchErr == nil {
 		if err := a.clearCompletedAppStateRecovery(collection, generation); err != nil {
 			a.warnAppStateRecovery(name, err)
@@ -206,6 +213,9 @@ func (a *App) syncAppStateDeltas(ctx context.Context, recoveries *sync.Map) {
 				// Keep catching up new mutations while the primary is asleep.
 				// This does not settle the older, still-unseen snapshot debt.
 				fetchErr, persistenceErr := a.fetchAndPersistAppState(ctx, collection, false, &appStatePersistenceTracker{})
+				if persistenceErr == nil && errors.Is(fetchErr, appstate.ErrStateChanged) {
+					continue
+				}
 				if err := errors.Join(fetchErr, persistenceErr); err != nil {
 					a.warnAppStateRecovery(name, err)
 				} else if archiveRecovery && collection == appstate.WAPatchRegularLow {
@@ -234,9 +244,15 @@ func (a *App) syncAppStateDeltas(ctx context.Context, recoveries *sync.Map) {
 			// Capture the whole regular snapshot and its sentinel, then persist
 			// them in order, including the SDK's explicit opening boundary.
 			fetchErr, persistErr := a.fetchAndPersistAppState(ctx, name, true, &appStatePersistenceTracker{})
+			if persistErr == nil && errors.Is(fetchErr, appstate.ErrStateChanged) {
+				continue // The next periodic fetch uses the newer SDK state.
+			}
 			err = errors.Join(fetchErr, persistErr)
 		} else {
 			err = a.wa.FetchAppState(ctx, string(name), false, false)
+			if errors.Is(err, appstate.ErrStateChanged) {
+				continue
+			}
 		}
 		if err != nil {
 			if errors.Is(err, wa.ErrEmptyAppStateKeyShare) {

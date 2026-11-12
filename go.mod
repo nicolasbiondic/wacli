@@ -2,7 +2,7 @@ module github.com/openclaw/wacli
 
 go 1.27.0
 
-toolchain go1.27.3
+toolchain go1.27.4
 
 require (
 	github.com/Microsoft/go-winio v0.6.4
@@ -79,4 +79,4 @@ require (
 tool github.com/sqlc-dev/sqlc/cmd/sqlc
 
 // vendas/026: production snapshot/409 guards plus upstream contiguous app-state validation.
-replace go.mau.fi/whatsmeow => github.com/nicolasbiondic/whatsmeow v0.0.0-20261106160035-5c0f84698afe
+replace go.mau.fi/whatsmeow => github.com/nicolasbiondic/whatsmeow v0.0.0-20261112210718-5dad57c0f1e4

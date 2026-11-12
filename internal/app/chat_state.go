@@ -242,6 +242,9 @@ func (a *App) syncChatStateBeforeWrite(ctx context.Context, collection appstate.
 		if persistenceErr != nil {
 			return fmt.Errorf("persist fetched app state %s: %w", collection, persistenceErr)
 		}
+		if errors.Is(err, appstate.ErrStateChanged) {
+			return a.retryChangedAppStateFetch(collection, markerGeneration, err)
+		}
 		if err == nil {
 			return a.clearCompletedAppStateRecovery(collection, markerGeneration)
 		}
@@ -264,6 +267,9 @@ func (a *App) replayRequiredAppState(ctx context.Context, collection appstate.WA
 		fetchErr, persistenceErr := a.fetchAndPersistAppState(ctx, collection, true, tracker)
 		if persistenceErr != nil {
 			return fmt.Errorf("persist replayed app state %s: %w", collection, persistenceErr)
+		}
+		if errors.Is(fetchErr, appstate.ErrStateChanged) {
+			return a.retryChangedAppStateFetch(collection, markerGeneration, fetchErr)
 		}
 		if fetchErr == nil {
 			return a.clearCompletedAppStateRecovery(collection, markerGeneration)
@@ -420,6 +426,9 @@ func (a *App) degradedAppStateReplay(ctx context.Context, collection appstate.WA
 	fetchErr, persistenceErr := a.fetchAndPersistAppState(ctx, collection, false, tracker)
 	if persistenceErr != nil {
 		return true, fmt.Errorf("persist degraded app state replay %s: %w", collection, persistenceErr)
+	}
+	if errors.Is(fetchErr, appstate.ErrStateChanged) {
+		return true, a.retryChangedAppStateFetch(collection, markerGeneration, fetchErr)
 	}
 	if fetchErr != nil {
 		// LTHash mismatch (or any other failure): today's behavior.
@@ -745,7 +754,7 @@ func (a *App) fetchAndPersistAppState(ctx context.Context, collection appstate.W
 			persistCtx = context.WithoutCancel(ctx)
 		}
 		var persistErr error
-		if fullSync && collection == appstate.WAPatchRegular {
+		if fullSync && collection == appstate.WAPatchRegular && !errors.Is(fetchErr, appstate.ErrStateChanged) {
 			persistErr = a.db.InvalidateRegularFullSync()
 		}
 		persistErr = errors.Join(persistErr, a.persistFetchedAppStateEvents(persistCtx, eventsToPersist, tracker))
@@ -761,6 +770,16 @@ func (a *App) fetchAndPersistAppState(ctx context.Context, collection appstate.W
 		return fetchErr, waitErr
 	}
 	return fetchErr, <-result
+}
+
+// A concurrent SDK adoption made this fetch obsolete, not corrupt. Abort this
+// pre-write attempt and retry against the new state on the next fetch. Remove
+// only this fetch's marker: older, genuine write/replay debt must survive.
+func (a *App) retryChangedAppStateFetch(collection appstate.WAPatchName, generation int64, fetchErr error) error {
+	return errors.Join(
+		fmt.Errorf("WhatsApp app state %s changed during fetch; retry the command: %w", collection, fetchErr),
+		a.db.ClearAppStateRecoveryIntent(string(collection), generation),
+	)
 }
 
 func (a *App) beginManualAppStateFetch(collection appstate.WAPatchName) func() {
