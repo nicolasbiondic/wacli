@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Send: register `--keep-unread` intent by message ID before dispatch, protecting echoes that arrive before acknowledgement/persistence. Persist the opt-out with the message (fork migration 9040), consume successful intents, and clear failed/timed-out sends with a five-minute upper bound for abandoned intents. Default own-reply reads remain local-only.
+
 - Send: add `--keep-unread` to preserve chat unread counts and manual markers for automated replies, including delegated sends and later echo/history replay. Opt-in delegation fails closed on older sync owners with an upgrade/restart hint; sends without the flag keep v0.26.0 behavior.
 
 - Messages: retain earliest observed self-read times in an additive fork-only migration 9039; expose nullable `read_at` without changing message rows or the existing delivery/read acknowledgements.

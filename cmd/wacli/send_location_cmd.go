@@ -113,7 +113,9 @@ func newSendLocationCmdWithApp(flags *rootFlags, open outboundSendAppOpener) *co
 			}
 
 			msgID, err := runSendOperation(ctx, reconnectForSend(a), func(ctx context.Context) (types.MessageID, error) {
-				return sendLocationMessage(ctx, a.WA(), toJID, opts)
+				return sendWithUnreadPolicy(ctx, a.DB(), keepUnread, func(ctx context.Context) (types.MessageID, error) {
+					return sendLocationMessage(ctx, a.WA(), toJID, opts)
+				})
 			})
 			if err != nil {
 				return err
@@ -189,16 +191,16 @@ func persistOutboundLocationWith(ctx context.Context, db *store.DB, resolver out
 		storeErr = fmt.Errorf("chat update: %w", err)
 	}
 	if err := db.UpsertMessage(store.UpsertMessageParams{
-		SkipOwnReadMark: opts.KeepUnread,
-		ChatJID:         chat.String(),
-		ChatName:        chatName,
-		MsgID:           msgID,
-		SenderJID:       "",
-		SenderName:      "me",
-		Timestamp:       now,
-		FromMe:          true,
-		DisplayText:     locationDisplayText,
-		MediaType:       locationMediaType,
+		KeepUnread:  opts.KeepUnread,
+		ChatJID:     chat.String(),
+		ChatName:    chatName,
+		MsgID:       msgID,
+		SenderJID:   "",
+		SenderName:  "me",
+		Timestamp:   now,
+		FromMe:      true,
+		DisplayText: locationDisplayText,
+		MediaType:   locationMediaType,
 	}); err != nil {
 		storeErr = errors.Join(storeErr, fmt.Errorf("message update: %w", err))
 	}
@@ -229,7 +231,9 @@ func executeDelegatedLocation(ctx context.Context, a outboundSendApp, req sendDe
 		return sendDelegateResponse{}, err
 	}
 	msgID, err := runSendOperation(ctx, reconnectForSend(a), func(ctx context.Context) (types.MessageID, error) {
-		return sendLocationMessage(ctx, a.WA(), toJID, opts)
+		return sendWithUnreadPolicy(ctx, a.DB(), req.KeepUnread, func(ctx context.Context) (types.MessageID, error) {
+			return sendLocationMessage(ctx, a.WA(), toJID, opts)
+		})
 	})
 	if err != nil {
 		return sendDelegateResponse{}, err

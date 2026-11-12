@@ -78,7 +78,9 @@ func newSendReactCmdWithApp(flags *rootFlags, open outboundSendAppOpener) *cobra
 				return err
 			}
 			sentID, err := runSendOperation(ctx, reconnectForSend(a), func(ctx context.Context) (types.MessageID, error) {
-				return a.WA().SendReaction(ctx, chat, senderJID, types.MessageID(msgID), emoji)
+				return sendWithUnreadPolicy(ctx, a.DB(), keepUnread, func(ctx context.Context) (types.MessageID, error) {
+					return a.WA().SendReaction(ctx, chat, senderJID, types.MessageID(msgID), emoji)
+				})
 			})
 			if err != nil {
 				return err
@@ -146,16 +148,16 @@ func upsertSentReaction(ctx context.Context, db *store.DB, resolver outboundText
 		storeErr = fmt.Errorf("chat update: %w", err)
 	}
 	if err := db.UpsertMessage(store.UpsertMessageParams{
-		SkipOwnReadMark: keepUnread,
-		ChatJID:         chat.String(),
-		ChatName:        chatName,
-		MsgID:           string(sentID),
-		SenderName:      "me",
-		Timestamp:       now,
-		FromMe:          true,
-		DisplayText:     sentReactionDisplayText(db, chat.String(), targetID, emoji),
-		ReactionToID:    targetID,
-		ReactionEmoji:   emoji,
+		KeepUnread:    keepUnread,
+		ChatJID:       chat.String(),
+		ChatName:      chatName,
+		MsgID:         string(sentID),
+		SenderName:    "me",
+		Timestamp:     now,
+		FromMe:        true,
+		DisplayText:   sentReactionDisplayText(db, chat.String(), targetID, emoji),
+		ReactionToID:  targetID,
+		ReactionEmoji: emoji,
 	}); err != nil {
 		storeErr = errors.Join(storeErr, fmt.Errorf("message update: %w", err))
 	}

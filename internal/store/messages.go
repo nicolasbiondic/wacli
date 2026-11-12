@@ -50,10 +50,13 @@ type UpsertMessageParams struct {
 	DeletedForMe             bool
 	DeletedAt                time.Time
 	DeletionReason           string
-	// SkipOwnReadMark keeps a FromMe row from marking the chat read. Set it for
-	// rows that are not replies, such as calls and poll votes, and for outbound
-	// sends whose caller explicitly wants to preserve unread state.
+	// SkipOwnReadMark skips acknowledgement for this observation (calls, votes,
+	// history imports). Use KeepUnread for an explicit, durable send policy.
 	SkipOwnReadMark bool
+	// KeepUnread is the explicit per-send policy, persisted even if the first
+	// echo is only a placeholder. Unlike non-reply classification, later
+	// decoding must never turn this message into a read acknowledgement.
+	KeepUnread bool
 }
 
 const messageBaseColumns = `m.rowid, m.chat_jid, COALESCE(c.name,''), m.msg_id, COALESCE(m.sender_jid,''), COALESCE(m.sender_name,''), m.ts, m.from_me, COALESCE(m.text,''), COALESCE(m.display_text,''), COALESCE(m.quoted_msg_id,''), COALESCE(m.quoted_sender_jid,''), m.is_forwarded, m.forwarding_score, COALESCE(m.reaction_to_id,''), COALESCE(m.reaction_emoji,''), COALESCE(m.media_type,''), COALESCE(m.media_caption,''), COALESCE(m.filename,''), COALESCE(m.mime_type,''), COALESCE(m.direct_path,''), COALESCE(m.local_path,''), COALESCE(m.downloaded_at,0), CASE WHEN s.msg_id IS NULL THEN 0 ELSE 1 END, COALESCE(s.starred_at,0), m.revoked, m.deleted_for_me, COALESCE(m.deleted_at,0), COALESCE(m.deletion_reason,''), COALESCE(m.payload_purged_at,0), m.edited, COALESCE(m.buttons,'')`
@@ -99,7 +102,18 @@ func snippetSQL(snippet string) string {
 	return snippet
 }
 
-func (d *DB) UpsertMessage(p UpsertMessageParams) error {
+func (d *DB) UpsertMessage(p UpsertMessageParams) (err error) {
+	if p.FromMe {
+		intent := d.keepUnreadIntent(p.MsgID)
+		if intent != nil {
+			p.KeepUnread = true
+			defer func() {
+				if err == nil {
+					d.clearKeepUnreadIntent(p.MsgID, intent)
+				}
+			}()
+		}
+	}
 	var deletedAt sql.NullInt64
 	if p.Revoked || p.DeletedForMe || !p.DeletedAt.IsZero() {
 		if p.DeletedAt.IsZero() {
@@ -172,6 +186,7 @@ func (d *DB) UpsertMessage(p UpsertMessageParams) error {
 		Buttons:         buttonsJSON,
 		AdReferral:      adReferralJSON,
 		Kind:            nullString(p.Kind),
+		SkipOwnReadMark: boolToInt64(p.KeepUnread && p.FromMe),
 		ChatJid_2:       strings.TrimSpace(p.ChatJID),
 		MsgID_2:         strings.TrimSpace(p.MsgID),
 	}
@@ -219,7 +234,7 @@ func (d *DB) UpsertMessage(p UpsertMessageParams) error {
 // deletions and contentless protocol rows do not, mirroring which incoming rows
 // are readable. SkipOwnReadMark opts a row out (calls, votes).
 func (p UpsertMessageParams) marksChatRead() bool {
-	return p.FromMe && !p.SkipOwnReadMark && !p.Timestamp.IsZero() &&
+	return p.FromMe && !p.SkipOwnReadMark && !p.KeepUnread && !p.Timestamp.IsZero() &&
 		strings.TrimSpace(p.ChatJID) != "" &&
 		!p.Edited && !p.Revoked && !p.DeletedForMe && p.DeletedAt.IsZero() &&
 		strings.TrimSpace(p.ReactionToID) == "" && strings.TrimSpace(p.ReactionEmoji) == "" &&
@@ -234,7 +249,7 @@ func ownReplyStored(db interface {
 }, chatJID, msgID string) (bool, error) {
 	var one int
 	// A tombstone is proof of prior processing even after its payload is purged.
-	err := db.QueryRowContext(storeCtx(), `SELECT 1 FROM messages WHERE chat_jid = ? AND msg_id = ? AND from_me = 1 AND (revoked != 0 OR deleted_for_me != 0 OR deleted_at IS NOT NULL OR (COALESCE(reaction_to_id,'') = '' AND COALESCE(reaction_emoji,'') = '' AND (COALESCE(display_text,'') != '(message)' OR TRIM(COALESCE(text,'')) != '')))`, strings.TrimSpace(chatJID), strings.TrimSpace(msgID)).Scan(&one)
+	err := db.QueryRowContext(storeCtx(), `SELECT 1 FROM messages WHERE chat_jid = ? AND msg_id = ? AND from_me = 1 AND (skip_own_read_mark != 0 OR revoked != 0 OR deleted_for_me != 0 OR deleted_at IS NOT NULL OR (COALESCE(reaction_to_id,'') = '' AND COALESCE(reaction_emoji,'') = '' AND (COALESCE(display_text,'') != '(message)' OR TRIM(COALESCE(text,'')) != '')))`, strings.TrimSpace(chatJID), strings.TrimSpace(msgID)).Scan(&one)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}

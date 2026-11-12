@@ -100,7 +100,9 @@ func newSendPollCmdWithApp(flags *rootFlags, open outboundSendAppOpener) *cobra.
 			}
 
 			msgID, err := runSendOperation(ctx, reconnectForSend(a), func(ctx context.Context) (types.MessageID, error) {
-				return sendPollMessage(ctx, a.WA(), toJID, question, cleaned, multi, ephemeral)
+				return sendWithUnreadPolicy(ctx, a.DB(), keepUnread, func(ctx context.Context) (types.MessageID, error) {
+					return sendPollMessage(ctx, a.WA(), toJID, question, cleaned, multi, ephemeral)
+				})
 			})
 			if err != nil {
 				return err
@@ -185,15 +187,15 @@ func persistOutboundPoll(ctx context.Context, a outboundSendApp, chat types.JID,
 		storeErr = fmt.Errorf("chat update: %w", err)
 	}
 	if err := a.DB().UpsertMessage(store.UpsertMessageParams{
-		SkipOwnReadMark: keepUnread,
-		ChatJID:         chatJID,
-		ChatName:        chatName,
-		MsgID:           msgID,
-		SenderName:      "me",
-		Timestamp:       now,
-		FromMe:          true,
-		Text:            "Poll: " + question,
-		Kind:            "poll",
+		KeepUnread: keepUnread,
+		ChatJID:    chatJID,
+		ChatName:   chatName,
+		MsgID:      msgID,
+		SenderName: "me",
+		Timestamp:  now,
+		FromMe:     true,
+		Text:       "Poll: " + question,
+		Kind:       "poll",
 	}); err != nil {
 		storeErr = errors.Join(storeErr, fmt.Errorf("message update: %w", err))
 	}
@@ -248,7 +250,9 @@ func executeDelegatedPoll(ctx context.Context, a outboundSendApp, req sendDelega
 		return sendDelegateResponse{}, err
 	}
 	msgID, err := runSendOperation(ctx, reconnectForSend(a), func(ctx context.Context) (types.MessageID, error) {
-		return sendPollMessage(ctx, a.WA(), toJID, req.Question, cleaned, req.Selectable, req.Ephemeral)
+		return sendWithUnreadPolicy(ctx, a.DB(), req.KeepUnread, func(ctx context.Context) (types.MessageID, error) {
+			return sendPollMessage(ctx, a.WA(), toJID, req.Question, cleaned, req.Selectable, req.Ephemeral)
+		})
 	})
 	if err != nil {
 		return sendDelegateResponse{}, err

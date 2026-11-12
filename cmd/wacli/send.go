@@ -237,7 +237,7 @@ func persistOutboundTextWith(ctx context.Context, db *store.DB, resolver outboun
 		storeErr = fmt.Errorf("chat update: %w", err)
 	}
 	if err := db.UpsertMessage(store.UpsertMessageParams{
-		SkipOwnReadMark: keepUnread,
+		KeepUnread:      keepUnread,
 		ChatJID:         chat.String(),
 		ChatName:        chatName,
 		MsgID:           msgID,
@@ -343,7 +343,9 @@ func sendTextMessageWithSender(ctx context.Context, sender textMessageSender, db
 		return "", err
 	}
 	if plainText && !resolved.enabled {
-		return sender.SendText(ctx, to, text)
+		return sendWithUnreadPolicy(ctx, db, options.keepUnread, func(ctx context.Context) (types.MessageID, error) {
+			return sender.SendText(ctx, to, text)
+		})
 	}
 	if plainText {
 		msg = &waProto.Message{
@@ -358,7 +360,9 @@ func sendTextMessageWithSender(ctx context.Context, sender textMessageSender, db
 	if options.replyContext != nil {
 		*options.replyContext = msg.GetExtendedTextMessage().GetContextInfo()
 	}
-	return sender.SendProtoMessage(ctx, to, msg)
+	return sendWithUnreadPolicy(ctx, db, options.keepUnread, func(ctx context.Context) (types.MessageID, error) {
+		return sender.SendProtoMessage(ctx, to, msg)
+	})
 }
 
 func validateTextRecipient(sender textMessageSender, to types.JID) error {

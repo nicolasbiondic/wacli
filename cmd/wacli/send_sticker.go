@@ -66,7 +66,9 @@ func sendSticker(ctx context.Context, a interface {
 	}
 	msg := newStickerMessage(up, replyContext, meta)
 
-	id, err := a.WA().SendProtoMessage(ctx, to, msg)
+	id, err := sendWithUnreadPolicy(ctx, a.DB(), opts.keepUnread, func(ctx context.Context) (types.MessageID, error) {
+		return a.WA().SendProtoMessage(ctx, to, msg)
+	})
 	if err != nil {
 		return sendFileOutcome{}, err
 	}
@@ -85,22 +87,22 @@ func sendSticker(ctx context.Context, a interface {
 		storeErr = fmt.Errorf("chat update: %w", err)
 	}
 	if err := a.DB().UpsertMessage(store.UpsertMessageParams{
-		SkipOwnReadMark: opts.keepUnread,
-		ChatJID:         storedChat.String(),
-		ChatName:        chatName,
-		MsgID:           id,
-		SenderJID:       "",
-		SenderName:      "me",
-		Timestamp:       now,
-		FromMe:          true,
-		MediaType:       "sticker",
-		Filename:        name,
-		MimeType:        sendStickerMIME,
-		DirectPath:      up.DirectPath,
-		MediaKey:        up.MediaKey,
-		FileSHA256:      up.FileSHA256,
-		FileEncSHA256:   up.FileEncSHA256,
-		FileLength:      up.FileLength,
+		KeepUnread:    opts.keepUnread,
+		ChatJID:       storedChat.String(),
+		ChatName:      chatName,
+		MsgID:         id,
+		SenderJID:     "",
+		SenderName:    "me",
+		Timestamp:     now,
+		FromMe:        true,
+		MediaType:     "sticker",
+		Filename:      name,
+		MimeType:      sendStickerMIME,
+		DirectPath:    up.DirectPath,
+		MediaKey:      up.MediaKey,
+		FileSHA256:    up.FileSHA256,
+		FileEncSHA256: up.FileEncSHA256,
+		FileLength:    up.FileLength,
 	}); err != nil {
 		storeErr = errors.Join(storeErr, fmt.Errorf("message update: %w", err))
 	}

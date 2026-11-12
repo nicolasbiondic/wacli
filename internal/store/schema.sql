@@ -94,6 +94,7 @@ CREATE TABLE IF NOT EXISTS messages (
     buttons TEXT,
     ad_referral TEXT,
     kind TEXT,
+    skip_own_read_mark INTEGER NOT NULL DEFAULT 0,
     UNIQUE(chat_jid, msg_id),
     FOREIGN KEY (chat_jid) REFERENCES chats(jid) ON DELETE CASCADE
 );

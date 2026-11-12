@@ -760,7 +760,9 @@ func executeDelegatedReact(ctx context.Context, a outboundSendApp, req sendDeleg
 		return sendDelegateResponse{}, err
 	}
 	sentID, err := runSendOperation(ctx, reconnectForSend(a), func(ctx context.Context) (types.MessageID, error) {
-		return a.WA().SendReaction(ctx, chat, senderJID, types.MessageID(req.ID), req.Reaction)
+		return sendWithUnreadPolicy(ctx, a.DB(), req.KeepUnread, func(ctx context.Context) (types.MessageID, error) {
+			return a.WA().SendReaction(ctx, chat, senderJID, types.MessageID(req.ID), req.Reaction)
+		})
 	})
 	if err != nil {
 		return sendDelegateResponse{}, err

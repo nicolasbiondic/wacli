@@ -310,7 +310,7 @@ func migrateLIDMessagesToPN(tx *sql.Tx, lidJID, pnJID string) error {
 			is_forwarded, forwarding_score, reaction_to_id, reaction_emoji,
 			media_type, media_caption, filename, mime_type, direct_path,
 			media_key, file_sha256, file_enc_sha256, file_length, local_path, downloaded_at,
-			revoked, deleted_for_me, deleted_at, deletion_reason, payload_purged_at, edited, edited_ts, buttons, ad_referral, kind
+			revoked, deleted_for_me, deleted_at, deletion_reason, payload_purged_at, edited, edited_ts, buttons, ad_referral, kind, skip_own_read_mark
 		)
 		SELECT
 			?,
@@ -348,7 +348,8 @@ func migrateLIDMessagesToPN(tx *sql.Tx, lidJID, pnJID string) error {
 			edited_ts,
 			buttons,
 			ad_referral,
-			kind
+			kind,
+			skip_own_read_mark
 		FROM messages AS source
 		WHERE chat_jid = ?
 			AND (source.payload_purged_at IS NOT NULL OR NOT EXISTS (
@@ -388,7 +389,8 @@ func migrateLIDMessagesToPN(tx *sql.Tx, lidJID, pnJID string) error {
 			edited_ts = CASE WHEN messages.deleted_at IS NOT NULL OR excluded.deleted_at IS NOT NULL THEN 0 ELSE max(COALESCE(messages.edited_ts, 0), COALESCE(excluded.edited_ts, 0)) END,
 			buttons = COALESCE(messages.buttons, excluded.buttons),
 			ad_referral = COALESCE(messages.ad_referral, excluded.ad_referral),
-			kind = COALESCE(NULLIF(messages.kind,''), excluded.kind)
+			kind = COALESCE(NULLIF(messages.kind,''), excluded.kind),
+			skip_own_read_mark = max(messages.skip_own_read_mark, excluded.skip_own_read_mark)
 		WHERE messages.payload_purged_at IS NULL
 	`, pnJID, lidJID, pnJID, lidJID, pnJID, lidJID, pnJID); err != nil {
 		return fmt.Errorf("merge lid messages into pn chat: %w", err)

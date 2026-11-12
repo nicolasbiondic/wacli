@@ -177,12 +177,12 @@ func sendFile(ctx context.Context, a interface {
 	}
 	attachSendFileReplyContext(msg, replyContext)
 
-	var id types.MessageID
-	if isNewsletter {
-		id, err = a.WA().SendProtoMessageWithExtra(ctx, to, msg, up.Handle)
-	} else {
-		id, err = a.WA().SendProtoMessage(ctx, to, msg)
-	}
+	id, err := sendWithUnreadPolicy(ctx, a.DB(), opts.keepUnread, func(ctx context.Context) (types.MessageID, error) {
+		if isNewsletter {
+			return a.WA().SendProtoMessageWithExtra(ctx, to, msg, up.Handle)
+		}
+		return a.WA().SendProtoMessage(ctx, to, msg)
+	})
 	if err != nil {
 		return sendFileOutcome{}, err
 	}
@@ -221,7 +221,7 @@ func sendFile(ctx context.Context, a interface {
 			storeErr = fmt.Errorf("chat update: %w", err)
 		}
 		if err := a.DB().UpsertMessage(store.UpsertMessageParams{
-			SkipOwnReadMark: opts.keepUnread,
+			KeepUnread:      opts.keepUnread,
 			ChatJID:         storedChat.String(),
 			ChatName:        chatName,
 			MsgID:           id,

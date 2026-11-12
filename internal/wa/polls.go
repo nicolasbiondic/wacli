@@ -30,7 +30,7 @@ func (c *Client) SendPoll(ctx context.Context, to types.JID, name string, option
 	if ephemeral {
 		msg = wrapEphemeralPollMessage(msg)
 	}
-	resp, err := cli.SendMessage(ctx, to, msg)
+	resp, err := cli.SendMessage(ctx, to, msg, whatsmeow.SendRequestExtra{ID: MessageIDFromContext(ctx)})
 	if err != nil {
 		return "", err
 	}

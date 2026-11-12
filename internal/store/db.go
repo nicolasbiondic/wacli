@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -30,6 +31,8 @@ type DB struct {
 	kindEnabled       bool
 	readRows          queryRows
 	readOnly          bool // Only OpenReadOnly connections may retry read views.
+	sendIntentsMu     sync.Mutex
+	sendIntents       map[string]*keepUnreadIntent
 }
 
 func Open(path string) (*DB, error) {
@@ -137,6 +140,13 @@ func (d *DB) Close() error {
 	if d == nil || d.sql == nil {
 		return nil
 	}
+	d.sendIntentsMu.Lock()
+	for _, intent := range d.sendIntents {
+		intent.timer.Stop()
+		intent.stopContext()
+	}
+	clear(d.sendIntents)
+	d.sendIntentsMu.Unlock()
 	return d.sql.Close()
 }
 

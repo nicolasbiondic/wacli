@@ -60,6 +60,7 @@ var schemaMigrations = []migration{
 	{version: 9035, name: "messages semantic kind", up: migrateMessageKind},
 	// Fork-only: do not claim upstream's 39 or any existing production row.
 	{version: 9039, name: "message self read times", up: ensureMessageReadsTable},
+	{version: 9040, name: "message own read opt-out", up: migrateSkipOwnReadMark},
 }
 
 func migrateMessageKind(d *DB) error {
@@ -552,6 +553,9 @@ func (d *DB) ensureCurrentSchema() error {
 	}
 	if err := ensureMessageReadsTable(d); err != nil {
 		return fmt.Errorf("ensure message self read times: %w", err)
+	}
+	if err := migrateSkipOwnReadMark(d); err != nil {
+		return fmt.Errorf("ensure message own read opt-out: %w", err)
 	}
 	return migrateMessageKind(d)
 }

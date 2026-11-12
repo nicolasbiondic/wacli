@@ -207,7 +207,9 @@ func sendButtonListSelection(ctx context.Context, a outboundSendApp, chat types.
 		return selectResult{}, err
 	}
 	sentID, err := runSendOperation(ctx, reconnectForSend(a), func(ctx context.Context) (types.MessageID, error) {
-		return sendSelectProto(ctx, a.WA(), chat, msg)
+		return sendWithUnreadPolicy(ctx, a.DB(), req.KeepUnread, func(ctx context.Context) (types.MessageID, error) {
+			return sendSelectProto(ctx, a.WA(), chat, msg)
+		})
 	})
 	if err != nil {
 		return selectResult{}, err
@@ -474,14 +476,14 @@ func persistOutboundSelection(ctx context.Context, a outboundSendApp, chat types
 		storeErr = fmt.Errorf("chat update: %w", err)
 	}
 	if err := a.DB().UpsertMessage(store.UpsertMessageParams{
-		SkipOwnReadMark: keepUnread,
-		ChatJID:         chatJID,
-		ChatName:        chatName,
-		MsgID:           msgID,
-		SenderName:      "me",
-		Timestamp:       now,
-		FromMe:          true,
-		Text:            "Selected: " + selected.DisplayText,
+		KeepUnread: keepUnread,
+		ChatJID:    chatJID,
+		ChatName:   chatName,
+		MsgID:      msgID,
+		SenderName: "me",
+		Timestamp:  now,
+		FromMe:     true,
+		Text:       "Selected: " + selected.DisplayText,
 	}); err != nil {
 		storeErr = errors.Join(storeErr, fmt.Errorf("message update: %w", err))
 	}
