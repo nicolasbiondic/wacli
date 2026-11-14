@@ -2,7 +2,7 @@
   "binaries": [
     {
       "label": "new",
-      "sha256": "0700a21c316e46b6eea40be108975c84a35d83475974a14f6617c55e721031ec"
+      "sha256": "fd519b25637ec1848cb1cf45f1094740fbe425ecd1dd7f5e766242568189fe6a"
     },
     {
       "label": "old-1",
@@ -48,12 +48,7 @@
           30,
           31,
           32,
-          33,
-          34,
-          36,
-          38,
-          9033,
-          9035
+          33
         ],
         "tables": {
           "app_state_full_sync_broken": {
@@ -122,18 +117,6 @@
               "rows": 1
             },
             "rows": 1
-          },
-          "chat_lists": {
-            "columns": [
-              "chat_jid",
-              "list_id",
-              "labeled",
-              "updated_at"
-            ],
-            "original": {
-              "rows": 15
-            },
-            "rows": 15
           },
           "chats": {
             "columns": [
@@ -222,35 +205,6 @@
               "rows": 18
             },
             "rows": 18
-          },
-          "list_sync_state": {
-            "columns": [
-              "id",
-              "full_sync_events_seen",
-              "full_sync_complete"
-            ],
-            "original": {
-              "rows": 1
-            },
-            "rows": 1
-          },
-          "lists": {
-            "columns": [
-              "id",
-              "name",
-              "color",
-              "predefined_id",
-              "type",
-              "order_index",
-              "is_active",
-              "is_immutable",
-              "deleted",
-              "updated_at"
-            ],
-            "original": {
-              "rows": 7
-            },
-            "rows": 7
           },
           "message_changes": {
             "columns": [
@@ -359,9 +313,7 @@
               "payload_purged_at",
               "edited",
               "edited_ts",
-              "buttons",
-              "ad_referral",
-              "kind"
+              "buttons"
             ],
             "original": {
               "rows": 207573
@@ -413,9 +365,9 @@
               "block"
             ],
             "original": {
-              "rows": 5335
+              "rows": 4925
             },
-            "rows": 5335
+            "rows": 4925
           },
           "messages_fts_docsize": {
             "columns": [
@@ -434,9 +386,9 @@
               "pgno"
             ],
             "original": {
-              "rows": 2109
+              "rows": 3400
             },
-            "rows": 2109
+            "rows": 3400
           },
           "poll_votes": {
             "columns": [
@@ -467,22 +419,6 @@
             },
             "rows": 1
           },
-          "quick_replies": {
-            "columns": [
-              "id",
-              "shortcut",
-              "message",
-              "keywords",
-              "label_ids",
-              "count",
-              "deleted",
-              "updated_at"
-            ],
-            "original": {
-              "rows": 24
-            },
-            "rows": 24
-          },
           "retrieval_state": {
             "columns": [
               "id",
@@ -502,9 +438,9 @@
               "applied_at"
             ],
             "original": {
-              "rows": 38
+              "rows": 33
             },
-            "rows": 38
+            "rows": 33
           },
           "sqlite_sequence": {
             "columns": [
@@ -626,12 +562,7 @@
               30,
               31,
               32,
-              33,
-              34,
-              36,
-              38,
-              9033,
-              9035
+              33
             ],
             "tables": {
               "app_state_full_sync_broken": {
@@ -700,18 +631,6 @@
                   "rows": 1
                 },
                 "rows": 1
-              },
-              "chat_lists": {
-                "columns": [
-                  "chat_jid",
-                  "list_id",
-                  "labeled",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 15
-                },
-                "rows": 15
               },
               "chats": {
                 "columns": [
@@ -800,35 +719,6 @@
                   "rows": 18
                 },
                 "rows": 18
-              },
-              "list_sync_state": {
-                "columns": [
-                  "id",
-                  "full_sync_events_seen",
-                  "full_sync_complete"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "lists": {
-                "columns": [
-                  "id",
-                  "name",
-                  "color",
-                  "predefined_id",
-                  "type",
-                  "order_index",
-                  "is_active",
-                  "is_immutable",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 7
-                },
-                "rows": 7
               },
               "message_changes": {
                 "columns": [
@@ -937,9 +827,7 @@
                   "payload_purged_at",
                   "edited",
                   "edited_ts",
-                  "buttons",
-                  "ad_referral",
-                  "kind"
+                  "buttons"
                 ],
                 "original": {
                   "rows": 207573
@@ -991,9 +879,9 @@
                   "block"
                 ],
                 "original": {
-                  "rows": 5335
+                  "rows": 4925
                 },
-                "rows": 5335
+                "rows": 4925
               },
               "messages_fts_docsize": {
                 "columns": [
@@ -1012,9 +900,9 @@
                   "pgno"
                 ],
                 "original": {
-                  "rows": 2109
+                  "rows": 3400
                 },
-                "rows": 2109
+                "rows": 3400
               },
               "poll_votes": {
                 "columns": [
@@ -1045,22 +933,6 @@
                 },
                 "rows": 1
               },
-              "quick_replies": {
-                "columns": [
-                  "id",
-                  "shortcut",
-                  "message",
-                  "keywords",
-                  "label_ids",
-                  "count",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 24
-                },
-                "rows": 24
-              },
               "retrieval_state": {
                 "columns": [
                   "id",
@@ -1080,9 +952,9 @@
                   "applied_at"
                 ],
                 "original": {
-                  "rows": 38
+                  "rows": 33
                 },
-                "rows": 38
+                "rows": 33
               },
               "sqlite_sequence": {
                 "columns": [
@@ -1216,12 +1088,7 @@
               31,
               32,
               33,
-              34,
-              36,
-              38,
-              40,
-              9033,
-              9035
+              40
             ],
             "tables": {
               "app_state_full_sync_broken": {
@@ -1290,18 +1157,6 @@
                   "rows": 1
                 },
                 "rows": 1
-              },
-              "chat_lists": {
-                "columns": [
-                  "chat_jid",
-                  "list_id",
-                  "labeled",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 15
-                },
-                "rows": 15
               },
               "chats": {
                 "columns": [
@@ -1391,35 +1246,6 @@
                 },
                 "rows": 18
               },
-              "list_sync_state": {
-                "columns": [
-                  "id",
-                  "full_sync_events_seen",
-                  "full_sync_complete"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "lists": {
-                "columns": [
-                  "id",
-                  "name",
-                  "color",
-                  "predefined_id",
-                  "type",
-                  "order_index",
-                  "is_active",
-                  "is_immutable",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 7
-                },
-                "rows": 7
-              },
               "message_changes": {
                 "columns": [
                   "sequence",
@@ -1433,9 +1259,9 @@
                   "message_ts"
                 ],
                 "original": {
-                  "rows": 33143
+                  "rows": 33123
                 },
-                "rows": 33143
+                "rows": 33123
               },
               "message_contacts": {
                 "columns": [
@@ -1540,9 +1366,7 @@
                   "payload_purged_at",
                   "edited",
                   "edited_ts",
-                  "buttons",
-                  "ad_referral",
-                  "kind"
+                  "buttons"
                 ],
                 "original": {
                   "rows": 207573
@@ -1594,9 +1418,9 @@
                   "block"
                 ],
                 "original": {
-                  "rows": 5335
+                  "rows": 4925
                 },
-                "rows": 5335
+                "rows": 4925
               },
               "messages_fts_docsize": {
                 "columns": [
@@ -1615,9 +1439,9 @@
                   "pgno"
                 ],
                 "original": {
-                  "rows": 2109
+                  "rows": 3400
                 },
-                "rows": 2109
+                "rows": 3400
               },
               "poll_votes": {
                 "columns": [
@@ -1648,22 +1472,6 @@
                 },
                 "rows": 1
               },
-              "quick_replies": {
-                "columns": [
-                  "id",
-                  "shortcut",
-                  "message",
-                  "keywords",
-                  "label_ids",
-                  "count",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 24
-                },
-                "rows": 24
-              },
               "retrieval_state": {
                 "columns": [
                   "id",
@@ -1683,9 +1491,9 @@
                   "applied_at"
                 ],
                 "original": {
-                  "rows": 38
+                  "rows": 33
                 },
-                "rows": 39
+                "rows": 34
               },
               "sqlite_sequence": {
                 "columns": [
@@ -1822,12 +1630,7 @@
               31,
               32,
               33,
-              34,
-              36,
-              38,
-              40,
-              9033,
-              9035
+              40
             ],
             "tables": {
               "app_state_full_sync_broken": {
@@ -1896,18 +1699,6 @@
                   "rows": 1
                 },
                 "rows": 1
-              },
-              "chat_lists": {
-                "columns": [
-                  "chat_jid",
-                  "list_id",
-                  "labeled",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 15
-                },
-                "rows": 15
               },
               "chats": {
                 "columns": [
@@ -1997,35 +1788,6 @@
                 },
                 "rows": 18
               },
-              "list_sync_state": {
-                "columns": [
-                  "id",
-                  "full_sync_events_seen",
-                  "full_sync_complete"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "lists": {
-                "columns": [
-                  "id",
-                  "name",
-                  "color",
-                  "predefined_id",
-                  "type",
-                  "order_index",
-                  "is_active",
-                  "is_immutable",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 7
-                },
-                "rows": 7
-              },
               "message_changes": {
                 "columns": [
                   "sequence",
@@ -2039,9 +1801,9 @@
                   "message_ts"
                 ],
                 "original": {
-                  "rows": 33143
+                  "rows": 33123
                 },
-                "rows": 33143
+                "rows": 33123
               },
               "message_contacts": {
                 "columns": [
@@ -2146,9 +1908,7 @@
                   "payload_purged_at",
                   "edited",
                   "edited_ts",
-                  "buttons",
-                  "ad_referral",
-                  "kind"
+                  "buttons"
                 ],
                 "original": {
                   "rows": 207573
@@ -2200,9 +1960,9 @@
                   "block"
                 ],
                 "original": {
-                  "rows": 5335
+                  "rows": 4925
                 },
-                "rows": 5335
+                "rows": 4925
               },
               "messages_fts_docsize": {
                 "columns": [
@@ -2221,9 +1981,9 @@
                   "pgno"
                 ],
                 "original": {
-                  "rows": 2109
+                  "rows": 3400
                 },
-                "rows": 2109
+                "rows": 3400
               },
               "poll_votes": {
                 "columns": [
@@ -2254,22 +2014,6 @@
                 },
                 "rows": 1
               },
-              "quick_replies": {
-                "columns": [
-                  "id",
-                  "shortcut",
-                  "message",
-                  "keywords",
-                  "label_ids",
-                  "count",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 24
-                },
-                "rows": 24
-              },
               "retrieval_state": {
                 "columns": [
                   "id",
@@ -2289,9 +2033,9 @@
                   "applied_at"
                 ],
                 "original": {
-                  "rows": 38
+                  "rows": 33
                 },
-                "rows": 39
+                "rows": 34
               },
               "sqlite_sequence": {
                 "columns": [
@@ -2428,12 +2172,7 @@
               31,
               32,
               33,
-              34,
-              36,
-              38,
-              40,
-              9033,
-              9035
+              40
             ],
             "tables": {
               "app_state_full_sync_broken": {
@@ -2502,18 +2241,6 @@
                   "rows": 1
                 },
                 "rows": 1
-              },
-              "chat_lists": {
-                "columns": [
-                  "chat_jid",
-                  "list_id",
-                  "labeled",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 15
-                },
-                "rows": 15
               },
               "chats": {
                 "columns": [
@@ -2603,35 +2330,6 @@
                 },
                 "rows": 18
               },
-              "list_sync_state": {
-                "columns": [
-                  "id",
-                  "full_sync_events_seen",
-                  "full_sync_complete"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "lists": {
-                "columns": [
-                  "id",
-                  "name",
-                  "color",
-                  "predefined_id",
-                  "type",
-                  "order_index",
-                  "is_active",
-                  "is_immutable",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 7
-                },
-                "rows": 7
-              },
               "message_changes": {
                 "columns": [
                   "sequence",
@@ -2645,9 +2343,9 @@
                   "message_ts"
                 ],
                 "original": {
-                  "rows": 33143
+                  "rows": 33123
                 },
-                "rows": 33143
+                "rows": 33123
               },
               "message_contacts": {
                 "columns": [
@@ -2752,9 +2450,7 @@
                   "payload_purged_at",
                   "edited",
                   "edited_ts",
-                  "buttons",
-                  "ad_referral",
-                  "kind"
+                  "buttons"
                 ],
                 "original": {
                   "rows": 207573
@@ -2806,9 +2502,9 @@
                   "block"
                 ],
                 "original": {
-                  "rows": 5335
+                  "rows": 4925
                 },
-                "rows": 5335
+                "rows": 4925
               },
               "messages_fts_docsize": {
                 "columns": [
@@ -2827,9 +2523,9 @@
                   "pgno"
                 ],
                 "original": {
-                  "rows": 2109
+                  "rows": 3400
                 },
-                "rows": 2109
+                "rows": 3400
               },
               "poll_votes": {
                 "columns": [
@@ -2860,22 +2556,6 @@
                 },
                 "rows": 1
               },
-              "quick_replies": {
-                "columns": [
-                  "id",
-                  "shortcut",
-                  "message",
-                  "keywords",
-                  "label_ids",
-                  "count",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 24
-                },
-                "rows": 24
-              },
               "retrieval_state": {
                 "columns": [
                   "id",
@@ -2895,9 +2575,9 @@
                   "applied_at"
                 ],
                 "original": {
-                  "rows": 38
+                  "rows": 33
                 },
-                "rows": 39
+                "rows": 34
               },
               "sqlite_sequence": {
                 "columns": [
@@ -3008,12 +2688,7 @@
           30,
           31,
           32,
-          33,
-          34,
-          36,
-          38,
-          9033,
-          9035
+          33
         ],
         "tables": {
           "app_state_full_sync_broken": {
@@ -3082,18 +2757,6 @@
               "rows": 1
             },
             "rows": 1
-          },
-          "chat_lists": {
-            "columns": [
-              "chat_jid",
-              "list_id",
-              "labeled",
-              "updated_at"
-            ],
-            "original": {
-              "rows": 0
-            },
-            "rows": 0
           },
           "chats": {
             "columns": [
@@ -3182,35 +2845,6 @@
               "rows": 8
             },
             "rows": 8
-          },
-          "list_sync_state": {
-            "columns": [
-              "id",
-              "full_sync_events_seen",
-              "full_sync_complete"
-            ],
-            "original": {
-              "rows": 1
-            },
-            "rows": 1
-          },
-          "lists": {
-            "columns": [
-              "id",
-              "name",
-              "color",
-              "predefined_id",
-              "type",
-              "order_index",
-              "is_active",
-              "is_immutable",
-              "deleted",
-              "updated_at"
-            ],
-            "original": {
-              "rows": 4
-            },
-            "rows": 4
           },
           "message_changes": {
             "columns": [
@@ -3319,9 +2953,7 @@
               "payload_purged_at",
               "edited",
               "edited_ts",
-              "buttons",
-              "ad_referral",
-              "kind"
+              "buttons"
             ],
             "original": {
               "rows": 70702
@@ -3373,9 +3005,9 @@
               "block"
             ],
             "original": {
-              "rows": 1487
+              "rows": 1456
             },
-            "rows": 1487
+            "rows": 1456
           },
           "messages_fts_docsize": {
             "columns": [
@@ -3394,9 +3026,9 @@
               "pgno"
             ],
             "original": {
-              "rows": 1083
+              "rows": 1155
             },
-            "rows": 1083
+            "rows": 1155
           },
           "poll_votes": {
             "columns": [
@@ -3427,22 +3059,6 @@
             },
             "rows": 0
           },
-          "quick_replies": {
-            "columns": [
-              "id",
-              "shortcut",
-              "message",
-              "keywords",
-              "label_ids",
-              "count",
-              "deleted",
-              "updated_at"
-            ],
-            "original": {
-              "rows": 21
-            },
-            "rows": 21
-          },
           "retrieval_state": {
             "columns": [
               "id",
@@ -3462,9 +3078,9 @@
               "applied_at"
             ],
             "original": {
-              "rows": 38
+              "rows": 33
             },
-            "rows": 38
+            "rows": 33
           },
           "sqlite_sequence": {
             "columns": [
@@ -3586,12 +3202,7 @@
               30,
               31,
               32,
-              33,
-              34,
-              36,
-              38,
-              9033,
-              9035
+              33
             ],
             "tables": {
               "app_state_full_sync_broken": {
@@ -3660,18 +3271,6 @@
                   "rows": 1
                 },
                 "rows": 1
-              },
-              "chat_lists": {
-                "columns": [
-                  "chat_jid",
-                  "list_id",
-                  "labeled",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 0
-                },
-                "rows": 0
               },
               "chats": {
                 "columns": [
@@ -3760,35 +3359,6 @@
                   "rows": 8
                 },
                 "rows": 8
-              },
-              "list_sync_state": {
-                "columns": [
-                  "id",
-                  "full_sync_events_seen",
-                  "full_sync_complete"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "lists": {
-                "columns": [
-                  "id",
-                  "name",
-                  "color",
-                  "predefined_id",
-                  "type",
-                  "order_index",
-                  "is_active",
-                  "is_immutable",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 4
-                },
-                "rows": 4
               },
               "message_changes": {
                 "columns": [
@@ -3897,9 +3467,7 @@
                   "payload_purged_at",
                   "edited",
                   "edited_ts",
-                  "buttons",
-                  "ad_referral",
-                  "kind"
+                  "buttons"
                 ],
                 "original": {
                   "rows": 70702
@@ -3951,9 +3519,9 @@
                   "block"
                 ],
                 "original": {
-                  "rows": 1487
+                  "rows": 1456
                 },
-                "rows": 1487
+                "rows": 1456
               },
               "messages_fts_docsize": {
                 "columns": [
@@ -3972,9 +3540,9 @@
                   "pgno"
                 ],
                 "original": {
-                  "rows": 1083
+                  "rows": 1155
                 },
-                "rows": 1083
+                "rows": 1155
               },
               "poll_votes": {
                 "columns": [
@@ -4005,22 +3573,6 @@
                 },
                 "rows": 0
               },
-              "quick_replies": {
-                "columns": [
-                  "id",
-                  "shortcut",
-                  "message",
-                  "keywords",
-                  "label_ids",
-                  "count",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 21
-                },
-                "rows": 21
-              },
               "retrieval_state": {
                 "columns": [
                   "id",
@@ -4040,9 +3592,9 @@
                   "applied_at"
                 ],
                 "original": {
-                  "rows": 38
+                  "rows": 33
                 },
-                "rows": 38
+                "rows": 33
               },
               "sqlite_sequence": {
                 "columns": [
@@ -4176,12 +3728,7 @@
               31,
               32,
               33,
-              34,
-              36,
-              38,
-              40,
-              9033,
-              9035
+              40
             ],
             "tables": {
               "app_state_full_sync_broken": {
@@ -4250,18 +3797,6 @@
                   "rows": 1
                 },
                 "rows": 1
-              },
-              "chat_lists": {
-                "columns": [
-                  "chat_jid",
-                  "list_id",
-                  "labeled",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 0
-                },
-                "rows": 0
               },
               "chats": {
                 "columns": [
@@ -4351,35 +3886,6 @@
                 },
                 "rows": 8
               },
-              "list_sync_state": {
-                "columns": [
-                  "id",
-                  "full_sync_events_seen",
-                  "full_sync_complete"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "lists": {
-                "columns": [
-                  "id",
-                  "name",
-                  "color",
-                  "predefined_id",
-                  "type",
-                  "order_index",
-                  "is_active",
-                  "is_immutable",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 4
-                },
-                "rows": 4
-              },
               "message_changes": {
                 "columns": [
                   "sequence",
@@ -4393,9 +3899,9 @@
                   "message_ts"
                 ],
                 "original": {
-                  "rows": 19964
+                  "rows": 19952
                 },
-                "rows": 19964
+                "rows": 19952
               },
               "message_contacts": {
                 "columns": [
@@ -4500,9 +4006,7 @@
                   "payload_purged_at",
                   "edited",
                   "edited_ts",
-                  "buttons",
-                  "ad_referral",
-                  "kind"
+                  "buttons"
                 ],
                 "original": {
                   "rows": 70702
@@ -4554,9 +4058,9 @@
                   "block"
                 ],
                 "original": {
-                  "rows": 1487
+                  "rows": 1456
                 },
-                "rows": 1487
+                "rows": 1456
               },
               "messages_fts_docsize": {
                 "columns": [
@@ -4575,9 +4079,9 @@
                   "pgno"
                 ],
                 "original": {
-                  "rows": 1083
+                  "rows": 1155
                 },
-                "rows": 1083
+                "rows": 1155
               },
               "poll_votes": {
                 "columns": [
@@ -4608,22 +4112,6 @@
                 },
                 "rows": 0
               },
-              "quick_replies": {
-                "columns": [
-                  "id",
-                  "shortcut",
-                  "message",
-                  "keywords",
-                  "label_ids",
-                  "count",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 21
-                },
-                "rows": 21
-              },
               "retrieval_state": {
                 "columns": [
                   "id",
@@ -4643,9 +4131,9 @@
                   "applied_at"
                 ],
                 "original": {
-                  "rows": 38
+                  "rows": 33
                 },
-                "rows": 39
+                "rows": 34
               },
               "sqlite_sequence": {
                 "columns": [
@@ -4782,12 +4270,7 @@
               31,
               32,
               33,
-              34,
-              36,
-              38,
-              40,
-              9033,
-              9035
+              40
             ],
             "tables": {
               "app_state_full_sync_broken": {
@@ -4856,18 +4339,6 @@
                   "rows": 1
                 },
                 "rows": 1
-              },
-              "chat_lists": {
-                "columns": [
-                  "chat_jid",
-                  "list_id",
-                  "labeled",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 0
-                },
-                "rows": 0
               },
               "chats": {
                 "columns": [
@@ -4957,35 +4428,6 @@
                 },
                 "rows": 8
               },
-              "list_sync_state": {
-                "columns": [
-                  "id",
-                  "full_sync_events_seen",
-                  "full_sync_complete"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "lists": {
-                "columns": [
-                  "id",
-                  "name",
-                  "color",
-                  "predefined_id",
-                  "type",
-                  "order_index",
-                  "is_active",
-                  "is_immutable",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 4
-                },
-                "rows": 4
-              },
               "message_changes": {
                 "columns": [
                   "sequence",
@@ -4999,9 +4441,9 @@
                   "message_ts"
                 ],
                 "original": {
-                  "rows": 19964
+                  "rows": 19952
                 },
-                "rows": 19964
+                "rows": 19952
               },
               "message_contacts": {
                 "columns": [
@@ -5106,9 +4548,7 @@
                   "payload_purged_at",
                   "edited",
                   "edited_ts",
-                  "buttons",
-                  "ad_referral",
-                  "kind"
+                  "buttons"
                 ],
                 "original": {
                   "rows": 70702
@@ -5160,9 +4600,9 @@
                   "block"
                 ],
                 "original": {
-                  "rows": 1487
+                  "rows": 1456
                 },
-                "rows": 1487
+                "rows": 1456
               },
               "messages_fts_docsize": {
                 "columns": [
@@ -5181,9 +4621,9 @@
                   "pgno"
                 ],
                 "original": {
-                  "rows": 1083
+                  "rows": 1155
                 },
-                "rows": 1083
+                "rows": 1155
               },
               "poll_votes": {
                 "columns": [
@@ -5214,22 +4654,6 @@
                 },
                 "rows": 0
               },
-              "quick_replies": {
-                "columns": [
-                  "id",
-                  "shortcut",
-                  "message",
-                  "keywords",
-                  "label_ids",
-                  "count",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 21
-                },
-                "rows": 21
-              },
               "retrieval_state": {
                 "columns": [
                   "id",
@@ -5249,9 +4673,9 @@
                   "applied_at"
                 ],
                 "original": {
-                  "rows": 38
+                  "rows": 33
                 },
-                "rows": 39
+                "rows": 34
               },
               "sqlite_sequence": {
                 "columns": [
@@ -5388,12 +4812,7 @@
               31,
               32,
               33,
-              34,
-              36,
-              38,
-              40,
-              9033,
-              9035
+              40
             ],
             "tables": {
               "app_state_full_sync_broken": {
@@ -5462,18 +4881,6 @@
                   "rows": 1
                 },
                 "rows": 1
-              },
-              "chat_lists": {
-                "columns": [
-                  "chat_jid",
-                  "list_id",
-                  "labeled",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 0
-                },
-                "rows": 0
               },
               "chats": {
                 "columns": [
@@ -5563,35 +4970,6 @@
                 },
                 "rows": 8
               },
-              "list_sync_state": {
-                "columns": [
-                  "id",
-                  "full_sync_events_seen",
-                  "full_sync_complete"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "lists": {
-                "columns": [
-                  "id",
-                  "name",
-                  "color",
-                  "predefined_id",
-                  "type",
-                  "order_index",
-                  "is_active",
-                  "is_immutable",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 4
-                },
-                "rows": 4
-              },
               "message_changes": {
                 "columns": [
                   "sequence",
@@ -5605,9 +4983,9 @@
                   "message_ts"
                 ],
                 "original": {
-                  "rows": 19964
+                  "rows": 19952
                 },
-                "rows": 19964
+                "rows": 19952
               },
               "message_contacts": {
                 "columns": [
@@ -5712,9 +5090,7 @@
                   "payload_purged_at",
                   "edited",
                   "edited_ts",
-                  "buttons",
-                  "ad_referral",
-                  "kind"
+                  "buttons"
                 ],
                 "original": {
                   "rows": 70702
@@ -5766,9 +5142,9 @@
                   "block"
                 ],
                 "original": {
-                  "rows": 1487
+                  "rows": 1456
                 },
-                "rows": 1487
+                "rows": 1456
               },
               "messages_fts_docsize": {
                 "columns": [
@@ -5787,9 +5163,9 @@
                   "pgno"
                 ],
                 "original": {
-                  "rows": 1083
+                  "rows": 1155
                 },
-                "rows": 1083
+                "rows": 1155
               },
               "poll_votes": {
                 "columns": [
@@ -5820,22 +5196,6 @@
                 },
                 "rows": 0
               },
-              "quick_replies": {
-                "columns": [
-                  "id",
-                  "shortcut",
-                  "message",
-                  "keywords",
-                  "label_ids",
-                  "count",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 21
-                },
-                "rows": 21
-              },
               "retrieval_state": {
                 "columns": [
                   "id",
@@ -5855,9 +5215,9 @@
                   "applied_at"
                 ],
                 "original": {
-                  "rows": 38
+                  "rows": 33
                 },
-                "rows": 39
+                "rows": 34
               },
               "sqlite_sequence": {
                 "columns": [
@@ -5968,12 +5328,7 @@
           30,
           31,
           32,
-          33,
-          34,
-          36,
-          38,
-          9033,
-          9035
+          33
         ],
         "tables": {
           "app_state_full_sync_broken": {
@@ -6037,18 +5392,6 @@
               "id",
               "enabled",
               "timestamp_ms"
-            ],
-            "original": {
-              "rows": 1
-            },
-            "rows": 1
-          },
-          "chat_lists": {
-            "columns": [
-              "chat_jid",
-              "list_id",
-              "labeled",
-              "updated_at"
             ],
             "original": {
               "rows": 1
@@ -6142,35 +5485,6 @@
               "rows": 9
             },
             "rows": 9
-          },
-          "list_sync_state": {
-            "columns": [
-              "id",
-              "full_sync_events_seen",
-              "full_sync_complete"
-            ],
-            "original": {
-              "rows": 1
-            },
-            "rows": 1
-          },
-          "lists": {
-            "columns": [
-              "id",
-              "name",
-              "color",
-              "predefined_id",
-              "type",
-              "order_index",
-              "is_active",
-              "is_immutable",
-              "deleted",
-              "updated_at"
-            ],
-            "original": {
-              "rows": 5
-            },
-            "rows": 5
           },
           "message_changes": {
             "columns": [
@@ -6279,9 +5593,7 @@
               "payload_purged_at",
               "edited",
               "edited_ts",
-              "buttons",
-              "ad_referral",
-              "kind"
+              "buttons"
             ],
             "original": {
               "rows": 43229
@@ -6333,9 +5645,9 @@
               "block"
             ],
             "original": {
-              "rows": 1241
+              "rows": 1043
             },
-            "rows": 1241
+            "rows": 1043
           },
           "messages_fts_docsize": {
             "columns": [
@@ -6354,9 +5666,9 @@
               "pgno"
             ],
             "original": {
-              "rows": 855
+              "rows": 745
             },
-            "rows": 855
+            "rows": 745
           },
           "poll_votes": {
             "columns": [
@@ -6387,22 +5699,6 @@
             },
             "rows": 2
           },
-          "quick_replies": {
-            "columns": [
-              "id",
-              "shortcut",
-              "message",
-              "keywords",
-              "label_ids",
-              "count",
-              "deleted",
-              "updated_at"
-            ],
-            "original": {
-              "rows": 3
-            },
-            "rows": 3
-          },
           "retrieval_state": {
             "columns": [
               "id",
@@ -6422,9 +5718,9 @@
               "applied_at"
             ],
             "original": {
-              "rows": 38
+              "rows": 33
             },
-            "rows": 38
+            "rows": 33
           },
           "sqlite_sequence": {
             "columns": [
@@ -6546,12 +5842,7 @@
               30,
               31,
               32,
-              33,
-              34,
-              36,
-              38,
-              9033,
-              9035
+              33
             ],
             "tables": {
               "app_state_full_sync_broken": {
@@ -6615,18 +5906,6 @@
                   "id",
                   "enabled",
                   "timestamp_ms"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "chat_lists": {
-                "columns": [
-                  "chat_jid",
-                  "list_id",
-                  "labeled",
-                  "updated_at"
                 ],
                 "original": {
                   "rows": 1
@@ -6720,35 +5999,6 @@
                   "rows": 9
                 },
                 "rows": 9
-              },
-              "list_sync_state": {
-                "columns": [
-                  "id",
-                  "full_sync_events_seen",
-                  "full_sync_complete"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "lists": {
-                "columns": [
-                  "id",
-                  "name",
-                  "color",
-                  "predefined_id",
-                  "type",
-                  "order_index",
-                  "is_active",
-                  "is_immutable",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 5
-                },
-                "rows": 5
               },
               "message_changes": {
                 "columns": [
@@ -6857,9 +6107,7 @@
                   "payload_purged_at",
                   "edited",
                   "edited_ts",
-                  "buttons",
-                  "ad_referral",
-                  "kind"
+                  "buttons"
                 ],
                 "original": {
                   "rows": 43229
@@ -6911,9 +6159,9 @@
                   "block"
                 ],
                 "original": {
-                  "rows": 1241
+                  "rows": 1043
                 },
-                "rows": 1241
+                "rows": 1043
               },
               "messages_fts_docsize": {
                 "columns": [
@@ -6932,9 +6180,9 @@
                   "pgno"
                 ],
                 "original": {
-                  "rows": 855
+                  "rows": 745
                 },
-                "rows": 855
+                "rows": 745
               },
               "poll_votes": {
                 "columns": [
@@ -6965,22 +6213,6 @@
                 },
                 "rows": 2
               },
-              "quick_replies": {
-                "columns": [
-                  "id",
-                  "shortcut",
-                  "message",
-                  "keywords",
-                  "label_ids",
-                  "count",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 3
-                },
-                "rows": 3
-              },
               "retrieval_state": {
                 "columns": [
                   "id",
@@ -7000,9 +6232,9 @@
                   "applied_at"
                 ],
                 "original": {
-                  "rows": 38
+                  "rows": 33
                 },
-                "rows": 38
+                "rows": 33
               },
               "sqlite_sequence": {
                 "columns": [
@@ -7136,12 +6368,7 @@
               31,
               32,
               33,
-              34,
-              36,
-              38,
-              40,
-              9033,
-              9035
+              40
             ],
             "tables": {
               "app_state_full_sync_broken": {
@@ -7205,18 +6432,6 @@
                   "id",
                   "enabled",
                   "timestamp_ms"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "chat_lists": {
-                "columns": [
-                  "chat_jid",
-                  "list_id",
-                  "labeled",
-                  "updated_at"
                 ],
                 "original": {
                   "rows": 1
@@ -7310,35 +6525,6 @@
                   "rows": 9
                 },
                 "rows": 9
-              },
-              "list_sync_state": {
-                "columns": [
-                  "id",
-                  "full_sync_events_seen",
-                  "full_sync_complete"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "lists": {
-                "columns": [
-                  "id",
-                  "name",
-                  "color",
-                  "predefined_id",
-                  "type",
-                  "order_index",
-                  "is_active",
-                  "is_immutable",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 5
-                },
-                "rows": 5
               },
               "message_changes": {
                 "columns": [
@@ -7460,9 +6646,7 @@
                   "payload_purged_at",
                   "edited",
                   "edited_ts",
-                  "buttons",
-                  "ad_referral",
-                  "kind"
+                  "buttons"
                 ],
                 "original": {
                   "rows": 43229
@@ -7514,9 +6698,9 @@
                   "block"
                 ],
                 "original": {
-                  "rows": 1241
+                  "rows": 1043
                 },
-                "rows": 1241
+                "rows": 1043
               },
               "messages_fts_docsize": {
                 "columns": [
@@ -7535,9 +6719,9 @@
                   "pgno"
                 ],
                 "original": {
-                  "rows": 855
+                  "rows": 745
                 },
-                "rows": 855
+                "rows": 745
               },
               "poll_votes": {
                 "columns": [
@@ -7568,22 +6752,6 @@
                 },
                 "rows": 2
               },
-              "quick_replies": {
-                "columns": [
-                  "id",
-                  "shortcut",
-                  "message",
-                  "keywords",
-                  "label_ids",
-                  "count",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 3
-                },
-                "rows": 3
-              },
               "retrieval_state": {
                 "columns": [
                   "id",
@@ -7603,9 +6771,9 @@
                   "applied_at"
                 ],
                 "original": {
-                  "rows": 38
+                  "rows": 33
                 },
-                "rows": 39
+                "rows": 34
               },
               "sqlite_sequence": {
                 "columns": [
@@ -7742,12 +6910,7 @@
               31,
               32,
               33,
-              34,
-              36,
-              38,
-              40,
-              9033,
-              9035
+              40
             ],
             "tables": {
               "app_state_full_sync_broken": {
@@ -7811,18 +6974,6 @@
                   "id",
                   "enabled",
                   "timestamp_ms"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "chat_lists": {
-                "columns": [
-                  "chat_jid",
-                  "list_id",
-                  "labeled",
-                  "updated_at"
                 ],
                 "original": {
                   "rows": 1
@@ -7916,35 +7067,6 @@
                   "rows": 9
                 },
                 "rows": 9
-              },
-              "list_sync_state": {
-                "columns": [
-                  "id",
-                  "full_sync_events_seen",
-                  "full_sync_complete"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "lists": {
-                "columns": [
-                  "id",
-                  "name",
-                  "color",
-                  "predefined_id",
-                  "type",
-                  "order_index",
-                  "is_active",
-                  "is_immutable",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 5
-                },
-                "rows": 5
               },
               "message_changes": {
                 "columns": [
@@ -8066,9 +7188,7 @@
                   "payload_purged_at",
                   "edited",
                   "edited_ts",
-                  "buttons",
-                  "ad_referral",
-                  "kind"
+                  "buttons"
                 ],
                 "original": {
                   "rows": 43229
@@ -8120,9 +7240,9 @@
                   "block"
                 ],
                 "original": {
-                  "rows": 1241
+                  "rows": 1043
                 },
-                "rows": 1241
+                "rows": 1043
               },
               "messages_fts_docsize": {
                 "columns": [
@@ -8141,9 +7261,9 @@
                   "pgno"
                 ],
                 "original": {
-                  "rows": 855
+                  "rows": 745
                 },
-                "rows": 855
+                "rows": 745
               },
               "poll_votes": {
                 "columns": [
@@ -8174,22 +7294,6 @@
                 },
                 "rows": 2
               },
-              "quick_replies": {
-                "columns": [
-                  "id",
-                  "shortcut",
-                  "message",
-                  "keywords",
-                  "label_ids",
-                  "count",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 3
-                },
-                "rows": 3
-              },
               "retrieval_state": {
                 "columns": [
                   "id",
@@ -8209,9 +7313,9 @@
                   "applied_at"
                 ],
                 "original": {
-                  "rows": 38
+                  "rows": 33
                 },
-                "rows": 39
+                "rows": 34
               },
               "sqlite_sequence": {
                 "columns": [
@@ -8348,12 +7452,7 @@
               31,
               32,
               33,
-              34,
-              36,
-              38,
-              40,
-              9033,
-              9035
+              40
             ],
             "tables": {
               "app_state_full_sync_broken": {
@@ -8417,18 +7516,6 @@
                   "id",
                   "enabled",
                   "timestamp_ms"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "chat_lists": {
-                "columns": [
-                  "chat_jid",
-                  "list_id",
-                  "labeled",
-                  "updated_at"
                 ],
                 "original": {
                   "rows": 1
@@ -8522,35 +7609,6 @@
                   "rows": 9
                 },
                 "rows": 9
-              },
-              "list_sync_state": {
-                "columns": [
-                  "id",
-                  "full_sync_events_seen",
-                  "full_sync_complete"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "lists": {
-                "columns": [
-                  "id",
-                  "name",
-                  "color",
-                  "predefined_id",
-                  "type",
-                  "order_index",
-                  "is_active",
-                  "is_immutable",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 5
-                },
-                "rows": 5
               },
               "message_changes": {
                 "columns": [
@@ -8672,9 +7730,7 @@
                   "payload_purged_at",
                   "edited",
                   "edited_ts",
-                  "buttons",
-                  "ad_referral",
-                  "kind"
+                  "buttons"
                 ],
                 "original": {
                   "rows": 43229
@@ -8726,9 +7782,9 @@
                   "block"
                 ],
                 "original": {
-                  "rows": 1241
+                  "rows": 1043
                 },
-                "rows": 1241
+                "rows": 1043
               },
               "messages_fts_docsize": {
                 "columns": [
@@ -8747,9 +7803,9 @@
                   "pgno"
                 ],
                 "original": {
-                  "rows": 855
+                  "rows": 745
                 },
-                "rows": 855
+                "rows": 745
               },
               "poll_votes": {
                 "columns": [
@@ -8780,22 +7836,6 @@
                 },
                 "rows": 2
               },
-              "quick_replies": {
-                "columns": [
-                  "id",
-                  "shortcut",
-                  "message",
-                  "keywords",
-                  "label_ids",
-                  "count",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 3
-                },
-                "rows": 3
-              },
               "retrieval_state": {
                 "columns": [
                   "id",
@@ -8815,9 +7855,9 @@
                   "applied_at"
                 ],
                 "original": {
-                  "rows": 38
+                  "rows": 33
                 },
-                "rows": 39
+                "rows": 34
               },
               "sqlite_sequence": {
                 "columns": [
@@ -8928,11 +7968,7 @@
           30,
           31,
           32,
-          33,
-          34,
-          36,
-          38,
-          9035
+          33
         ],
         "tables": {
           "app_state_full_sync_broken": {
@@ -9001,18 +8037,6 @@
               "rows": 1
             },
             "rows": 1
-          },
-          "chat_lists": {
-            "columns": [
-              "chat_jid",
-              "list_id",
-              "labeled",
-              "updated_at"
-            ],
-            "original": {
-              "rows": 0
-            },
-            "rows": 0
           },
           "chats": {
             "columns": [
@@ -9101,35 +8125,6 @@
               "rows": 32
             },
             "rows": 32
-          },
-          "list_sync_state": {
-            "columns": [
-              "id",
-              "full_sync_events_seen",
-              "full_sync_complete"
-            ],
-            "original": {
-              "rows": 1
-            },
-            "rows": 1
-          },
-          "lists": {
-            "columns": [
-              "id",
-              "name",
-              "color",
-              "predefined_id",
-              "type",
-              "order_index",
-              "is_active",
-              "is_immutable",
-              "deleted",
-              "updated_at"
-            ],
-            "original": {
-              "rows": 3
-            },
-            "rows": 3
           },
           "message_changes": {
             "columns": [
@@ -9238,9 +8233,7 @@
               "payload_purged_at",
               "edited",
               "edited_ts",
-              "buttons",
-              "ad_referral",
-              "kind"
+              "buttons"
             ],
             "original": {
               "rows": 10099
@@ -9292,9 +8285,9 @@
               "block"
             ],
             "original": {
-              "rows": 254
+              "rows": 250
             },
-            "rows": 254
+            "rows": 250
           },
           "messages_fts_docsize": {
             "columns": [
@@ -9313,9 +8306,9 @@
               "pgno"
             ],
             "original": {
-              "rows": 456
+              "rows": 228
             },
-            "rows": 456
+            "rows": 228
           },
           "poll_votes": {
             "columns": [
@@ -9346,22 +8339,6 @@
             },
             "rows": 1
           },
-          "quick_replies": {
-            "columns": [
-              "id",
-              "shortcut",
-              "message",
-              "keywords",
-              "label_ids",
-              "count",
-              "deleted",
-              "updated_at"
-            ],
-            "original": {
-              "rows": 2
-            },
-            "rows": 2
-          },
           "retrieval_state": {
             "columns": [
               "id",
@@ -9381,9 +8358,9 @@
               "applied_at"
             ],
             "original": {
-              "rows": 37
+              "rows": 33
             },
-            "rows": 37
+            "rows": 33
           },
           "sqlite_sequence": {
             "columns": [
@@ -9502,11 +8479,7 @@
               30,
               31,
               32,
-              33,
-              34,
-              36,
-              38,
-              9035
+              33
             ],
             "tables": {
               "app_state_full_sync_broken": {
@@ -9575,18 +8548,6 @@
                   "rows": 1
                 },
                 "rows": 1
-              },
-              "chat_lists": {
-                "columns": [
-                  "chat_jid",
-                  "list_id",
-                  "labeled",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 0
-                },
-                "rows": 0
               },
               "chats": {
                 "columns": [
@@ -9675,35 +8636,6 @@
                   "rows": 32
                 },
                 "rows": 32
-              },
-              "list_sync_state": {
-                "columns": [
-                  "id",
-                  "full_sync_events_seen",
-                  "full_sync_complete"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "lists": {
-                "columns": [
-                  "id",
-                  "name",
-                  "color",
-                  "predefined_id",
-                  "type",
-                  "order_index",
-                  "is_active",
-                  "is_immutable",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 3
-                },
-                "rows": 3
               },
               "message_changes": {
                 "columns": [
@@ -9812,9 +8744,7 @@
                   "payload_purged_at",
                   "edited",
                   "edited_ts",
-                  "buttons",
-                  "ad_referral",
-                  "kind"
+                  "buttons"
                 ],
                 "original": {
                   "rows": 10099
@@ -9866,9 +8796,9 @@
                   "block"
                 ],
                 "original": {
-                  "rows": 254
+                  "rows": 250
                 },
-                "rows": 254
+                "rows": 250
               },
               "messages_fts_docsize": {
                 "columns": [
@@ -9887,9 +8817,9 @@
                   "pgno"
                 ],
                 "original": {
-                  "rows": 456
+                  "rows": 228
                 },
-                "rows": 456
+                "rows": 228
               },
               "poll_votes": {
                 "columns": [
@@ -9920,22 +8850,6 @@
                 },
                 "rows": 1
               },
-              "quick_replies": {
-                "columns": [
-                  "id",
-                  "shortcut",
-                  "message",
-                  "keywords",
-                  "label_ids",
-                  "count",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 2
-                },
-                "rows": 2
-              },
               "retrieval_state": {
                 "columns": [
                   "id",
@@ -9955,9 +8869,9 @@
                   "applied_at"
                 ],
                 "original": {
-                  "rows": 37
+                  "rows": 33
                 },
-                "rows": 37
+                "rows": 33
               },
               "sqlite_sequence": {
                 "columns": [
@@ -10091,11 +9005,7 @@
               31,
               32,
               33,
-              34,
-              36,
-              38,
-              40,
-              9035
+              40
             ],
             "tables": {
               "app_state_full_sync_broken": {
@@ -10164,18 +9074,6 @@
                   "rows": 1
                 },
                 "rows": 1
-              },
-              "chat_lists": {
-                "columns": [
-                  "chat_jid",
-                  "list_id",
-                  "labeled",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 0
-                },
-                "rows": 0
               },
               "chats": {
                 "columns": [
@@ -10264,35 +9162,6 @@
                   "rows": 32
                 },
                 "rows": 32
-              },
-              "list_sync_state": {
-                "columns": [
-                  "id",
-                  "full_sync_events_seen",
-                  "full_sync_complete"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "lists": {
-                "columns": [
-                  "id",
-                  "name",
-                  "color",
-                  "predefined_id",
-                  "type",
-                  "order_index",
-                  "is_active",
-                  "is_immutable",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 3
-                },
-                "rows": 3
               },
               "message_changes": {
                 "columns": [
@@ -10414,9 +9283,7 @@
                   "payload_purged_at",
                   "edited",
                   "edited_ts",
-                  "buttons",
-                  "ad_referral",
-                  "kind"
+                  "buttons"
                 ],
                 "original": {
                   "rows": 10099
@@ -10468,9 +9335,9 @@
                   "block"
                 ],
                 "original": {
-                  "rows": 254
+                  "rows": 250
                 },
-                "rows": 254
+                "rows": 250
               },
               "messages_fts_docsize": {
                 "columns": [
@@ -10489,9 +9356,9 @@
                   "pgno"
                 ],
                 "original": {
-                  "rows": 456
+                  "rows": 228
                 },
-                "rows": 456
+                "rows": 228
               },
               "poll_votes": {
                 "columns": [
@@ -10522,22 +9389,6 @@
                 },
                 "rows": 1
               },
-              "quick_replies": {
-                "columns": [
-                  "id",
-                  "shortcut",
-                  "message",
-                  "keywords",
-                  "label_ids",
-                  "count",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 2
-                },
-                "rows": 2
-              },
               "retrieval_state": {
                 "columns": [
                   "id",
@@ -10557,9 +9408,9 @@
                   "applied_at"
                 ],
                 "original": {
-                  "rows": 37
+                  "rows": 33
                 },
-                "rows": 38
+                "rows": 34
               },
               "sqlite_sequence": {
                 "columns": [
@@ -10693,11 +9544,7 @@
               31,
               32,
               33,
-              34,
-              36,
-              38,
-              40,
-              9035
+              40
             ],
             "tables": {
               "app_state_full_sync_broken": {
@@ -10766,18 +9613,6 @@
                   "rows": 1
                 },
                 "rows": 1
-              },
-              "chat_lists": {
-                "columns": [
-                  "chat_jid",
-                  "list_id",
-                  "labeled",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 0
-                },
-                "rows": 0
               },
               "chats": {
                 "columns": [
@@ -10866,35 +9701,6 @@
                   "rows": 32
                 },
                 "rows": 32
-              },
-              "list_sync_state": {
-                "columns": [
-                  "id",
-                  "full_sync_events_seen",
-                  "full_sync_complete"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "lists": {
-                "columns": [
-                  "id",
-                  "name",
-                  "color",
-                  "predefined_id",
-                  "type",
-                  "order_index",
-                  "is_active",
-                  "is_immutable",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 3
-                },
-                "rows": 3
               },
               "message_changes": {
                 "columns": [
@@ -11016,9 +9822,7 @@
                   "payload_purged_at",
                   "edited",
                   "edited_ts",
-                  "buttons",
-                  "ad_referral",
-                  "kind"
+                  "buttons"
                 ],
                 "original": {
                   "rows": 10099
@@ -11070,9 +9874,9 @@
                   "block"
                 ],
                 "original": {
-                  "rows": 254
+                  "rows": 250
                 },
-                "rows": 254
+                "rows": 250
               },
               "messages_fts_docsize": {
                 "columns": [
@@ -11091,9 +9895,9 @@
                   "pgno"
                 ],
                 "original": {
-                  "rows": 456
+                  "rows": 228
                 },
-                "rows": 456
+                "rows": 228
               },
               "poll_votes": {
                 "columns": [
@@ -11124,22 +9928,6 @@
                 },
                 "rows": 1
               },
-              "quick_replies": {
-                "columns": [
-                  "id",
-                  "shortcut",
-                  "message",
-                  "keywords",
-                  "label_ids",
-                  "count",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 2
-                },
-                "rows": 2
-              },
               "retrieval_state": {
                 "columns": [
                   "id",
@@ -11159,9 +9947,9 @@
                   "applied_at"
                 ],
                 "original": {
-                  "rows": 37
+                  "rows": 33
                 },
-                "rows": 38
+                "rows": 34
               },
               "sqlite_sequence": {
                 "columns": [
@@ -11295,11 +10083,7 @@
               31,
               32,
               33,
-              34,
-              36,
-              38,
-              40,
-              9035
+              40
             ],
             "tables": {
               "app_state_full_sync_broken": {
@@ -11368,18 +10152,6 @@
                   "rows": 1
                 },
                 "rows": 1
-              },
-              "chat_lists": {
-                "columns": [
-                  "chat_jid",
-                  "list_id",
-                  "labeled",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 0
-                },
-                "rows": 0
               },
               "chats": {
                 "columns": [
@@ -11468,35 +10240,6 @@
                   "rows": 32
                 },
                 "rows": 32
-              },
-              "list_sync_state": {
-                "columns": [
-                  "id",
-                  "full_sync_events_seen",
-                  "full_sync_complete"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "lists": {
-                "columns": [
-                  "id",
-                  "name",
-                  "color",
-                  "predefined_id",
-                  "type",
-                  "order_index",
-                  "is_active",
-                  "is_immutable",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 3
-                },
-                "rows": 3
               },
               "message_changes": {
                 "columns": [
@@ -11618,9 +10361,7 @@
                   "payload_purged_at",
                   "edited",
                   "edited_ts",
-                  "buttons",
-                  "ad_referral",
-                  "kind"
+                  "buttons"
                 ],
                 "original": {
                   "rows": 10099
@@ -11672,9 +10413,9 @@
                   "block"
                 ],
                 "original": {
-                  "rows": 254
+                  "rows": 250
                 },
-                "rows": 254
+                "rows": 250
               },
               "messages_fts_docsize": {
                 "columns": [
@@ -11693,9 +10434,9 @@
                   "pgno"
                 ],
                 "original": {
-                  "rows": 456
+                  "rows": 228
                 },
-                "rows": 456
+                "rows": 228
               },
               "poll_votes": {
                 "columns": [
@@ -11726,22 +10467,6 @@
                 },
                 "rows": 1
               },
-              "quick_replies": {
-                "columns": [
-                  "id",
-                  "shortcut",
-                  "message",
-                  "keywords",
-                  "label_ids",
-                  "count",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 2
-                },
-                "rows": 2
-              },
               "retrieval_state": {
                 "columns": [
                   "id",
@@ -11761,9 +10486,9 @@
                   "applied_at"
                 ],
                 "original": {
-                  "rows": 37
+                  "rows": 33
                 },
-                "rows": 38
+                "rows": 34
               },
               "sqlite_sequence": {
                 "columns": [
@@ -11871,11 +10596,7 @@
           30,
           31,
           32,
-          33,
-          34,
-          9033,
-          9034,
-          9035
+          33
         ],
         "tables": {
           "app_state_full_sync_broken": {
@@ -11939,18 +10660,6 @@
               "id",
               "enabled",
               "timestamp_ms"
-            ],
-            "original": {
-              "rows": 1
-            },
-            "rows": 1
-          },
-          "chat_lists": {
-            "columns": [
-              "chat_jid",
-              "list_id",
-              "labeled",
-              "updated_at"
             ],
             "original": {
               "rows": 1
@@ -12044,34 +10753,6 @@
               "rows": 5
             },
             "rows": 5
-          },
-          "list_sync_state": {
-            "columns": [
-              "id",
-              "full_sync_events_seen"
-            ],
-            "original": {
-              "rows": 1
-            },
-            "rows": 1
-          },
-          "lists": {
-            "columns": [
-              "id",
-              "name",
-              "color",
-              "predefined_id",
-              "type",
-              "order_index",
-              "is_active",
-              "is_immutable",
-              "deleted",
-              "updated_at"
-            ],
-            "original": {
-              "rows": 4
-            },
-            "rows": 4
           },
           "message_changes": {
             "columns": [
@@ -12180,9 +10861,7 @@
               "payload_purged_at",
               "edited",
               "edited_ts",
-              "buttons",
-              "ad_referral",
-              "kind"
+              "buttons"
             ],
             "original": {
               "rows": 5561
@@ -12234,9 +10913,9 @@
               "block"
             ],
             "original": {
-              "rows": 225
+              "rows": 221
             },
-            "rows": 225
+            "rows": 221
           },
           "messages_fts_docsize": {
             "columns": [
@@ -12255,9 +10934,9 @@
               "pgno"
             ],
             "original": {
-              "rows": 198
+              "rows": 199
             },
-            "rows": 198
+            "rows": 199
           },
           "poll_votes": {
             "columns": [
@@ -12307,9 +10986,9 @@
               "applied_at"
             ],
             "original": {
-              "rows": 37
+              "rows": 33
             },
-            "rows": 37
+            "rows": 33
           },
           "sqlite_sequence": {
             "columns": [
@@ -12431,11 +11110,7 @@
               30,
               31,
               32,
-              33,
-              34,
-              9033,
-              9034,
-              9035
+              33
             ],
             "tables": {
               "app_state_full_sync_broken": {
@@ -12499,18 +11174,6 @@
                   "id",
                   "enabled",
                   "timestamp_ms"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "chat_lists": {
-                "columns": [
-                  "chat_jid",
-                  "list_id",
-                  "labeled",
-                  "updated_at"
                 ],
                 "original": {
                   "rows": 1
@@ -12604,34 +11267,6 @@
                   "rows": 5
                 },
                 "rows": 5
-              },
-              "list_sync_state": {
-                "columns": [
-                  "id",
-                  "full_sync_events_seen"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "lists": {
-                "columns": [
-                  "id",
-                  "name",
-                  "color",
-                  "predefined_id",
-                  "type",
-                  "order_index",
-                  "is_active",
-                  "is_immutable",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 4
-                },
-                "rows": 4
               },
               "message_changes": {
                 "columns": [
@@ -12740,9 +11375,7 @@
                   "payload_purged_at",
                   "edited",
                   "edited_ts",
-                  "buttons",
-                  "ad_referral",
-                  "kind"
+                  "buttons"
                 ],
                 "original": {
                   "rows": 5561
@@ -12794,9 +11427,9 @@
                   "block"
                 ],
                 "original": {
-                  "rows": 225
+                  "rows": 221
                 },
-                "rows": 225
+                "rows": 221
               },
               "messages_fts_docsize": {
                 "columns": [
@@ -12815,9 +11448,9 @@
                   "pgno"
                 ],
                 "original": {
-                  "rows": 198
+                  "rows": 199
                 },
-                "rows": 198
+                "rows": 199
               },
               "poll_votes": {
                 "columns": [
@@ -12867,9 +11500,9 @@
                   "applied_at"
                 ],
                 "original": {
-                  "rows": 37
+                  "rows": 33
                 },
-                "rows": 37
+                "rows": 33
               },
               "sqlite_sequence": {
                 "columns": [
@@ -13003,11 +11636,7 @@
               31,
               32,
               33,
-              34,
-              40,
-              9033,
-              9034,
-              9035
+              40
             ],
             "tables": {
               "app_state_full_sync_broken": {
@@ -13071,18 +11700,6 @@
                   "id",
                   "enabled",
                   "timestamp_ms"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "chat_lists": {
-                "columns": [
-                  "chat_jid",
-                  "list_id",
-                  "labeled",
-                  "updated_at"
                 ],
                 "original": {
                   "rows": 1
@@ -13176,34 +11793,6 @@
                   "rows": 5
                 },
                 "rows": 5
-              },
-              "list_sync_state": {
-                "columns": [
-                  "id",
-                  "full_sync_events_seen"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "lists": {
-                "columns": [
-                  "id",
-                  "name",
-                  "color",
-                  "predefined_id",
-                  "type",
-                  "order_index",
-                  "is_active",
-                  "is_immutable",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 4
-                },
-                "rows": 4
               },
               "message_changes": {
                 "columns": [
@@ -13325,9 +11914,7 @@
                   "payload_purged_at",
                   "edited",
                   "edited_ts",
-                  "buttons",
-                  "ad_referral",
-                  "kind"
+                  "buttons"
                 ],
                 "original": {
                   "rows": 5561
@@ -13379,9 +11966,9 @@
                   "block"
                 ],
                 "original": {
-                  "rows": 225
+                  "rows": 221
                 },
-                "rows": 225
+                "rows": 221
               },
               "messages_fts_docsize": {
                 "columns": [
@@ -13400,9 +11987,9 @@
                   "pgno"
                 ],
                 "original": {
-                  "rows": 198
+                  "rows": 199
                 },
-                "rows": 198
+                "rows": 199
               },
               "poll_votes": {
                 "columns": [
@@ -13452,9 +12039,9 @@
                   "applied_at"
                 ],
                 "original": {
-                  "rows": 37
+                  "rows": 33
                 },
-                "rows": 38
+                "rows": 34
               },
               "sqlite_sequence": {
                 "columns": [
@@ -13591,11 +12178,7 @@
               31,
               32,
               33,
-              34,
-              40,
-              9033,
-              9034,
-              9035
+              40
             ],
             "tables": {
               "app_state_full_sync_broken": {
@@ -13659,18 +12242,6 @@
                   "id",
                   "enabled",
                   "timestamp_ms"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "chat_lists": {
-                "columns": [
-                  "chat_jid",
-                  "list_id",
-                  "labeled",
-                  "updated_at"
                 ],
                 "original": {
                   "rows": 1
@@ -13764,34 +12335,6 @@
                   "rows": 5
                 },
                 "rows": 5
-              },
-              "list_sync_state": {
-                "columns": [
-                  "id",
-                  "full_sync_events_seen"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "lists": {
-                "columns": [
-                  "id",
-                  "name",
-                  "color",
-                  "predefined_id",
-                  "type",
-                  "order_index",
-                  "is_active",
-                  "is_immutable",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 4
-                },
-                "rows": 4
               },
               "message_changes": {
                 "columns": [
@@ -13913,9 +12456,7 @@
                   "payload_purged_at",
                   "edited",
                   "edited_ts",
-                  "buttons",
-                  "ad_referral",
-                  "kind"
+                  "buttons"
                 ],
                 "original": {
                   "rows": 5561
@@ -13967,9 +12508,9 @@
                   "block"
                 ],
                 "original": {
-                  "rows": 225
+                  "rows": 221
                 },
-                "rows": 225
+                "rows": 221
               },
               "messages_fts_docsize": {
                 "columns": [
@@ -13988,9 +12529,9 @@
                   "pgno"
                 ],
                 "original": {
-                  "rows": 198
+                  "rows": 199
                 },
-                "rows": 198
+                "rows": 199
               },
               "poll_votes": {
                 "columns": [
@@ -14040,9 +12581,9 @@
                   "applied_at"
                 ],
                 "original": {
-                  "rows": 37
+                  "rows": 33
                 },
-                "rows": 38
+                "rows": 34
               },
               "sqlite_sequence": {
                 "columns": [
@@ -14179,11 +12720,7 @@
               31,
               32,
               33,
-              34,
-              40,
-              9033,
-              9034,
-              9035
+              40
             ],
             "tables": {
               "app_state_full_sync_broken": {
@@ -14247,18 +12784,6 @@
                   "id",
                   "enabled",
                   "timestamp_ms"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "chat_lists": {
-                "columns": [
-                  "chat_jid",
-                  "list_id",
-                  "labeled",
-                  "updated_at"
                 ],
                 "original": {
                   "rows": 1
@@ -14352,34 +12877,6 @@
                   "rows": 5
                 },
                 "rows": 5
-              },
-              "list_sync_state": {
-                "columns": [
-                  "id",
-                  "full_sync_events_seen"
-                ],
-                "original": {
-                  "rows": 1
-                },
-                "rows": 1
-              },
-              "lists": {
-                "columns": [
-                  "id",
-                  "name",
-                  "color",
-                  "predefined_id",
-                  "type",
-                  "order_index",
-                  "is_active",
-                  "is_immutable",
-                  "deleted",
-                  "updated_at"
-                ],
-                "original": {
-                  "rows": 4
-                },
-                "rows": 4
               },
               "message_changes": {
                 "columns": [
@@ -14501,9 +12998,7 @@
                   "payload_purged_at",
                   "edited",
                   "edited_ts",
-                  "buttons",
-                  "ad_referral",
-                  "kind"
+                  "buttons"
                 ],
                 "original": {
                   "rows": 5561
@@ -14555,9 +13050,9 @@
                   "block"
                 ],
                 "original": {
-                  "rows": 225
+                  "rows": 221
                 },
-                "rows": 225
+                "rows": 221
               },
               "messages_fts_docsize": {
                 "columns": [
@@ -14576,9 +13071,9 @@
                   "pgno"
                 ],
                 "original": {
-                  "rows": 198
+                  "rows": 199
                 },
-                "rows": 198
+                "rows": 199
               },
               "poll_votes": {
                 "columns": [
@@ -14628,9 +13123,9 @@
                   "applied_at"
                 ],
                 "original": {
-                  "rows": 37
+                  "rows": 33
                 },
-                "rows": 38
+                "rows": 34
               },
               "sqlite_sequence": {
                 "columns": [

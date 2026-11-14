@@ -1,0 +1,58 @@
+{
+  "command_exit_code": 0,
+  "inventory_ready": true,
+  "owned_inventory_deleted": true,
+  "scope": "official stock schema with rows projected from read-only real-store backups",
+  "stores": [
+    {
+      "foreign_key_errors": 0,
+      "integrity_ok": true,
+      "official_old_local_reads_passed": true,
+      "projected_stock_rows_and_settings_equal": true,
+      "projected_tables": 23,
+      "stock_fts_rebuilt": true,
+      "stock_migrations_unchanged": true,
+      "store": "line-1"
+    },
+    {
+      "foreign_key_errors": 0,
+      "integrity_ok": true,
+      "official_old_local_reads_passed": true,
+      "projected_stock_rows_and_settings_equal": true,
+      "projected_tables": 23,
+      "stock_fts_rebuilt": true,
+      "stock_migrations_unchanged": true,
+      "store": "line-2"
+    },
+    {
+      "foreign_key_errors": 0,
+      "integrity_ok": true,
+      "official_old_local_reads_passed": true,
+      "projected_stock_rows_and_settings_equal": true,
+      "projected_tables": 23,
+      "stock_fts_rebuilt": true,
+      "stock_migrations_unchanged": true,
+      "store": "line-3"
+    },
+    {
+      "foreign_key_errors": 0,
+      "integrity_ok": true,
+      "official_old_local_reads_passed": true,
+      "projected_stock_rows_and_settings_equal": true,
+      "projected_tables": 23,
+      "stock_fts_rebuilt": true,
+      "stock_migrations_unchanged": true,
+      "store": "line-4"
+    },
+    {
+      "foreign_key_errors": 0,
+      "integrity_ok": true,
+      "official_old_local_reads_passed": true,
+      "projected_stock_rows_and_settings_equal": true,
+      "projected_tables": 23,
+      "stock_fts_rebuilt": true,
+      "stock_migrations_unchanged": true,
+      "store": "line-5"
+    }
+  ]
+}
