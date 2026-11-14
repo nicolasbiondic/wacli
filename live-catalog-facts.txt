@@ -1,7 +1,15 @@
-# live catalog check (head binary, empty scratch store, no session, public HTTPS only)
-store files before: 
-exit code: 0
-request 1: has_catalog=False products=0 next_cursor=absent
-no cursor on page 1: second page not requested
-store files after: 
+# live catalog check: public HTTPS endpoint only, empty scratch store, no session, our own lines only
+# requests 2-4: binary built from the proofed head 6e77f29 (clean tree); request 1: same production code
+
+request 1: line A: has_catalog=False products=0 next_cursor=absent
+request 2: line B: --limit 3: has_catalog=True products=7 next_cursor=absent
+request 3: line C: --limit 3: has_catalog=False products=0 next_cursor=absent
+request 4: line D: --limit 3: has_catalog=False products=0 next_cursor=absent
+request 5: line B: raw HTTPS, same body with the limit as a JSON integer 3: products=7 cursor=absent
+
+observed: the service returned the whole 7-product catalog for a requested limit of 3 and no cursor,
+  with the limit as a string (what the CLI and WhatsApp Web send) and as an integer
+consequence: live cursor paging cannot be shown with this catalog; no second page was requested
+cursor handling: shown in-tree over local TLS (TestCatalogListCursorsOverTLS)
+store files before and after every CLI run: none
 session.db created: no

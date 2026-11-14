@@ -4,7 +4,7 @@ Rama huérfana: solo artefactos revisados. El alcance y las limitaciones de cada
 
 # openclaw/wacli #561: real-transport proof for `profile business get|set` through the sync owner
 
-Exact head: `6e77f29` (branch `feat/business-profile-catalog`; production code is identical to the previously reviewed `7d794ad`, only `_test.go` files were added).
+Proofed head: `6e77f29` (branch `feat/business-profile-catalog`; production code is identical to the previously reviewed `7d794ad`, only `_test.go` files were added). Current PR head: `871964e`. It differs from the proofed head only in `docs/profile.md` (one sentence on `--limit`, see the live check below); `git diff --stat 6e77f29 871964e -- '*.go'` is empty, so every Go file is byte-identical.
 
 Test file: `cmd/wacli/business_owner_transport_test.go`.
 
@@ -30,7 +30,7 @@ Shown in `head-pass.txt` and `shots/`:
 ## Catalog cursors
 
 - `TestCatalogListCursorsOverTLS`: the real `catalog list` command, URL `https://graph.whatsapp.com/graphql/catalog`, routed to a local TLS server (verified against the test certificate). Page 1 (2 products) returns a cursor; `--after <cursor>` returns a different final page (1 product, no cursor). No session, empty scratch store.
-- Live (`live-catalog-facts.txt`): built head binary, empty scratch store (no `session.db` created), explicit business identifier, 1 request. The endpoint answered without a session, but the business has no catalog (`has_catalog=false`), so no second page was requested. Cursor paging is therefore **not** proven live; it is proven in-tree. Identifiers, names, prices and URLs were not recorded.
+- Live (`live-catalog-facts.txt`): binary built from the proofed head (clean tree), empty scratch store (no `session.db` created), explicit business identifier, our own lines only, 4 CLI requests in total. The endpoint answers without a session. One line has a catalog: the service returned its **whole 7-product catalog for `--limit 3`, with no cursor**. One extra raw HTTPS request with the same body and the limit as a JSON integer gave the same result, so this is the service's behaviour and not the request's shape. The other lines have no catalog (`has_catalog=false`). Cursor paging is therefore **not** proven live: it would need a catalog larger than what the service returns in one page. It is proven in-tree only, and `docs/profile.md` now says that WhatsApp may return more products than `--limit` asks for.
 
 ## Red controls (same test file)
 
