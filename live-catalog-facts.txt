@@ -1,0 +1,7 @@
+# live catalog check (head binary, empty scratch store, no session, public HTTPS only)
+store files before: 
+exit code: 0
+request 1: has_catalog=False products=0 next_cursor=absent
+no cursor on page 1: second page not requested
+store files after: 
+session.db created: no

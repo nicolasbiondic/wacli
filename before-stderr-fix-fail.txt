@@ -1,0 +1,94 @@
+=== RUN   TestProfileBusinessViaOwner
+    business_owner_transport_test.go:83: STORE created by the stable release: binary sha256=3750e566e88a3a7ae47e485c02392ad60b972160fc85e5bd789e896673245f76 version=0.26.0
+    business_owner_transport_test.go:83: STORE stable `auth status` (creates wacli.db + session.db): {"success":true,"data":{"authenticated":false},"error":null}
+    business_owner_transport_test.go:83: STORE migrations in wacli.db before the head opens it: 33
+    business_owner_transport_test.go:83: STORE synthetic paired device ownerline:7 saved in session.db (pairing itself is not exercised)
+    business_owner_transport_test.go:90: ROUTE the SDK dials its real URL wss://web.whatsapp.com/ws/chat; the process-wide default transport sends that host to the local peer and trusts only the test certificate
+warning: sync storage is uncapped; use --max-messages or --max-db-size to bound local history growth
+    business_owner_transport_test.go:450: PEER conn#1: Noise XX handshake verified; synthetic paired device connected
+
+App state regular_low resolved via full sync
+    business_owner_transport_test.go:115: OWNER up: `wacli sync --follow` holds the store, Noise XX verified (test CA), send socket listening, peer connections=1
+    business_owner_transport_test.go:120: OWNER holds the store lock: a second opener is refused (lock contention=true), so the CLI can only delegate
+    business_owner_transport_test.go:160: $ wacli --json profile business get   # full read through the owner
+    business_owner_transport_test.go:480: PEER conn#1 <- <iq id="131.68-4" to="s.whatsapp.net" type="get" xmlns="w:biz"><business_profile v="244"><profile jid="ownerline@s.whatsapp.net"/></business_profile></iq>
+    business_owner_transport_test.go:489: PEER conn#1 -> <iq from="s.whatsapp.net" id="131.68-4" type="result"><business_profile v="244"><profile jid="ownerline@s.whatsapp.net"><description>Synthetic camera shop</description><address>1 Synthetic Street</address><email>shop@example.test</email><website>https://shop.example.test</website><website>https://example.test/catalog</website><categories><category id="1000">Synthetic Retail</category></categories><business_hours timezone="America/Lima"><business_hours_config close_time="1080" day_of_week="mon" mode="specific_hours" open_time="540"/><business_hours_config close_time="1080" day_of_week="tue" mode="specific_hours" open_time="540"/><business_hours_config day_of_week="sat" mode="open_24h"/></business_hours></profile></business_profile></iq>
+    business_owner_transport_test.go:160:   stdout| {"success":true,"data":{"jid":"ownerline@s.whatsapp.net","description":"Synthetic camera shop","address":"1 Synthetic Street","email":"shop@example.test","websites":["https://shop.example.test","https://example.test/catalog"],"categories":[{"id":"1000","name":"Synthetic Retail"}],"business_hours_timezone":"America/Lima","business_hours":[{"day_of_week":"mon","mode":"specific_hours","open_time":"540","close_time":"1080"},{"day_of_week":"tue","mode":"specific_hours","open_time":"540","close_time":"1080"},{"day_of_week":"sat","mode":"open_24h"}],"profile_options":{}},"error":null}
+    business_owner_transport_test.go:160:   exit: err=<nil>   peer connections=1
+    business_owner_transport_test.go:168: CHECK full read: description, address, email, 2 websites, category and 3 hours rows came back through the owner's connection
+    business_owner_transport_test.go:171: $ wacli profile business set --description Synthetic shop, new description   # set ONE field
+    business_owner_transport_test.go:497: PEER conn#1 <- <iq id="131.68-5" to="s.whatsapp.net" type="set" xmlns="w:biz"><business_profile mutation_type="delta" v="3"><description>Synthetic shop, new description</description></business_profile></iq>
+    business_owner_transport_test.go:522: PEER profile now: description="Synthetic shop, new description" address="1 Synthetic Street" email="shop@example.test" websites=2 hours=3 (tz America/Lima)
+    business_owner_transport_test.go:480: PEER conn#1 <- <iq id="131.68-6" to="s.whatsapp.net" type="get" xmlns="w:biz"><business_profile v="244"><profile jid="ownerline@s.whatsapp.net"/></business_profile></iq>
+    business_owner_transport_test.go:489: PEER conn#1 -> <iq from="s.whatsapp.net" id="131.68-6" type="result"><business_profile v="244"><profile jid="ownerline@s.whatsapp.net"><description>Synthetic shop, new description</description><address>1 Synthetic Street</address><email>shop@example.test</email><website>https://shop.example.test</website><website>https://example.test/catalog</website><categories><category id="1000">Synthetic Retail</category></categories><business_hours timezone="America/Lima"><business_hours_config close_time="1080" day_of_week="mon" mode="specific_hours" open_time="540"/><business_hours_config close_time="1080" day_of_week="tue" mode="specific_hours" open_time="540"/><business_hours_config day_of_week="sat" mode="open_24h"/></business_hours></profile></business_profile></iq>
+    business_owner_transport_test.go:171:   stdout| Business profile updated.
+    business_owner_transport_test.go:171:   stdout| JID: ownerline@s.whatsapp.net
+    business_owner_transport_test.go:171:   stdout| Description: Synthetic shop, new description
+    business_owner_transport_test.go:171:   stdout| Address: 1 Synthetic Street
+    business_owner_transport_test.go:171:   stdout| Email: shop@example.test
+    business_owner_transport_test.go:171:   stdout| Websites: https://shop.example.test, https://example.test/catalog
+    business_owner_transport_test.go:171:   stdout| Timezone: America/Lima
+    business_owner_transport_test.go:171:   stdout| Category: Synthetic Retail (1000)
+    business_owner_transport_test.go:171:   stdout| Hours mon: 09:00-18:00
+    business_owner_transport_test.go:171:   stdout| Hours tue: 09:00-18:00
+    business_owner_transport_test.go:171:   stdout| Hours sat: open_24h
+    business_owner_transport_test.go:171:   exit: err=<nil>   peer connections=1
+    business_owner_transport_test.go:182: $ wacli --json profile business get   # next read: omitted fields survived the delta
+    business_owner_transport_test.go:480: PEER conn#1 <- <iq id="131.68-7" to="s.whatsapp.net" type="get" xmlns="w:biz"><business_profile v="244"><profile jid="ownerline@s.whatsapp.net"/></business_profile></iq>
+    business_owner_transport_test.go:489: PEER conn#1 -> <iq from="s.whatsapp.net" id="131.68-7" type="result"><business_profile v="244"><profile jid="ownerline@s.whatsapp.net"><description>Synthetic shop, new description</description><address>1 Synthetic Street</address><email>shop@example.test</email><website>https://shop.example.test</website><website>https://example.test/catalog</website><categories><category id="1000">Synthetic Retail</category></categories><business_hours timezone="America/Lima"><business_hours_config close_time="1080" day_of_week="mon" mode="specific_hours" open_time="540"/><business_hours_config close_time="1080" day_of_week="tue" mode="specific_hours" open_time="540"/><business_hours_config day_of_week="sat" mode="open_24h"/></business_hours></profile></business_profile></iq>
+    business_owner_transport_test.go:182:   stdout| {"success":true,"data":{"jid":"ownerline@s.whatsapp.net","description":"Synthetic shop, new description","address":"1 Synthetic Street","email":"shop@example.test","websites":["https://shop.example.test","https://example.test/catalog"],"categories":[{"id":"1000","name":"Synthetic Retail"}],"business_hours_timezone":"America/Lima","business_hours":[{"day_of_week":"mon","mode":"specific_hours","open_time":"540","close_time":"1080"},{"day_of_week":"tue","mode":"specific_hours","open_time":"540","close_time":"1080"},{"day_of_week":"sat","mode":"open_24h"}],"profile_options":{}},"error":null}
+    business_owner_transport_test.go:182:   exit: err=<nil>   peer connections=1
+    business_owner_transport_test.go:186: CHECK delta: the stanza carried <description> only; address, email, 2 websites and 3 hours rows are unchanged on the peer and in the next read
+    business_owner_transport_test.go:189: $ wacli profile business set --website    # website clearing (a single empty value)
+    business_owner_transport_test.go:497: PEER conn#1 <- <iq id="131.68-8" to="s.whatsapp.net" type="set" xmlns="w:biz"><business_profile mutation_type="delta" v="3"><website></website></business_profile></iq>
+    business_owner_transport_test.go:522: PEER profile now: description="Synthetic shop, new description" address="1 Synthetic Street" email="shop@example.test" websites=0 hours=3 (tz America/Lima)
+    business_owner_transport_test.go:480: PEER conn#1 <- <iq id="131.68-9" to="s.whatsapp.net" type="get" xmlns="w:biz"><business_profile v="244"><profile jid="ownerline@s.whatsapp.net"/></business_profile></iq>
+    business_owner_transport_test.go:489: PEER conn#1 -> <iq from="s.whatsapp.net" id="131.68-9" type="result"><business_profile v="244"><profile jid="ownerline@s.whatsapp.net"><description>Synthetic shop, new description</description><address>1 Synthetic Street</address><email>shop@example.test</email><categories><category id="1000">Synthetic Retail</category></categories><business_hours timezone="America/Lima"><business_hours_config close_time="1080" day_of_week="mon" mode="specific_hours" open_time="540"/><business_hours_config close_time="1080" day_of_week="tue" mode="specific_hours" open_time="540"/><business_hours_config day_of_week="sat" mode="open_24h"/></business_hours></profile></business_profile></iq>
+    business_owner_transport_test.go:189:   stdout| Business profile updated.
+    business_owner_transport_test.go:189:   stdout| JID: ownerline@s.whatsapp.net
+    business_owner_transport_test.go:189:   stdout| Description: Synthetic shop, new description
+    business_owner_transport_test.go:189:   stdout| Address: 1 Synthetic Street
+    business_owner_transport_test.go:189:   stdout| Email: shop@example.test
+    business_owner_transport_test.go:189:   stdout| Websites: 
+    business_owner_transport_test.go:189:   stdout| Timezone: America/Lima
+    business_owner_transport_test.go:189:   stdout| Category: Synthetic Retail (1000)
+    business_owner_transport_test.go:189:   stdout| Hours mon: 09:00-18:00
+    business_owner_transport_test.go:189:   stdout| Hours tue: 09:00-18:00
+    business_owner_transport_test.go:189:   stdout| Hours sat: open_24h
+    business_owner_transport_test.go:189:   exit: err=<nil>   peer connections=1
+    business_owner_transport_test.go:199: $ wacli --json profile business get   # next read: websites gone, nothing else lost
+    business_owner_transport_test.go:480: PEER conn#1 <- <iq id="131.68-10" to="s.whatsapp.net" type="get" xmlns="w:biz"><business_profile v="244"><profile jid="ownerline@s.whatsapp.net"/></business_profile></iq>
+    business_owner_transport_test.go:489: PEER conn#1 -> <iq from="s.whatsapp.net" id="131.68-10" type="result"><business_profile v="244"><profile jid="ownerline@s.whatsapp.net"><description>Synthetic shop, new description</description><address>1 Synthetic Street</address><email>shop@example.test</email><categories><category id="1000">Synthetic Retail</category></categories><business_hours timezone="America/Lima"><business_hours_config close_time="1080" day_of_week="mon" mode="specific_hours" open_time="540"/><business_hours_config close_time="1080" day_of_week="tue" mode="specific_hours" open_time="540"/><business_hours_config day_of_week="sat" mode="open_24h"/></business_hours></profile></business_profile></iq>
+    business_owner_transport_test.go:199:   stdout| {"success":true,"data":{"jid":"ownerline@s.whatsapp.net","description":"Synthetic shop, new description","address":"1 Synthetic Street","email":"shop@example.test","websites":[],"categories":[{"id":"1000","name":"Synthetic Retail"}],"business_hours_timezone":"America/Lima","business_hours":[{"day_of_week":"mon","mode":"specific_hours","open_time":"540","close_time":"1080"},{"day_of_week":"tue","mode":"specific_hours","open_time":"540","close_time":"1080"},{"day_of_week":"sat","mode":"open_24h"}],"profile_options":{}},"error":null}
+    business_owner_transport_test.go:199:   exit: err=<nil>   peer connections=1
+    business_owner_transport_test.go:203: CHECK website clearing: one empty <website/> on the wire; the websites are gone and description, address, email and hours are intact
+    business_owner_transport_test.go:207: $ wacli profile business set --address 2 Synthetic Avenue   # update accepted but the follow-up read fails
+    business_owner_transport_test.go:497: PEER conn#1 <- <iq id="131.68-11" to="s.whatsapp.net" type="set" xmlns="w:biz"><business_profile mutation_type="delta" v="3"><address>2 Synthetic Avenue</address></business_profile></iq>
+    business_owner_transport_test.go:522: PEER profile now: description="Synthetic shop, new description" address="2 Synthetic Avenue" email="shop@example.test" websites=0 hours=3 (tz America/Lima)
+    business_owner_transport_test.go:480: PEER conn#1 <- <iq id="131.68-12" to="s.whatsapp.net" type="get" xmlns="w:biz"><business_profile v="244"><profile jid="ownerline@s.whatsapp.net"/></business_profile></iq>
+    business_owner_transport_test.go:483: PEER conn#1 -> iq error 500 (injected: the follow-up read after a set fails)
+    business_owner_transport_test.go:207:   stdout| Business profile updated.
+    business_owner_transport_test.go:207:   stdout| Could not re-read the profile: info query returned status 500: internal-server-error
+    business_owner_transport_test.go:207:   exit: err=<nil>   peer connections=1
+    business_owner_transport_test.go:213: stdout="Business profile updated.\nCould not re-read the profile: info query returned status 500: internal-server-error\n" stderr=""
+
+Shutting down (interrupt again to force quit)...
+
+Stopping sync.
+warning: failed to send unavailable presence: can't send presence without PushName set
+Messages stored: 0
+    business_owner_transport_test.go:454: PEER conn#1: closed (failed to get reader: received close frame: status = StatusNormalClosure and reason = "")
+    business_owner_transport_test.go:105: OWNER stopped: sync exited err=<nil>
+--- FAIL: TestProfileBusinessViaOwner (0.25s)
+=== RUN   TestCatalogListCursorsOverTLS
+    business_owner_transport_test.go:619: $ wacli --json catalog list --jid catalogshop@s.whatsapp.net --limit 2   # empty scratch store, no session
+    business_owner_transport_test.go:582: TLS SERVER <- POST https://graph.whatsapp.com/graphql/catalog jid=catalogshop@s.whatsapp.net limit=2 after=""
+    business_owner_transport_test.go:619:   result: has_catalog=true products=[p1 p2] next_cursor="CURSOR-PAGE-2"
+    business_owner_transport_test.go:623: $ wacli --json catalog list --jid catalogshop@s.whatsapp.net --limit 2 --after CURSOR-PAGE-2   # empty scratch store, no session
+    business_owner_transport_test.go:582: TLS SERVER <- POST https://graph.whatsapp.com/graphql/catalog jid=catalogshop@s.whatsapp.net limit=2 after="CURSOR-PAGE-2"
+    business_owner_transport_test.go:623:   result: has_catalog=true products=[p3] next_cursor=""
+    business_owner_transport_test.go:632: CHECK catalog: page 1 (2 products) returned a cursor; --after <cursor> fetched page 2 (1 different product, no further cursor); both requests went to graph.whatsapp.com over verified TLS
+--- PASS: TestCatalogListCursorsOverTLS (0.01s)
+FAIL
+FAIL github.com/openclaw/wacli/cmd/wacli 0.265s
+FAIL

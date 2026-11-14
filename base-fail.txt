@@ -1,0 +1,32 @@
+=== RUN   TestProfileBusinessViaOwner
+    business_owner_transport_test.go:83: STORE created by the stable release: binary sha256=3750e566e88a3a7ae47e485c02392ad60b972160fc85e5bd789e896673245f76 version=0.26.0
+    business_owner_transport_test.go:83: STORE stable `auth status` (creates wacli.db + session.db): {"success":true,"data":{"authenticated":false},"error":null}
+    business_owner_transport_test.go:83: STORE migrations in wacli.db before the head opens it: 33
+    business_owner_transport_test.go:83: STORE synthetic paired device ownerline:7 saved in session.db (pairing itself is not exercised)
+    business_owner_transport_test.go:90: ROUTE the SDK dials its real URL wss://web.whatsapp.com/ws/chat; the process-wide default transport sends that host to the local peer and trusts only the test certificate
+warning: sync storage is uncapped; use --max-messages or --max-db-size to bound local history growth
+    business_owner_transport_test.go:450: PEER conn#1: Noise XX handshake verified; synthetic paired device connected
+
+App state regular_low resolved via full sync
+    business_owner_transport_test.go:115: OWNER up: `wacli sync --follow` holds the store, Noise XX verified (test CA), send socket listening, peer connections=1
+    business_owner_transport_test.go:120: OWNER holds the store lock: a second opener is refused (lock contention=true), so the CLI can only delegate
+    business_owner_transport_test.go:160: $ wacli --json profile business get   # full read through the owner
+    business_owner_transport_test.go:160:   stderr| {"success":false,"data":null,"error":"unknown command \"get\" for \"wacli profile business\""}
+    business_owner_transport_test.go:160:   exit: err=unknown command "get" for "wacli profile business"   peer connections=1
+    business_owner_transport_test.go:160: unknown command "get" for "wacli profile business"
+
+Shutting down (interrupt again to force quit)...
+
+Stopping sync.
+warning: failed to send unavailable presence: can't send presence without PushName set
+Messages stored: 0
+    business_owner_transport_test.go:454: PEER conn#1: closed (failed to get reader: received close frame: status = StatusNormalClosure and reason = "")
+    business_owner_transport_test.go:105: OWNER stopped: sync exited err=<nil>
+--- FAIL: TestProfileBusinessViaOwner (0.23s)
+=== RUN   TestCatalogListCursorsOverTLS
+    business_owner_transport_test.go:619: $ wacli --json catalog list --jid catalogshop@s.whatsapp.net --limit 2   # empty scratch store, no session
+    business_owner_transport_test.go:619: unknown command "catalog" for "wacli": unknown command "catalog" for "wacli"
+--- FAIL: TestCatalogListCursorsOverTLS (0.00s)
+FAIL
+FAIL github.com/openclaw/wacli/cmd/wacli 0.241s
+FAIL
