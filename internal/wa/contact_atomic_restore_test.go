@@ -43,3 +43,37 @@ func TestContactStoreJournalAtomicReplacement(t *testing.T) {
 		t.Fatalf("failed replacement advanced journal: before=%+v after=%+v", start, end)
 	}
 }
+
+// The SDK restores a leftover reset journal inside the store. The journal
+// must count that cursor move, and only when there was one.
+func TestContactStoreJournalRestoredReset(t *testing.T) {
+	c, err := New(Options{StorePath: newPairedSessionStore(t), KeyStateStore: newTestKeyStateStore(t)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	journal := c.ContactJournal()
+	appState := c.client.Store.AppState
+	name := string(appstate.WAPatchCriticalUnblockLow)
+	if err := appState.ReplaceAppStateVersion(t.Context(), name, 10, [128]byte{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := appState.PutAppStateBackup(t.Context(), name, 10, [128]byte{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := appState.DeleteAppStateVersion(t.Context(), name); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []uint64{1, 0} {
+		start := journal.Mark(name)
+		if err := appState.RecoverAppStateBackup(t.Context(), name); err != nil {
+			t.Fatal(err)
+		}
+		if version, _, err := appState.GetAppStateVersion(t.Context(), name); err != nil || version != 10 {
+			t.Fatalf("reset was not restored: version=%d err=%v", version, err)
+		}
+		if end := journal.Mark(name); end.CursorWrites-start.CursorWrites != want {
+			t.Fatalf("restore counted %d cursor writes, want %d", end.CursorWrites-start.CursorWrites, want)
+		}
+	}
+}

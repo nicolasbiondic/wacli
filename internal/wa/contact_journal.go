@@ -170,6 +170,18 @@ func (s *journaledAppStateStore) ReplaceAppStateVersion(ctx context.Context, nam
 	return err
 }
 
+// The SDK restores a leftover reset journal inside the store, past the
+// methods above. Count it when it moved the cursor, or when that is unknown.
+func (s *journaledAppStateStore) RecoverAppStateBackup(ctx context.Context, name string) error {
+	before, beforeHash, beforeErr := s.AppStateStore.GetAppStateVersion(ctx, name)
+	err := s.AppStateStore.RecoverAppStateBackup(ctx, name)
+	after, afterHash, afterErr := s.AppStateStore.GetAppStateVersion(ctx, name)
+	if beforeErr != nil || afterErr != nil || before != after || beforeHash != afterHash {
+		s.journal.NoteCursorWrite(name)
+	}
+	return err
+}
+
 func (s *journaledAppStateStore) PutAppStateVersion(ctx context.Context, name string, version uint64, hash [128]byte) error {
 	err := s.AppStateStore.PutAppStateVersion(ctx, name, version, hash)
 	if err == nil {

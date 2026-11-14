@@ -12,6 +12,7 @@ import (
 
 	"github.com/openclaw/wacli/internal/store"
 	"github.com/openclaw/wacli/internal/wa"
+	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/appstate"
 	"go.mau.fi/whatsmeow/proto/waCommon"
 	"go.mau.fi/whatsmeow/proto/waSyncAction"
@@ -242,7 +243,7 @@ func (a *App) syncChatStateBeforeWrite(ctx context.Context, collection appstate.
 		if persistenceErr != nil {
 			return fmt.Errorf("persist fetched app state %s: %w", collection, persistenceErr)
 		}
-		if errors.Is(err, appstate.ErrStateChanged) {
+		if transientAppStateFetch(err) {
 			return a.retryChangedAppStateFetch(collection, markerGeneration, err)
 		}
 		if err == nil {
@@ -268,7 +269,7 @@ func (a *App) replayRequiredAppState(ctx context.Context, collection appstate.WA
 		if persistenceErr != nil {
 			return fmt.Errorf("persist replayed app state %s: %w", collection, persistenceErr)
 		}
-		if errors.Is(fetchErr, appstate.ErrStateChanged) {
+		if transientAppStateFetch(fetchErr) {
 			return a.retryChangedAppStateFetch(collection, markerGeneration, fetchErr)
 		}
 		if fetchErr == nil {
@@ -427,7 +428,7 @@ func (a *App) degradedAppStateReplay(ctx context.Context, collection appstate.WA
 	if persistenceErr != nil {
 		return true, fmt.Errorf("persist degraded app state replay %s: %w", collection, persistenceErr)
 	}
-	if errors.Is(fetchErr, appstate.ErrStateChanged) {
+	if transientAppStateFetch(fetchErr) {
 		return true, a.retryChangedAppStateFetch(collection, markerGeneration, fetchErr)
 	}
 	if fetchErr != nil {
@@ -758,6 +759,7 @@ func (a *App) fetchAndPersistAppState(ctx context.Context, collection appstate.W
 		// A failed fetch still persists its boundary work below.
 		reserve()
 	}
+	a.warnAppStateBacklog(fetchErr)
 	// Track whether full syncs of this collection verify. Set on an LTHash
 	// mismatch, cleared when a full sync verifies again.
 	if fullSync {
@@ -774,7 +776,7 @@ func (a *App) fetchAndPersistAppState(ctx context.Context, collection appstate.W
 			persistCtx = context.WithoutCancel(ctx)
 		}
 		var persistErr error
-		if fullSync && collection == appstate.WAPatchRegular && !errors.Is(fetchErr, appstate.ErrStateChanged) {
+		if fullSync && collection == appstate.WAPatchRegular && !transientAppStateFetch(fetchErr) {
 			persistErr = a.db.InvalidateRegularFullSync()
 		}
 		persistErr = errors.Join(persistErr, a.persistFetchedAppStateEvents(persistCtx, eventsToPersist, tracker))
@@ -792,12 +794,37 @@ func (a *App) fetchAndPersistAppState(ctx context.Context, collection appstate.W
 	return fetchErr, <-result
 }
 
-// A concurrent SDK adoption made this fetch obsolete, not corrupt. Abort this
-// pre-write attempt and retry against the new state on the next fetch. Remove
+// transientAppStateFetch reports a fetch that fetched and stored nothing for
+// a reason that passes: a concurrent SDK adoption made it obsolete, or the
+// SDK refused it because the collection's committed events are still backed
+// up in event handlers. Neither means the collection is corrupt, and neither
+// leaves anything to replay.
+func transientAppStateFetch(err error) bool {
+	return errors.Is(err, appstate.ErrStateChanged) || errors.Is(err, whatsmeow.ErrAppStateBacklog)
+}
+
+// warnAppStateBacklog tells the operator how far behind the handlers are.
+func (a *App) warnAppStateBacklog(err error) {
+	var backlog *whatsmeow.AppStateBacklogError
+	if !errors.As(err, &backlog) {
+		return
+	}
+	a.emitWarning("app_state_backlog",
+		fmt.Sprintf("warning: WhatsApp app state %s was not synced: %d event batches are still being applied, the oldest for %s; it is retried later",
+			backlog.Name, backlog.Depth, backlog.OldestAge.Round(time.Second)),
+		map[string]any{"name": string(backlog.Name), "depth": backlog.Depth, "oldest_age_ms": backlog.OldestAge.Milliseconds()})
+}
+
+// A transient fetch failure (see transientAppStateFetch) aborts this
+// pre-write attempt; the command is retried against the new state. Remove
 // only this fetch's marker: older, genuine write/replay debt must survive.
 func (a *App) retryChangedAppStateFetch(collection appstate.WAPatchName, generation int64, fetchErr error) error {
+	reason := "changed during fetch"
+	if errors.Is(fetchErr, whatsmeow.ErrAppStateBacklog) {
+		reason = "still has events being applied"
+	}
 	return errors.Join(
-		fmt.Errorf("WhatsApp app state %s changed during fetch; retry the command: %w", collection, fetchErr),
+		fmt.Errorf("WhatsApp app state %s %s; retry the command: %w", collection, reason, fetchErr),
 		a.db.ClearAppStateRecoveryIntent(string(collection), generation),
 	)
 }
