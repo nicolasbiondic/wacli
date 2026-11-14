@@ -1,0 +1,20 @@
+$ upgrade-proof.sh NEW official-v0.26.0 (two inventories)
+NEW: clean source 03293e26ed23; Go 1.27.4; sqlite_fts5
+Official OLD archive checksum verified; same exact NEW binary in both runs.
+existing-lists: 5 stores; 20/20 NEW/OLD read-only/writable phases PASS
+existing-lists line-1: CLI definitions=7 filters=4; Lists rows/settings retained
+existing-lists line-2: CLI definitions=4 filters=1; Lists rows/settings retained
+existing-lists line-3: CLI definitions=4 filters=1; Lists rows/settings retained
+existing-lists line-4: CLI definitions=3 filters=0; Lists rows/settings retained
+existing-lists line-5: CLI definitions=3 filters=0; Lists rows/settings retained
+stock-v026: 5 stores; 20/20 NEW/OLD read-only/writable phases PASS
+stock-v026 line-1: CLI definitions=0 filters=0; Lists rows/settings retained
+stock-v026 line-2: CLI definitions=0 filters=0; Lists rows/settings retained
+stock-v026 line-3: CLI definitions=0 filters=0; Lists rows/settings retained
+stock-v026 line-4: CLI definitions=0 filters=0; Lists rows/settings retained
+stock-v026 line-5: CLI definitions=0 filters=0; Lists rows/settings retained
+Stock schema created by official OLD; real-backup rows projected to stock columns.
+Stock migration records retained; FTS rebuilt with stock visible-message semantics.
+Integrity/FK and read-only invariants PASS; controlled journal-retention allowances reported.
+Source access: read-only SQLite backup of wacli.db only; no session.db copied.
+All derived inventories, app/control copies deleted. No production CLI or network commands.

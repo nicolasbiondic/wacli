@@ -1,3 +1,13 @@
+# Round 6: latest exact-head compatibility
+
+Head `03293e26ed23`: both inventories PASS, five existing-Lists copies and five populated official-v0.26.0-schema inventories; 20/20 phases each, plus actual revised-CLI Lists and retained-data/settings assertions. See [Round 6 evidence](round6/README.md) for the full exact commit, safety, stock-transplant method, raw results and limits.
+
+![Round 6 compatibility](round6/shots/terminal-01.png)
+
+---
+
+## Historical Round 5 evidence (older head)
+
 # Evidencia de wacli
 
 Rama huérfana: solo artefactos revisados. El alcance y las limitaciones de cada prueba deben constar en el transcript. El escáner no hace OCR: revisar visualmente las imágenes antes de publicar.

@@ -1,0 +1,76 @@
+{
+  "owned_copies_deleted": true,
+  "passed": true,
+  "scope": "revised CLI reads on five independent SQLite backups",
+  "stores": [
+    {
+      "applied_order_available": true,
+      "completeness": "unknown",
+      "filtered_result_counts": [
+        9,
+        0,
+        3,
+        3
+      ],
+      "list_definitions_read": 7,
+      "membership_rows": 15,
+      "original_lists_data_and_settings_retained": true,
+      "passed": true,
+      "session_copied": false,
+      "store": "line-1",
+      "supported_list_filters_read": 4
+    },
+    {
+      "applied_order_available": true,
+      "completeness": "unknown",
+      "filtered_result_counts": [
+        0
+      ],
+      "list_definitions_read": 4,
+      "membership_rows": 0,
+      "original_lists_data_and_settings_retained": true,
+      "passed": true,
+      "session_copied": false,
+      "store": "line-2",
+      "supported_list_filters_read": 1
+    },
+    {
+      "applied_order_available": true,
+      "completeness": "unknown",
+      "filtered_result_counts": [
+        0
+      ],
+      "list_definitions_read": 4,
+      "membership_rows": 1,
+      "original_lists_data_and_settings_retained": true,
+      "passed": true,
+      "session_copied": false,
+      "store": "line-3",
+      "supported_list_filters_read": 1
+    },
+    {
+      "applied_order_available": true,
+      "completeness": "unknown",
+      "filtered_result_counts": [],
+      "list_definitions_read": 3,
+      "membership_rows": 0,
+      "original_lists_data_and_settings_retained": true,
+      "passed": true,
+      "session_copied": false,
+      "store": "line-4",
+      "supported_list_filters_read": 0
+    },
+    {
+      "applied_order_available": true,
+      "completeness": "unknown",
+      "filtered_result_counts": [],
+      "list_definitions_read": 3,
+      "membership_rows": 1,
+      "original_lists_data_and_settings_retained": true,
+      "passed": true,
+      "session_copied": false,
+      "store": "line-5",
+      "supported_list_filters_read": 0
+    }
+  ]
+}
