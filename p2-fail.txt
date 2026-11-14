@@ -1,0 +1,55 @@
+=== RUN   TestReadPositionRealTransport
+    read_position_transport_test.go:270: NOISE XX: ConnectContext verified test-CA certificate; synthetic paired device
+
+App state regular_low resolved via full sync
+    read_position_transport_test.go:84: == sync 1: two incoming messages, own-device reply, stale history
+    read_position_transport_test.go:89: WIRE incoming m1: Signal-encrypted message m1 decrypted by the SDK and stored by App.Sync; receipt acknowledged
+    read_position_transport_test.go:89: WIRE incoming m2: Signal-encrypted message m2 decrypted by the SDK and stored by App.Sync; receipt acknowledged
+    read_position_transport_test.go:95: STORE proofchat: two incoming messages: unread=true unread_count=2 read_through_ts=0 read_through_rowid=0
+    read_position_transport_test.go:96: WIRE own-device reply r1: Signal-encrypted message r1 decrypted by the SDK and stored by App.Sync; receipt acknowledged
+    read_position_transport_test.go:97: STORE proofchat: after own-device reply (read boundary persisted): unread=false unread_count=0 read_through_ts=base+2 read_through_rowid=3
+
+Processing history sync (1 conversations)...
+
+Synced 3 messages...    read_position_transport_test.go:98: WIRE stale history snapshot reporting unread_count=2: HistorySyncNotification h1 (own primary device, inline payload, unread_count=2, 0 messages) decrypted, inflated and applied by App.Sync
+    read_position_transport_test.go:99: STORE proofchat: after stale history (must stay read): unread=false unread_count=0 read_through_ts=base+2 read_through_rowid=3
+
+Idle for 20ms, exiting.
+04:24:37.578 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    read_position_transport_test.go:270: NOISE XX: ConnectContext verified test-CA certificate; synthetic paired device
+
+App state regular_low resolved via full sync
+    read_position_transport_test.go:84: == sync 2 (store reopened): history replay, then a newer incoming message
+    read_position_transport_test.go:102: STORE proofchat: after reopening the store: unread=false unread_count=0 read_through_ts=base+2 read_through_rowid=3
+
+Processing history sync (1 conversations)...
+
+Synced 0 messages...    read_position_transport_test.go:103: WIRE same stale history replayed after restart: HistorySyncNotification h2 (own primary device, inline payload, unread_count=2, 0 messages) decrypted, inflated and applied by App.Sync
+    read_position_transport_test.go:104: STORE proofchat: after replayed stale history (must stay read): unread=false unread_count=0 read_through_ts=base+2 read_through_rowid=3
+    read_position_transport_test.go:89: WIRE incoming m3: Signal-encrypted message m3 decrypted by the SDK and stored by App.Sync; receipt acknowledged
+    read_position_transport_test.go:106: STORE proofchat: after incoming m3 beyond the boundary: unread=true unread_count=1 read_through_ts=base+2 read_through_rowid=3
+
+Processing history sync (1 conversations)...
+
+Synced 2 messages...    read_position_transport_test.go:107: WIRE history reporting unread_count=1 with m3: HistorySyncNotification h3 (own primary device, inline payload, unread_count=1, 1 messages) decrypted, inflated and applied by App.Sync
+    read_position_transport_test.go:108: STORE proofchat: after history with newer unread (still counted): unread=true unread_count=1 read_through_ts=base+2 read_through_rowid=3
+
+Processing history sync (1 conversations)...
+
+Synced 3 messages...    read_position_transport_test.go:112: WIRE chat B history: one incoming message: HistorySyncNotification h4 (own primary device, inline payload, unread_count=1, 1 messages) decrypted, inflated and applied by App.Sync
+    read_position_transport_test.go:113: STORE proofchatb: chat B before the receipt: unread=true unread_count=1 read_through_ts=0 read_through_rowid=0
+    read_position_transport_test.go:114: WIRE read-self receipt naming no stored message, sent 5 min later: receipt for message unstored-id (not stored locally) applied by App.Sync
+    read_position_transport_test.go:115: STORE proofchatb: after receipt for an unstored message (unread cleared, no durable position): unread=false unread_count=0 read_through_ts=base+320 read_through_rowid=0
+
+Processing history sync (1 conversations)...
+
+Synced 4 messages...    read_position_transport_test.go:116: WIRE chat B history: an unread message older than the receipt time: HistorySyncNotification h5 (own primary device, inline payload, unread_count=1, 1 messages) decrypted, inflated and applied by App.Sync
+    read_position_transport_test.go:117: STORE proofchatb: after history with an older unread message (must be counted): unread=false unread_count=0 read_through_ts=base+320 read_through_rowid=0
+    read_position_transport_test.go:117: proofchatb: after history with an older unread message (must be counted): unread=(false,0), want (true,1)
+
+Idle for 20ms, exiting.
+04:24:37.909 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+--- FAIL: TestReadPositionRealTransport (0.76s)
+FAIL
+FAIL github.com/openclaw/wacli/internal/wa 0.768s
+FAIL
