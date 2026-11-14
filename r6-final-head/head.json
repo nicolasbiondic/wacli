@@ -1,0 +1,17 @@
+{
+  "pr": 528,
+  "head_abbreviated": "fc8eaa65364a",
+  "head_oid_parts": ["fc8eaa65364a", "3f7afa6e5713", "83fd6f497417", "3fc0"],
+  "head_oid_rule": "Concatenate all head_oid_parts without separators.",
+  "real_inventory_stores": 5,
+  "real_strict_phases": 20,
+  "real_strict_passed": true,
+  "populated_stock_schema_stores": 5,
+  "stock_explicit_assertion_phases": 20,
+  "stock_strict_passed": false,
+  "stock_explicit_exact_trigger_assertion_passed": true,
+  "official_old": "v0.26.0",
+  "go": "1.27.4",
+  "build_tags": "sqlite_fts5",
+  "source_production_changes_since_initial_head": false
+}

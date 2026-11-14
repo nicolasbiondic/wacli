@@ -1,5 +1,23 @@
 # Evidencia de wacli
 
+## Current proof: PR #528 at `fc8eaa65364a` (round 6)
+
+[Final-head compatibility report](r6-final-head/README.md):
+five real-store backups pass all twenty strict NEW/OLD retrieval phases.
+Five populated stock v0.26.0 schemas, created by the official binary and populated
+with stock-column projections from real backups, pass all twenty phases with an
+explicit exact-`kind`-trigger-extension assertion. The unchanged strict stock
+FAIL is retained separately, not relabeled as a strict pass.
+
+The report includes complete per-store assertions, source-inventory deletion
+confirmation, official-release checksum verification and the exact head ID.
+The NEW binary is built at the current dependency-refreshed head with Go 1.27.4
+and `sqlite_fts5`. No production session store, service or daemon was accessed.
+Earlier sections below are historical evidence for the older head, not the
+current run.
+
+Nicolás (via agent)
+
 Rama huérfana: solo artefactos revisados. El alcance y las limitaciones de cada prueba deben constar en el transcript. El escáner no hace OCR: revisar visualmente las imágenes antes de publicar.
 
 ## PR #528: current-head real-store compatibility

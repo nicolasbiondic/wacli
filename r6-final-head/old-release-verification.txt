@@ -1,0 +1,7 @@
+Official v0.26.0 Linux amd64 archive:
+sha256=2c28f65e2f9aaf32585288229db1f916c6c5fb5db9513715017d528513604b44
+Matches the entry in the release's checksums.txt.
+
+OLD executable:
+sha256=3750e566e88a3a7ae47e485c02392ad60b972160fc85e5bd789e896673245f76
+Matches the wacli member read directly from the checksum-verified archive.
