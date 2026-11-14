@@ -1,0 +1,13 @@
+{
+  "pr": 528,
+  "head_abbreviated": "fc8eaa65364a",
+  "head_oid_parts": ["fc8eaa65364a", "3f7afa6e5713", "83fd6f497417", "3fc0"],
+  "head_oid_rule": "Concatenate all head_oid_parts without separators.",
+  "upstream_main_abbreviated": "2108fe75b45c",
+  "test": "TestSemanticUnreadRealTransport",
+  "head_pass": true,
+  "red_control_exit_code": 1,
+  "red_control_kind": "Exact head with only production-reversal.txt applied.",
+  "pairing_login_remote_policy_phone_ui_proven": false,
+  "cobra_ipc_wiring_proven": false
+}

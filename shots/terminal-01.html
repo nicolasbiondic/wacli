@@ -1,0 +1,20 @@
+<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><style>body{margin:0;background:#18202b;color:#dce5ef;font:15px/1.5 "DejaVu Sans Mono",monospace}
+.win{margin:16px;width:1080px;border-radius:10px;overflow:hidden;background:#101720}
+.bar{padding:10px 18px;background:#283548;color:#b9cce2}pre{padding:16px 20px;margin:0;
+white-space:pre-wrap;overflow-wrap:anywhere}.cmd{color:#b4e59a}</style></head><body><div class="win"><div class="bar">PR 528: semantic unread real transport at fc8eaa65364a</div><pre>PR #528 exact head fc8eaa65364a; selected unchanged -v lines, framework file prefixes omitted.
+<span class="cmd">$ go test -tags sqlite_fts5 -run &#x27;^TestSemanticUnreadRealTransport$&#x27; -count=1 -v github.com/openclaw/wacli/internal/wa</span>
+WIRE Noise XX certificate verified; synthetic paired receiver; Signal-encrypted incoming stanzas
+STORE incoming id=poll kind=poll text=&quot;Poll: Synthetic choice&quot; display=&quot;Poll: Synthetic choice&quot; media_type=&quot;&quot;
+STORE incoming id=contact kind=contact text=&quot;&quot; display=&quot;(message)&quot; media_type=&quot;&quot;
+STORE incoming id=contacts kind=contacts text=&quot;&quot; display=&quot;(message)&quot; media_type=&quot;&quot;
+STORE incoming id=event kind=event text=&quot;&quot; display=&quot;(message)&quot; media_type=&quot;&quot;
+STORE duplicate before reading counts once: rows=1 unread=true unread_count=1; want rows=1 unread_count=1
+STORE read semantic-only message through App.Sync: rows=1 unread=false unread_count=0; want rows=1 unread_count=0
+STORE duplicate after reading cannot resurrect unread: rows=1 unread=false unread_count=0; want rows=1 unread_count=0
+WIRE receiver -&gt; peer: receipt type=read ids=[older-text]; peer acknowledges
+STORE bounded text read preserves later semantic-only event: rows=2 unread=true unread_count=1; want rows=2 unread_count=1
+WIRE receiver -&gt; peer: receipt type=read ids=[semantic-anchor]; peer acknowledges
+APP bounded receipt through=semantic-anchor selected=1 result=unknown error=&lt;nil&gt;
+STORE semantic-only receipt crossed wire and cleared local unread: rows=1 unread=false unread_count=0; want rows=1 unread_count=0
+STORE App.Sync bounded recount preserves later semantic-only event: rows=2 unread=true unread_count=1; want rows=2 unread_count=1
+--- PASS: TestSemanticUnreadRealTransport (0.60s)</pre></div></body></html>

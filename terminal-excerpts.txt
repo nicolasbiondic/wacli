@@ -1,0 +1,17 @@
+PR #528 exact head fc8eaa65364a; selected unchanged -v lines, framework file prefixes omitted.
+$ go test -tags sqlite_fts5 -run '^TestSemanticUnreadRealTransport$' -count=1 -v github.com/openclaw/wacli/internal/wa
+WIRE Noise XX certificate verified; synthetic paired receiver; Signal-encrypted incoming stanzas
+STORE incoming id=poll kind=poll text="Poll: Synthetic choice" display="Poll: Synthetic choice" media_type=""
+STORE incoming id=contact kind=contact text="" display="(message)" media_type=""
+STORE incoming id=contacts kind=contacts text="" display="(message)" media_type=""
+STORE incoming id=event kind=event text="" display="(message)" media_type=""
+STORE duplicate before reading counts once: rows=1 unread=true unread_count=1; want rows=1 unread_count=1
+STORE read semantic-only message through App.Sync: rows=1 unread=false unread_count=0; want rows=1 unread_count=0
+STORE duplicate after reading cannot resurrect unread: rows=1 unread=false unread_count=0; want rows=1 unread_count=0
+WIRE receiver -> peer: receipt type=read ids=[older-text]; peer acknowledges
+STORE bounded text read preserves later semantic-only event: rows=2 unread=true unread_count=1; want rows=2 unread_count=1
+WIRE receiver -> peer: receipt type=read ids=[semantic-anchor]; peer acknowledges
+APP bounded receipt through=semantic-anchor selected=1 result=unknown error=<nil>
+STORE semantic-only receipt crossed wire and cleared local unread: rows=1 unread=false unread_count=0; want rows=1 unread_count=0
+STORE App.Sync bounded recount preserves later semantic-only event: rows=2 unread=true unread_count=1; want rows=2 unread_count=1
+--- PASS: TestSemanticUnreadRealTransport (0.60s)

@@ -1,0 +1,107 @@
+PR #528 head fc8eaa65364a (complete object ID in head.json)
+Unmodified final PR head
+$ mise exec go@1.27.4 -- go test -tags sqlite_fts5 -run '^TestSemanticUnreadRealTransport$' -count=1 -v github.com/openclaw/wacli/internal/wa
+=== RUN   TestSemanticUnreadRealTransport
+    semantic_transport_test.go:83: WIRE Noise XX certificate verified; synthetic paired receiver; Signal-encrypted incoming stanzas
+
+App state regular_low resolved via full sync
+=== RUN   TestSemanticUnreadRealTransport / kinds
+    semantic_transport_test.go:248: WIRE peer -> App.Sync: id=poll original identity/time, fresh Signal encryption; conversation_present=false
+=== NAME  TestSemanticUnreadRealTransport
+    semantic_transport_test.go:104: WIRE receiver -> peer: receipt type=inactive ids=[poll]; peer acknowledges
+=== NAME  TestSemanticUnreadRealTransport / kinds
+    semantic_transport_test.go:253: STORE incoming id=poll kind=poll text="Poll: Synthetic choice" display="Poll: Synthetic choice" media_type=""
+    semantic_transport_test.go:248: WIRE peer -> App.Sync: id=contact original identity/time, fresh Signal encryption; conversation_present=false
+=== NAME  TestSemanticUnreadRealTransport
+    semantic_transport_test.go:104: WIRE receiver -> peer: receipt type=inactive ids=[contact]; peer acknowledges
+=== NAME  TestSemanticUnreadRealTransport / kinds
+    semantic_transport_test.go:253: STORE incoming id=contact kind=contact text="" display="(message)" media_type=""
+    semantic_transport_test.go:248: WIRE peer -> App.Sync: id=contacts original identity/time, fresh Signal encryption; conversation_present=false
+=== NAME  TestSemanticUnreadRealTransport
+    semantic_transport_test.go:104: WIRE receiver -> peer: receipt type=inactive ids=[contacts]; peer acknowledges
+=== NAME  TestSemanticUnreadRealTransport / kinds
+    semantic_transport_test.go:253: STORE incoming id=contacts kind=contacts text="" display="(message)" media_type=""
+    semantic_transport_test.go:248: WIRE peer -> App.Sync: id=event original identity/time, fresh Signal encryption; conversation_present=false
+=== NAME  TestSemanticUnreadRealTransport
+    semantic_transport_test.go:104: WIRE receiver -> peer: receipt type=inactive ids=[event]; peer acknowledges
+=== NAME  TestSemanticUnreadRealTransport / kinds
+    semantic_transport_test.go:253: STORE incoming id=event kind=event text="" display="(message)" media_type=""
+    semantic_transport_test.go:261: STORE all incoming semantic messages, no conversation text on wire: rows=4 unread=true unread_count=4; want rows=4 unread_count=4
+=== RUN   TestSemanticUnreadRealTransport / dedup
+    semantic_transport_test.go:263: WIRE peer -> App.Sync: id=replay-event original identity/time, fresh Signal encryption; conversation_present=false
+=== NAME  TestSemanticUnreadRealTransport
+    semantic_transport_test.go:104: WIRE receiver -> peer: receipt type=inactive ids=[replay-event]; peer acknowledges
+=== NAME  TestSemanticUnreadRealTransport / dedup
+    semantic_transport_test.go:264: STORE first semantic-only delivery: rows=1 unread=true unread_count=1; want rows=1 unread_count=1
+    semantic_transport_test.go:265: WIRE peer -> App.Sync: id=replay-event original identity/time, fresh Signal encryption; conversation_present=false
+=== NAME  TestSemanticUnreadRealTransport
+    semantic_transport_test.go:104: WIRE receiver -> peer: receipt type=inactive ids=[replay-event]; peer acknowledges
+=== NAME  TestSemanticUnreadRealTransport / dedup
+    semantic_transport_test.go:266: STORE duplicate before reading counts once: rows=1 unread=true unread_count=1; want rows=1 unread_count=1
+    semantic_transport_test.go:267: WIRE peer -> App.Sync: read-self receipt for replay-event; read-at time is newer than both messages, stored ID still bounds the read
+=== NAME  TestSemanticUnreadRealTransport
+    semantic_transport_test.go:93: WIRE receiver -> peer: acknowledged incoming read-self receipt id=replay-event
+=== NAME  TestSemanticUnreadRealTransport / dedup
+    semantic_transport_test.go:268: STORE read semantic-only message through App.Sync: rows=1 unread=false unread_count=0; want rows=1 unread_count=0
+    semantic_transport_test.go:269: WIRE peer -> App.Sync: id=replay-event original identity/time, fresh Signal encryption; conversation_present=false
+=== NAME  TestSemanticUnreadRealTransport
+    semantic_transport_test.go:104: WIRE receiver -> peer: receipt type=inactive ids=[replay-event]; peer acknowledges
+=== NAME  TestSemanticUnreadRealTransport / dedup
+    semantic_transport_test.go:270: STORE duplicate after reading cannot resurrect unread: rows=1 unread=false unread_count=0; want rows=1 unread_count=0
+=== RUN   TestSemanticUnreadRealTransport / bounded
+    semantic_transport_test.go:272: WIRE peer -> App.Sync: id=older-text original identity/time, fresh Signal encryption; conversation_present=true
+=== NAME  TestSemanticUnreadRealTransport
+    semantic_transport_test.go:104: WIRE receiver -> peer: receipt type=inactive ids=[older-text]; peer acknowledges
+=== NAME  TestSemanticUnreadRealTransport / bounded
+    semantic_transport_test.go:273: WIRE peer -> App.Sync: id=later-event original identity/time, fresh Signal encryption; conversation_present=false
+=== NAME  TestSemanticUnreadRealTransport
+    semantic_transport_test.go:104: WIRE receiver -> peer: receipt type=inactive ids=[later-event]; peer acknowledges
+=== NAME  TestSemanticUnreadRealTransport / bounded
+    semantic_transport_test.go:274: STORE text then later semantic-only event: rows=2 unread=true unread_count=2; want rows=2 unread_count=2
+=== NAME  TestSemanticUnreadRealTransport
+    semantic_transport_test.go:122: WIRE privacy query -> readreceipts=all (local peer policy, not a remote-service assertion)
+    semantic_transport_test.go:104: WIRE receiver -> peer: receipt type=read ids=[older-text]; peer acknowledges
+=== NAME  TestSemanticUnreadRealTransport / bounded
+    semantic_transport_test.go:275: APP bounded receipt through=older-text selected=1 result=unknown error=<nil>
+    semantic_transport_test.go:276: STORE bounded text read preserves later semantic-only event: rows=2 unread=true unread_count=1; want rows=2 unread_count=1
+=== NAME  TestSemanticUnreadRealTransport
+    semantic_transport_test.go:104: WIRE receiver -> peer: receipt type=read ids=[later-event]; peer acknowledges
+=== NAME  TestSemanticUnreadRealTransport / bounded
+    semantic_transport_test.go:278: APP bounded receipt through=later-event selected=1 result=unknown error=<nil>
+    semantic_transport_test.go:279: STORE later event remains selectable until explicitly read: rows=2 unread=false unread_count=0; want rows=2 unread_count=0
+=== RUN   TestSemanticUnreadRealTransport / semantic-receipt
+    semantic_transport_test.go:282: WIRE peer -> App.Sync: id=semantic-anchor original identity/time, fresh Signal encryption; conversation_present=false
+=== NAME  TestSemanticUnreadRealTransport
+    semantic_transport_test.go:104: WIRE receiver -> peer: receipt type=inactive ids=[semantic-anchor]; peer acknowledges
+=== NAME  TestSemanticUnreadRealTransport / semantic-receipt
+    semantic_transport_test.go:283: STORE semantic-only anchor eligible for explicit receipt: rows=1 unread=true unread_count=1; want rows=1 unread_count=1
+=== NAME  TestSemanticUnreadRealTransport
+    semantic_transport_test.go:104: WIRE receiver -> peer: receipt type=read ids=[semantic-anchor]; peer acknowledges
+=== NAME  TestSemanticUnreadRealTransport / semantic-receipt
+    semantic_transport_test.go:284: APP bounded receipt through=semantic-anchor selected=1 result=unknown error=<nil>
+    semantic_transport_test.go:285: STORE semantic-only receipt crossed wire and cleared local unread: rows=1 unread=false unread_count=0; want rows=1 unread_count=0
+=== RUN   TestSemanticUnreadRealTransport / bounded-sync-receipt
+    semantic_transport_test.go:288: WIRE peer -> App.Sync: id=sync-older-text original identity/time, fresh Signal encryption; conversation_present=true
+=== NAME  TestSemanticUnreadRealTransport
+    semantic_transport_test.go:104: WIRE receiver -> peer: receipt type=inactive ids=[sync-older-text]; peer acknowledges
+=== NAME  TestSemanticUnreadRealTransport / bounded-sync-receipt
+    semantic_transport_test.go:289: WIRE peer -> App.Sync: id=sync-later-event original identity/time, fresh Signal encryption; conversation_present=false
+=== NAME  TestSemanticUnreadRealTransport
+    semantic_transport_test.go:104: WIRE receiver -> peer: receipt type=inactive ids=[sync-later-event]; peer acknowledges
+=== NAME  TestSemanticUnreadRealTransport / bounded-sync-receipt
+    semantic_transport_test.go:290: STORE before incoming bounded read-self receipt: rows=2 unread=true unread_count=2; want rows=2 unread_count=2
+    semantic_transport_test.go:291: WIRE peer -> App.Sync: read-self receipt for sync-older-text; read-at time is newer than both messages, stored ID still bounds the read
+=== NAME  TestSemanticUnreadRealTransport
+    semantic_transport_test.go:93: WIRE receiver -> peer: acknowledged incoming read-self receipt id=sync-older-text
+=== NAME  TestSemanticUnreadRealTransport / bounded-sync-receipt
+    semantic_transport_test.go:292: STORE App.Sync bounded recount preserves later semantic-only event: rows=2 unread=true unread_count=1; want rows=2 unread_count=1
+
+Idle for 20ms, exiting.
+--- PASS: TestSemanticUnreadRealTransport (0.60s)
+    --- PASS: TestSemanticUnreadRealTransport / kinds (0.08s)
+    --- PASS: TestSemanticUnreadRealTransport / dedup (0.06s)
+    --- PASS: TestSemanticUnreadRealTransport / bounded (0.05s)
+    --- PASS: TestSemanticUnreadRealTransport / semantic-receipt (0.04s)
+    --- PASS: TestSemanticUnreadRealTransport / bounded-sync-receipt (0.05s)
+PASS
+ok   github.com/openclaw/wacli/internal/wa 0.606s
