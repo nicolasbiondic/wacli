@@ -1,0 +1,34 @@
+=== RUN   TestContactCardsRealTransport
+    contact_card_transport_test.go:209: NOISE XX: ConnectContext verified test-CA certificate; synthetic paired device
+
+App state regular_low resolved via full sync
+    contact_card_transport_test.go:91: WIRE first delivery: Signal-encrypted *waE2E.ContactMessage delivered as contact-1; SDK decrypted, App.Sync stored it, delivery receipt acknowledged
+    contact_card_transport_test.go:91: WIRE first delivery: Signal-encrypted *waE2E.ContactMessage delivered as contact-2; SDK decrypted, App.Sync stored it, delivery receipt acknowledged
+
+Idle for 20ms, exiting.
+03:12:53.293 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    contact_card_transport_test.go:151: STORE after first sync: contact-1 display_text="Contact: Ana Prueba (+550101)"
+    contact_card_transport_test.go:151: STORE after first sync: contact-2 display_text="Contacts:\nContact: Beto Ejemplo (+55 0102)\nContact: Carla Demo (+550103)"
+    contact_card_transport_test.go:151: STORE after first sync: message_contacts contact-1 position=0 display_name="Ana Prueba" vcard="BEGIN:VCARD\nVERSION:3.0\nN:Prueba;Ana;;;\nFN:Ana Prueba\nTEL;type=CELL;waid=550101:\nEND:VCARD"
+    contact_card_transport_test.go:151: STORE after first sync: message_contacts contact-2 position=0 display_name="Beto Ejemplo" vcard="BEGIN:VCARD\nVERSION:3.0\nFN:Beto Ejemplo\nitem1.TEL;type=CELL;type=VOICE;type=pref;waid=550102:+55 0102\nEND:VCARD"
+    contact_card_transport_test.go:151: STORE after first sync: message_contacts contact-2 position=1 display_name="Carla Demo" vcard="BEGIN:VCARD\nVERSION:3.0\nFN:Carla Demo\nTEL;type=WORK;waid=550103:\nEND:VCARD"
+    contact_card_transport_test.go:157: CLI `wacli messages list --chat proofchat@s.whatsapp.net --asc` (real command, read-only):
+        TIME                 CHAT                      FROM                      ID         TEXT
+        2023-11-14 17:13:20  proofchat@s.whatsapp.net  proofchat@s.whatsapp.net  contact-1  Contact: Ana Prueba (+550101)
+        2023-11-14 17:13:21  proofchat@s.whatsapp.net  proofchat@s.whatsapp.net  contact-2  Contacts: Contact: Beto Ejemplo (+55 0102) Contact: Carla Demo (+550103)
+    contact_card_transport_test.go:209: NOISE XX: ConnectContext verified test-CA certificate; synthetic paired device
+
+App state regular_low resolved via full sync
+    contact_card_transport_test.go:91: WIRE redelivery after reopening the store: Signal-encrypted *waE2E.ContactMessage delivered as contact-1; SDK decrypted, App.Sync stored it, delivery receipt acknowledged
+    contact_card_transport_test.go:91: WIRE redelivery after reopening the store: Signal-encrypted *waE2E.ContactMessage delivered as contact-2; SDK decrypted, App.Sync stored it, delivery receipt acknowledged
+
+Idle for 20ms, exiting.
+03:12:53.604 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    contact_card_transport_test.go:169: STORE after reopen and redelivery: contact-1 display_text="Contact: Ana Prueba (+550101)"
+    contact_card_transport_test.go:169: STORE after reopen and redelivery: contact-2 display_text="Contacts:\nContact: Beto Ejemplo (+55 0102)\nContact: Carla Demo (+550103)"
+    contact_card_transport_test.go:169: STORE after reopen and redelivery: message_contacts contact-1 position=0 display_name="Ana Prueba" vcard="BEGIN:VCARD\nVERSION:3.0\nN:Prueba;Ana;;;\nFN:Ana Prueba\nTEL;type=CELL;waid=550101:\nEND:VCARD"
+    contact_card_transport_test.go:169: STORE after reopen and redelivery: message_contacts contact-2 position=0 display_name="Beto Ejemplo" vcard="BEGIN:VCARD\nVERSION:3.0\nFN:Beto Ejemplo\nitem1.TEL;type=CELL;type=VOICE;type=pref;waid=550102:+55 0102\nEND:VCARD"
+    contact_card_transport_test.go:169: STORE after reopen and redelivery: message_contacts contact-2 position=1 display_name="Carla Demo" vcard="BEGIN:VCARD\nVERSION:3.0\nFN:Carla Demo\nTEL;type=WORK;waid=550103:\nEND:VCARD"
+--- PASS: TestContactCardsRealTransport (0.68s)
+PASS
+ok   github.com/openclaw/wacli/internal/wa 0.689s

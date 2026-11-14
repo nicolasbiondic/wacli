@@ -1,0 +1,38 @@
+=== RUN   TestContactCardsRealTransport
+    contact_card_transport_test.go:209: NOISE XX: ConnectContext verified test-CA certificate; synthetic paired device
+
+App state regular_low resolved via full sync
+    contact_card_transport_test.go:91: WIRE first delivery: Signal-encrypted *waE2E.ContactMessage delivered as contact-1; SDK decrypted, App.Sync stored it, delivery receipt acknowledged
+    contact_card_transport_test.go:91: WIRE first delivery: Signal-encrypted *waE2E.ContactMessage delivered as contact-2; SDK decrypted, App.Sync stored it, delivery receipt acknowledged
+
+Idle for 20ms, exiting.
+03:13:02.166 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    contact_card_transport_test.go:151: STORE after first sync: contact-1 display_text="Contact: Ana Prueba"
+    contact_card_transport_test.go:151: after first sync: contact-1 display_text = "Contact: Ana Prueba", want "Contact: Ana Prueba (+550101)"
+    contact_card_transport_test.go:151: STORE after first sync: contact-2 display_text="Contacts:\nContact: Beto Ejemplo (+55 0102)\nContact: Carla Demo"
+    contact_card_transport_test.go:151: after first sync: contact-2 display_text = "Contacts:\nContact: Beto Ejemplo (+55 0102)\nContact: Carla Demo", want "Contacts:\nContact: Beto Ejemplo (+55 0102)\nContact: Carla Demo (+550103)"
+    contact_card_transport_test.go:151: after first sync: message_contacts query for contact-1: no such table: message_contacts
+    contact_card_transport_test.go:151: after first sync: message_contacts query for contact-2: no such table: message_contacts
+    contact_card_transport_test.go:157: CLI `wacli messages list --chat proofchat@s.whatsapp.net --asc` (real command, read-only):
+        TIME                 CHAT                      FROM                      ID         TEXT
+        2023-11-14 17:13:20  proofchat@s.whatsapp.net  proofchat@s.whatsapp.net  contact-1  Contact: Ana Prueba
+        2023-11-14 17:13:21  proofchat@s.whatsapp.net  proofchat@s.whatsapp.net  contact-2  Contacts: Contact: Beto Ejemplo (+55 0102) Contact: Carla Demo
+    contact_card_transport_test.go:162: CLI output lacks the waid-only number
+    contact_card_transport_test.go:209: NOISE XX: ConnectContext verified test-CA certificate; synthetic paired device
+
+App state regular_low resolved via full sync
+    contact_card_transport_test.go:91: WIRE redelivery after reopening the store: Signal-encrypted *waE2E.ContactMessage delivered as contact-1; SDK decrypted, App.Sync stored it, delivery receipt acknowledged
+    contact_card_transport_test.go:91: WIRE redelivery after reopening the store: Signal-encrypted *waE2E.ContactMessage delivered as contact-2; SDK decrypted, App.Sync stored it, delivery receipt acknowledged
+
+Idle for 20ms, exiting.
+03:13:02.475 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    contact_card_transport_test.go:169: STORE after reopen and redelivery: contact-2 display_text="Contacts:\nContact: Beto Ejemplo (+55 0102)\nContact: Carla Demo"
+    contact_card_transport_test.go:169: after reopen and redelivery: contact-2 display_text = "Contacts:\nContact: Beto Ejemplo (+55 0102)\nContact: Carla Demo", want "Contacts:\nContact: Beto Ejemplo (+55 0102)\nContact: Carla Demo (+550103)"
+    contact_card_transport_test.go:169: STORE after reopen and redelivery: contact-1 display_text="Contact: Ana Prueba"
+    contact_card_transport_test.go:169: after reopen and redelivery: contact-1 display_text = "Contact: Ana Prueba", want "Contact: Ana Prueba (+550101)"
+    contact_card_transport_test.go:169: after reopen and redelivery: message_contacts query for contact-1: no such table: message_contacts
+    contact_card_transport_test.go:169: after reopen and redelivery: message_contacts query for contact-2: no such table: message_contacts
+--- FAIL: TestContactCardsRealTransport (0.69s)
+FAIL
+FAIL github.com/openclaw/wacli/internal/wa 0.700s
+FAIL
