@@ -1,0 +1,13 @@
+$ PR #498: current-head REAL-STORE compatibility
+NEW source head: 1de935f26ad0 (clean tree; Go 1.27.4; sqlite_fts5)
+OLD: official v0.26.0; archive checksum verified
+Kit: edec541; all 5 discovered real-store backups tested
+PASS: 20/20 NEW/OLD read-only/writable local retrieval phases
+Integrity OK; foreign-key errors 0; read-only phases unchanged
+Original non-journal data and original schema preserved
+Journal drift allowed only when fresh official-OLD controls show it too
+NEW adds chat_lists.applied_order on all five real-store copies.
+Stock v0.26.0 synthetic upgrade/rollback: strict kit PASS, 4/4 phases.
+Only SQLite read-only backup touches source stores; no session.db copied
+No auth, sync, networking or production writes; disposable copies deleted
+Scope: offline local retrieval/upgrade/rollback, not live synchronization
