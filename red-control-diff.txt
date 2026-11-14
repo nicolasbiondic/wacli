@@ -1,0 +1,15 @@
+diff --git a/internal/store/lists.go b/internal/store/lists.go
+index fadaf85..4b94f8d 100644
+--- a/internal/store/lists.go
++++ b/internal/store/lists.go
+@@ -225,8 +225,8 @@ func migrateLIDListsToPN(tx *sql.Tx, lid, pn string) error {
+  if _, err := tx.Exec(`INSERT INTO chat_lists(chat_jid,list_id,labeled,updated_at,applied_order)
+   SELECT ?,list_id,labeled,updated_at,applied_order FROM chat_lists WHERE chat_jid=?
+   ON CONFLICT(chat_jid,list_id) DO UPDATE SET labeled=excluded.labeled,updated_at=excluded.updated_at,applied_order=excluded.applied_order
+-  WHERE excluded.applied_order > chat_lists.applied_order
+-   OR (excluded.applied_order = chat_lists.applied_order AND excluded.labeled < chat_lists.labeled)`, pn, lid); err != nil {
++  WHERE excluded.updated_at > chat_lists.updated_at
++   OR (excluded.updated_at = chat_lists.updated_at AND excluded.labeled < chat_lists.labeled)`, pn, lid); err != nil {
+   return err
+  }
+  _, err := tx.Exec(`DELETE FROM chat_lists WHERE chat_jid=?`, lid)

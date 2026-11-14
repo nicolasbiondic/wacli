@@ -1,0 +1,44 @@
+=== RUN   TestListsAppliedOrderRealTransport
+    lists_order_transport_test.go:91: WIRE LOG prepared regular v1 action=define Before device_timestamp=400 (MAC and LTHash verified)
+    lists_order_transport_test.go:91: WIRE LOG prepared regular v2 action=rename Transport device_timestamp=200 (MAC and LTHash verified)
+    lists_order_transport_test.go:91: WIRE LOG prepared regular v3 action=PN add device_timestamp=300 (MAC and LTHash verified)
+    lists_order_transport_test.go:91: WIRE LOG prepared regular v4 action=LID add device_timestamp=300 (MAC and LTHash verified)
+    lists_order_transport_test.go:91: WIRE LOG prepared regular v5 action=LID remove device_timestamp=100 (MAC and LTHash verified)
+    lists_order_transport_test.go:293: NOISE XX: real SDK ConnectContext verified the synthetic CA; app-state key seeded only in test devices
+
+App state regular_low resolved via full sync
+    lists_order_transport_test.go:240: WIRE IQ regular full fetch: peer returns encrypted v1..v5 patches over Noise/WebSocket
+
+Idle for 20ms, exiting.
+    lists_order_transport_test.go:98: STORE after real App.Sync, before alias reconciliation: alias=synthetic PN list=7 labeled=true device_timestamp_ms=300000 applied_order=1
+    lists_order_transport_test.go:98: STORE after real App.Sync, before alias reconciliation: alias=synthetic LID list=7 labeled=false device_timestamp_ms=100000 applied_order=3
+    lists_order_transport_test.go:108: RESTART: save synthetic PN/LID mapping in test device store; close app, SQL and websocket
+03:44:34.280 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "synthetic proof complete"
+    lists_order_transport_test.go:293: NOISE XX: real SDK ConnectContext verified the synthetic CA; app-state key seeded only in test devices
+
+App state regular_low resolved via full sync
+    lists_order_transport_test.go:116: STORE reopened store, App.Sync reconciliation before replay: alias=synthetic PN list=7 labeled=true device_timestamp_ms=300000 applied_order=1
+    lists_order_transport_test.go:117: ORDER INVARIANT persisted applied_order must beat the older PN row's higher clock: membership=true err=<nil>; want=false
+    lists_order_transport_test.go:240: WIRE IQ regular full fetch: peer returns encrypted v1..v5 patches over Noise/WebSocket
+    lists_order_transport_test.go:126: STORE after authenticated full replay on reopened store: alias=synthetic PN list=7 labeled=false device_timestamp_ms=100000 applied_order=4
+    lists_order_transport_test.go:132: SDK/PEER agree at regular v5 with verified LTHash; no hash bytes or keys logged
+    lists_order_transport_test.go:235: WIRE IQ regular incremental fetch: peer returns historical v3 patch
+    lists_order_transport_test.go:142: WIRE REPLAY: authentic old v3 PN-add patch rejected against current v5 LTHash; App.Sync may recover by replaying the authenticated current chain
+warning: app state regular hit an LTHash mismatch; attempting full sync
+    lists_order_transport_test.go:240: WIRE IQ regular full fetch: peer returns encrypted v1..v5 patches over Noise/WebSocket
+
+App state regular resolved via full sync
+
+Idle for 20ms, exiting.
+    lists_order_transport_test.go:148: STORE final durable state: alias=synthetic PN list=7 labeled=false device_timestamp_ms=100000 applied_order=7
+03:44:34.592 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "synthetic proof complete"
+    lists_order_transport_test.go:173: REAL CLI lists list: {"success":true,"data":{"lists":[{"id":"7","name":"Transport","color":3,"predefined_id":null,"type":null,"order_index":null,"is_active":null,"is_immutable":null,"chat_memberships_supported":true}],"full_sync_events_seen":true,"completeness":"unknown"},"error":null}
+    lists_order_transport_test.go:173: REAL CLI chats list --list 7: {"success":true,"data":null,"error":null}
+    lists_order_transport_test.go:175: REAL CLI scope note: List filter uses observed memberships only; completeness is unknown (see `wacli lists list --json`).
+    lists_order_transport_test.go:173: REAL CLI chats list --list Transport: {"success":true,"data":null,"error":null}
+    lists_order_transport_test.go:175: REAL CLI scope note: List filter uses observed memberships only; completeness is unknown (see `wacli lists list --json`).
+    lists_order_transport_test.go:182: REAL CLI lists show 7: displays group help, not JSON data; show is absent from this read-only PR and is not claimed as a supported read
+--- FAIL: TestListsAppliedOrderRealTransport (6.64s)
+FAIL
+FAIL github.com/openclaw/wacli/internal/wa 6.649s
+FAIL
