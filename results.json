@@ -1,0 +1,2638 @@
+{
+  "binaries": [
+    {
+      "label": "new",
+      "sha256": "2f226283f77f3732a81415bfd494c0df897d78156114c486dc7eaac46ffb3608"
+    },
+    {
+      "label": "old-1",
+      "sha256": "3750e566e88a3a7ae47e485c02392ad60b972160fc85e5bd789e896673245f76"
+    }
+  ],
+  "passed": true,
+  "stores": [
+    {
+      "before": {
+        "foreign_key_errors": 0,
+        "integrity_ok": true,
+        "migration_versions": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          33
+        ],
+        "tables": {
+          "app_state_full_sync_broken": {
+            "columns": [
+              "collection",
+              "marked_at"
+            ],
+            "original": {
+              "rows": 0
+            },
+            "rows": 0
+          },
+          "app_state_recovery_intents": {
+            "columns": [
+              "id",
+              "collection"
+            ],
+            "original": {
+              "rows": 0
+            },
+            "rows": 0
+          },
+          "call_events": {
+            "columns": [
+              "rowid",
+              "chat_jid",
+              "chat_name",
+              "sender_jid",
+              "sender_name",
+              "call_id",
+              "msg_id",
+              "event_type",
+              "direction",
+              "media",
+              "outcome",
+              "reason",
+              "call_type",
+              "duration_secs",
+              "ts",
+              "participants"
+            ],
+            "original": {
+              "rows": 0
+            },
+            "rows": 0
+          },
+          "change_state": {
+            "columns": [
+              "id",
+              "floor",
+              "retained_count",
+              "suppress"
+            ],
+            "original": {
+              "rows": 1
+            },
+            "rows": 1
+          },
+          "chat_archive_setting": {
+            "columns": [
+              "id",
+              "enabled",
+              "timestamp_ms"
+            ],
+            "original": {
+              "rows": 0
+            },
+            "rows": 0
+          },
+          "chats": {
+            "columns": [
+              "jid",
+              "kind",
+              "name",
+              "last_message_ts",
+              "archived",
+              "pinned",
+              "muted_until",
+              "unread",
+              "unread_count",
+              "archive_action_ms",
+              "archive_incoming_ms",
+              "archive_cleared_ms",
+              "archive_setting_min_ms"
+            ],
+            "original": {
+              "rows": 2
+            },
+            "rows": 2
+          },
+          "contact_aliases": {
+            "columns": [
+              "jid",
+              "alias",
+              "notes",
+              "updated_at"
+            ],
+            "original": {
+              "rows": 0
+            },
+            "rows": 0
+          },
+          "contact_tags": {
+            "columns": [
+              "jid",
+              "tag",
+              "updated_at"
+            ],
+            "original": {
+              "rows": 0
+            },
+            "rows": 0
+          },
+          "contacts": {
+            "columns": [
+              "jid",
+              "phone",
+              "push_name",
+              "full_name",
+              "first_name",
+              "business_name",
+              "system_name",
+              "updated_at"
+            ],
+            "original": {
+              "rows": 1
+            },
+            "rows": 1
+          },
+          "group_participants": {
+            "columns": [
+              "group_jid",
+              "user_jid",
+              "role",
+              "updated_at"
+            ],
+            "original": {
+              "rows": 0
+            },
+            "rows": 0
+          },
+          "groups": {
+            "columns": [
+              "jid",
+              "name",
+              "owner_jid",
+              "created_ts",
+              "is_parent",
+              "linked_parent_jid",
+              "left_at",
+              "updated_at"
+            ],
+            "original": {
+              "rows": 0
+            },
+            "rows": 0
+          },
+          "message_changes": {
+            "columns": [
+              "sequence",
+              "recorded_at",
+              "operation",
+              "chat_jid",
+              "msg_id",
+              "new_chat_jid",
+              "new_msg_id",
+              "reason",
+              "message_ts"
+            ],
+            "original": {
+              "rows": 4
+            },
+            "rows": 4
+          },
+          "message_local_media_aliases": {
+            "columns": [
+              "chat_jid",
+              "msg_id",
+              "local_path",
+              "downloaded_at"
+            ],
+            "original": {
+              "rows": 0
+            },
+            "rows": 0
+          },
+          "message_locations": {
+            "columns": [
+              "chat_jid",
+              "msg_id",
+              "latitude",
+              "longitude",
+              "name",
+              "address",
+              "is_live"
+            ],
+            "original": {
+              "rows": 0
+            },
+            "rows": 0
+          },
+          "message_payload_purges": {
+            "columns": [
+              "chat_jid",
+              "msg_id",
+              "purged_at",
+              "deleted_at",
+              "deletion_reason"
+            ],
+            "original": {
+              "rows": 0
+            },
+            "rows": 0
+          },
+          "message_receipts": {
+            "columns": [
+              "chat_jid",
+              "msg_id",
+              "recipient_jid",
+              "status",
+              "ts"
+            ],
+            "original": {
+              "rows": 0
+            },
+            "rows": 0
+          },
+          "messages": {
+            "columns": [
+              "rowid",
+              "chat_jid",
+              "chat_name",
+              "msg_id",
+              "sender_jid",
+              "sender_name",
+              "ts",
+              "from_me",
+              "text",
+              "display_text",
+              "quoted_msg_id",
+              "quoted_sender_jid",
+              "is_forwarded",
+              "forwarding_score",
+              "reaction_to_id",
+              "reaction_emoji",
+              "media_type",
+              "media_caption",
+              "filename",
+              "mime_type",
+              "direct_path",
+              "media_key",
+              "file_sha256",
+              "file_enc_sha256",
+              "file_length",
+              "local_path",
+              "downloaded_at",
+              "media_unavailable_at",
+              "revoked",
+              "deleted_for_me",
+              "deleted_at",
+              "deletion_reason",
+              "payload_purged_at",
+              "edited",
+              "edited_ts",
+              "buttons"
+            ],
+            "original": {
+              "rows": 4
+            },
+            "rows": 4
+          },
+          "messages_fts": {
+            "columns": [
+              "text",
+              "media_caption",
+              "filename",
+              "chat_name",
+              "sender_name",
+              "display_text"
+            ],
+            "original": {
+              "rows": 4
+            },
+            "rows": 4
+          },
+          "messages_fts_config": {
+            "columns": [
+              "k",
+              "v"
+            ],
+            "original": {
+              "rows": 1
+            },
+            "rows": 1
+          },
+          "messages_fts_content": {
+            "columns": [
+              "id",
+              "c0",
+              "c1",
+              "c2",
+              "c3",
+              "c4",
+              "c5"
+            ],
+            "original": {
+              "rows": 4
+            },
+            "rows": 4
+          },
+          "messages_fts_data": {
+            "columns": [
+              "id",
+              "block"
+            ],
+            "original": {
+              "rows": 6
+            },
+            "rows": 6
+          },
+          "messages_fts_docsize": {
+            "columns": [
+              "id",
+              "sz"
+            ],
+            "original": {
+              "rows": 4
+            },
+            "rows": 4
+          },
+          "messages_fts_idx": {
+            "columns": [
+              "segid",
+              "term",
+              "pgno"
+            ],
+            "original": {
+              "rows": 4
+            },
+            "rows": 4
+          },
+          "poll_votes": {
+            "columns": [
+              "chat_jid",
+              "poll_msg_id",
+              "voter_jid",
+              "vote_msg_id",
+              "selected_options_json",
+              "ts"
+            ],
+            "original": {
+              "rows": 0
+            },
+            "rows": 0
+          },
+          "polls": {
+            "columns": [
+              "chat_jid",
+              "msg_id",
+              "sender_jid",
+              "question",
+              "options_json",
+              "selectable_count",
+              "created_ts"
+            ],
+            "original": {
+              "rows": 0
+            },
+            "rows": 0
+          },
+          "retrieval_state": {
+            "columns": [
+              "id",
+              "store_id",
+              "revision",
+              "last_sync_at"
+            ],
+            "original": {
+              "rows": 1
+            },
+            "rows": 1
+          },
+          "schema_migrations": {
+            "columns": [
+              "version",
+              "name",
+              "applied_at"
+            ],
+            "original": {
+              "rows": 33
+            },
+            "rows": 33
+          },
+          "sqlite_sequence": {
+            "columns": [
+              "name",
+              "seq"
+            ],
+            "original": {
+              "rows": 3
+            },
+            "rows": 3
+          },
+          "starred": {
+            "columns": [
+              "chat_jid",
+              "msg_id",
+              "sender_jid",
+              "from_me",
+              "starred_at"
+            ],
+            "original": {
+              "rows": 0
+            },
+            "rows": 0
+          },
+          "status_messages": {
+            "columns": [
+              "rowid",
+              "msg_id",
+              "ts",
+              "from_me",
+              "sender_jid",
+              "sender_name",
+              "text",
+              "media_type",
+              "media_caption",
+              "filename",
+              "mime_type",
+              "direct_path",
+              "media_key",
+              "file_sha256",
+              "file_enc_sha256",
+              "file_length",
+              "background_color",
+              "font"
+            ],
+            "original": {
+              "rows": 0
+            },
+            "rows": 0
+          },
+          "unavailable_app_state_keys": {
+            "columns": [
+              "account_jid",
+              "key_id"
+            ],
+            "original": {
+              "rows": 0
+            },
+            "rows": 0
+          }
+        }
+      },
+      "phases": [
+        {
+          "comparison": {
+            "added_columns": {},
+            "added_foreign_keys": {},
+            "added_migrations": [],
+            "added_schema_objects": [],
+            "added_table_constraints": {},
+            "added_tables": [],
+            "changed_foreign_keys": [],
+            "changed_original_tables": [],
+            "changed_schema_objects": [],
+            "changed_table_constraints": [],
+            "missing_tables": [],
+            "removed_foreign_keys": {},
+            "removed_migrations": [],
+            "removed_schema_objects": [],
+            "removed_table_constraints": {}
+          },
+          "fingerprint": {
+            "foreign_key_errors": 0,
+            "integrity_ok": true,
+            "migration_versions": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23,
+              24,
+              25,
+              26,
+              27,
+              28,
+              29,
+              30,
+              31,
+              32,
+              33
+            ],
+            "tables": {
+              "app_state_full_sync_broken": {
+                "columns": [
+                  "collection",
+                  "marked_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "app_state_recovery_intents": {
+                "columns": [
+                  "id",
+                  "collection"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "call_events": {
+                "columns": [
+                  "rowid",
+                  "chat_jid",
+                  "chat_name",
+                  "sender_jid",
+                  "sender_name",
+                  "call_id",
+                  "msg_id",
+                  "event_type",
+                  "direction",
+                  "media",
+                  "outcome",
+                  "reason",
+                  "call_type",
+                  "duration_secs",
+                  "ts",
+                  "participants"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "change_state": {
+                "columns": [
+                  "id",
+                  "floor",
+                  "retained_count",
+                  "suppress"
+                ],
+                "original": {
+                  "rows": 1
+                },
+                "rows": 1
+              },
+              "chat_archive_setting": {
+                "columns": [
+                  "id",
+                  "enabled",
+                  "timestamp_ms"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "chats": {
+                "columns": [
+                  "jid",
+                  "kind",
+                  "name",
+                  "last_message_ts",
+                  "archived",
+                  "pinned",
+                  "muted_until",
+                  "unread",
+                  "unread_count",
+                  "archive_action_ms",
+                  "archive_incoming_ms",
+                  "archive_cleared_ms",
+                  "archive_setting_min_ms"
+                ],
+                "original": {
+                  "rows": 2
+                },
+                "rows": 2
+              },
+              "contact_aliases": {
+                "columns": [
+                  "jid",
+                  "alias",
+                  "notes",
+                  "updated_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "contact_tags": {
+                "columns": [
+                  "jid",
+                  "tag",
+                  "updated_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "contacts": {
+                "columns": [
+                  "jid",
+                  "phone",
+                  "push_name",
+                  "full_name",
+                  "first_name",
+                  "business_name",
+                  "system_name",
+                  "updated_at"
+                ],
+                "original": {
+                  "rows": 1
+                },
+                "rows": 1
+              },
+              "group_participants": {
+                "columns": [
+                  "group_jid",
+                  "user_jid",
+                  "role",
+                  "updated_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "groups": {
+                "columns": [
+                  "jid",
+                  "name",
+                  "owner_jid",
+                  "created_ts",
+                  "is_parent",
+                  "linked_parent_jid",
+                  "left_at",
+                  "updated_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "message_changes": {
+                "columns": [
+                  "sequence",
+                  "recorded_at",
+                  "operation",
+                  "chat_jid",
+                  "msg_id",
+                  "new_chat_jid",
+                  "new_msg_id",
+                  "reason",
+                  "message_ts"
+                ],
+                "original": {
+                  "rows": 4
+                },
+                "rows": 4
+              },
+              "message_local_media_aliases": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "local_path",
+                  "downloaded_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "message_locations": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "latitude",
+                  "longitude",
+                  "name",
+                  "address",
+                  "is_live"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "message_payload_purges": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "purged_at",
+                  "deleted_at",
+                  "deletion_reason"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "message_receipts": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "recipient_jid",
+                  "status",
+                  "ts"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "messages": {
+                "columns": [
+                  "rowid",
+                  "chat_jid",
+                  "chat_name",
+                  "msg_id",
+                  "sender_jid",
+                  "sender_name",
+                  "ts",
+                  "from_me",
+                  "text",
+                  "display_text",
+                  "quoted_msg_id",
+                  "quoted_sender_jid",
+                  "is_forwarded",
+                  "forwarding_score",
+                  "reaction_to_id",
+                  "reaction_emoji",
+                  "media_type",
+                  "media_caption",
+                  "filename",
+                  "mime_type",
+                  "direct_path",
+                  "media_key",
+                  "file_sha256",
+                  "file_enc_sha256",
+                  "file_length",
+                  "local_path",
+                  "downloaded_at",
+                  "media_unavailable_at",
+                  "revoked",
+                  "deleted_for_me",
+                  "deleted_at",
+                  "deletion_reason",
+                  "payload_purged_at",
+                  "edited",
+                  "edited_ts",
+                  "buttons"
+                ],
+                "original": {
+                  "rows": 4
+                },
+                "rows": 4
+              },
+              "messages_fts": {
+                "columns": [
+                  "text",
+                  "media_caption",
+                  "filename",
+                  "chat_name",
+                  "sender_name",
+                  "display_text"
+                ],
+                "original": {
+                  "rows": 4
+                },
+                "rows": 4
+              },
+              "messages_fts_config": {
+                "columns": [
+                  "k",
+                  "v"
+                ],
+                "original": {
+                  "rows": 1
+                },
+                "rows": 1
+              },
+              "messages_fts_content": {
+                "columns": [
+                  "id",
+                  "c0",
+                  "c1",
+                  "c2",
+                  "c3",
+                  "c4",
+                  "c5"
+                ],
+                "original": {
+                  "rows": 4
+                },
+                "rows": 4
+              },
+              "messages_fts_data": {
+                "columns": [
+                  "id",
+                  "block"
+                ],
+                "original": {
+                  "rows": 6
+                },
+                "rows": 6
+              },
+              "messages_fts_docsize": {
+                "columns": [
+                  "id",
+                  "sz"
+                ],
+                "original": {
+                  "rows": 4
+                },
+                "rows": 4
+              },
+              "messages_fts_idx": {
+                "columns": [
+                  "segid",
+                  "term",
+                  "pgno"
+                ],
+                "original": {
+                  "rows": 4
+                },
+                "rows": 4
+              },
+              "poll_votes": {
+                "columns": [
+                  "chat_jid",
+                  "poll_msg_id",
+                  "voter_jid",
+                  "vote_msg_id",
+                  "selected_options_json",
+                  "ts"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "polls": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "sender_jid",
+                  "question",
+                  "options_json",
+                  "selectable_count",
+                  "created_ts"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "retrieval_state": {
+                "columns": [
+                  "id",
+                  "store_id",
+                  "revision",
+                  "last_sync_at"
+                ],
+                "original": {
+                  "rows": 1
+                },
+                "rows": 1
+              },
+              "schema_migrations": {
+                "columns": [
+                  "version",
+                  "name",
+                  "applied_at"
+                ],
+                "original": {
+                  "rows": 33
+                },
+                "rows": 33
+              },
+              "sqlite_sequence": {
+                "columns": [
+                  "name",
+                  "seq"
+                ],
+                "original": {
+                  "rows": 3
+                },
+                "rows": 3
+              },
+              "starred": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "sender_jid",
+                  "from_me",
+                  "starred_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "status_messages": {
+                "columns": [
+                  "rowid",
+                  "msg_id",
+                  "ts",
+                  "from_me",
+                  "sender_jid",
+                  "sender_name",
+                  "text",
+                  "media_type",
+                  "media_caption",
+                  "filename",
+                  "mime_type",
+                  "direct_path",
+                  "media_key",
+                  "file_sha256",
+                  "file_enc_sha256",
+                  "file_length",
+                  "background_color",
+                  "font"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "unavailable_app_state_keys": {
+                "columns": [
+                  "account_jid",
+                  "key_id"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              }
+            }
+          },
+          "passed": true,
+          "phase": "new-read-only",
+          "read_only_unchanged": true
+        },
+        {
+          "comparison": {
+            "added_columns": {},
+            "added_foreign_keys": {},
+            "added_migrations": [
+              34
+            ],
+            "added_schema_objects": [
+              "index:sqlite_autoindex_message_contacts_1",
+              "trigger:retrieval_message_contacts_delete",
+              "trigger:retrieval_message_contacts_insert",
+              "trigger:retrieval_message_contacts_update"
+            ],
+            "added_table_constraints": {
+              "message_contacts": 6
+            },
+            "added_tables": [
+              "message_contacts"
+            ],
+            "changed_foreign_keys": [],
+            "changed_original_tables": [],
+            "changed_schema_objects": [],
+            "changed_table_constraints": [],
+            "missing_tables": [],
+            "removed_foreign_keys": {},
+            "removed_migrations": [],
+            "removed_schema_objects": [],
+            "removed_table_constraints": {}
+          },
+          "fingerprint": {
+            "foreign_key_errors": 0,
+            "integrity_ok": true,
+            "migration_versions": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23,
+              24,
+              25,
+              26,
+              27,
+              28,
+              29,
+              30,
+              31,
+              32,
+              33,
+              34
+            ],
+            "tables": {
+              "app_state_full_sync_broken": {
+                "columns": [
+                  "collection",
+                  "marked_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "app_state_recovery_intents": {
+                "columns": [
+                  "id",
+                  "collection"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "call_events": {
+                "columns": [
+                  "rowid",
+                  "chat_jid",
+                  "chat_name",
+                  "sender_jid",
+                  "sender_name",
+                  "call_id",
+                  "msg_id",
+                  "event_type",
+                  "direction",
+                  "media",
+                  "outcome",
+                  "reason",
+                  "call_type",
+                  "duration_secs",
+                  "ts",
+                  "participants"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "change_state": {
+                "columns": [
+                  "id",
+                  "floor",
+                  "retained_count",
+                  "suppress"
+                ],
+                "original": {
+                  "rows": 1
+                },
+                "rows": 1
+              },
+              "chat_archive_setting": {
+                "columns": [
+                  "id",
+                  "enabled",
+                  "timestamp_ms"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "chats": {
+                "columns": [
+                  "jid",
+                  "kind",
+                  "name",
+                  "last_message_ts",
+                  "archived",
+                  "pinned",
+                  "muted_until",
+                  "unread",
+                  "unread_count",
+                  "archive_action_ms",
+                  "archive_incoming_ms",
+                  "archive_cleared_ms",
+                  "archive_setting_min_ms"
+                ],
+                "original": {
+                  "rows": 2
+                },
+                "rows": 2
+              },
+              "contact_aliases": {
+                "columns": [
+                  "jid",
+                  "alias",
+                  "notes",
+                  "updated_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "contact_tags": {
+                "columns": [
+                  "jid",
+                  "tag",
+                  "updated_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "contacts": {
+                "columns": [
+                  "jid",
+                  "phone",
+                  "push_name",
+                  "full_name",
+                  "first_name",
+                  "business_name",
+                  "system_name",
+                  "updated_at"
+                ],
+                "original": {
+                  "rows": 1
+                },
+                "rows": 1
+              },
+              "group_participants": {
+                "columns": [
+                  "group_jid",
+                  "user_jid",
+                  "role",
+                  "updated_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "groups": {
+                "columns": [
+                  "jid",
+                  "name",
+                  "owner_jid",
+                  "created_ts",
+                  "is_parent",
+                  "linked_parent_jid",
+                  "left_at",
+                  "updated_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "message_changes": {
+                "columns": [
+                  "sequence",
+                  "recorded_at",
+                  "operation",
+                  "chat_jid",
+                  "msg_id",
+                  "new_chat_jid",
+                  "new_msg_id",
+                  "reason",
+                  "message_ts"
+                ],
+                "original": {
+                  "rows": 4
+                },
+                "rows": 4
+              },
+              "message_contacts": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "position",
+                  "display_name",
+                  "vcard"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "message_local_media_aliases": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "local_path",
+                  "downloaded_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "message_locations": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "latitude",
+                  "longitude",
+                  "name",
+                  "address",
+                  "is_live"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "message_payload_purges": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "purged_at",
+                  "deleted_at",
+                  "deletion_reason"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "message_receipts": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "recipient_jid",
+                  "status",
+                  "ts"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "messages": {
+                "columns": [
+                  "rowid",
+                  "chat_jid",
+                  "chat_name",
+                  "msg_id",
+                  "sender_jid",
+                  "sender_name",
+                  "ts",
+                  "from_me",
+                  "text",
+                  "display_text",
+                  "quoted_msg_id",
+                  "quoted_sender_jid",
+                  "is_forwarded",
+                  "forwarding_score",
+                  "reaction_to_id",
+                  "reaction_emoji",
+                  "media_type",
+                  "media_caption",
+                  "filename",
+                  "mime_type",
+                  "direct_path",
+                  "media_key",
+                  "file_sha256",
+                  "file_enc_sha256",
+                  "file_length",
+                  "local_path",
+                  "downloaded_at",
+                  "media_unavailable_at",
+                  "revoked",
+                  "deleted_for_me",
+                  "deleted_at",
+                  "deletion_reason",
+                  "payload_purged_at",
+                  "edited",
+                  "edited_ts",
+                  "buttons"
+                ],
+                "original": {
+                  "rows": 4
+                },
+                "rows": 4
+              },
+              "messages_fts": {
+                "columns": [
+                  "text",
+                  "media_caption",
+                  "filename",
+                  "chat_name",
+                  "sender_name",
+                  "display_text"
+                ],
+                "original": {
+                  "rows": 4
+                },
+                "rows": 4
+              },
+              "messages_fts_config": {
+                "columns": [
+                  "k",
+                  "v"
+                ],
+                "original": {
+                  "rows": 1
+                },
+                "rows": 1
+              },
+              "messages_fts_content": {
+                "columns": [
+                  "id",
+                  "c0",
+                  "c1",
+                  "c2",
+                  "c3",
+                  "c4",
+                  "c5"
+                ],
+                "original": {
+                  "rows": 4
+                },
+                "rows": 4
+              },
+              "messages_fts_data": {
+                "columns": [
+                  "id",
+                  "block"
+                ],
+                "original": {
+                  "rows": 6
+                },
+                "rows": 6
+              },
+              "messages_fts_docsize": {
+                "columns": [
+                  "id",
+                  "sz"
+                ],
+                "original": {
+                  "rows": 4
+                },
+                "rows": 4
+              },
+              "messages_fts_idx": {
+                "columns": [
+                  "segid",
+                  "term",
+                  "pgno"
+                ],
+                "original": {
+                  "rows": 4
+                },
+                "rows": 4
+              },
+              "poll_votes": {
+                "columns": [
+                  "chat_jid",
+                  "poll_msg_id",
+                  "voter_jid",
+                  "vote_msg_id",
+                  "selected_options_json",
+                  "ts"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "polls": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "sender_jid",
+                  "question",
+                  "options_json",
+                  "selectable_count",
+                  "created_ts"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "retrieval_state": {
+                "columns": [
+                  "id",
+                  "store_id",
+                  "revision",
+                  "last_sync_at"
+                ],
+                "original": {
+                  "rows": 1
+                },
+                "rows": 1
+              },
+              "schema_migrations": {
+                "columns": [
+                  "version",
+                  "name",
+                  "applied_at"
+                ],
+                "original": {
+                  "rows": 33
+                },
+                "rows": 34
+              },
+              "sqlite_sequence": {
+                "columns": [
+                  "name",
+                  "seq"
+                ],
+                "original": {
+                  "rows": 3
+                },
+                "rows": 3
+              },
+              "starred": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "sender_jid",
+                  "from_me",
+                  "starred_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "status_messages": {
+                "columns": [
+                  "rowid",
+                  "msg_id",
+                  "ts",
+                  "from_me",
+                  "sender_jid",
+                  "sender_name",
+                  "text",
+                  "media_type",
+                  "media_caption",
+                  "filename",
+                  "mime_type",
+                  "direct_path",
+                  "media_key",
+                  "file_sha256",
+                  "file_enc_sha256",
+                  "file_length",
+                  "background_color",
+                  "font"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "unavailable_app_state_keys": {
+                "columns": [
+                  "account_jid",
+                  "key_id"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              }
+            }
+          },
+          "passed": true,
+          "phase": "new-writable",
+          "read_only_unchanged": true
+        },
+        {
+          "comparison": {
+            "added_columns": {},
+            "added_foreign_keys": {},
+            "added_migrations": [
+              34
+            ],
+            "added_schema_objects": [
+              "index:sqlite_autoindex_message_contacts_1",
+              "trigger:retrieval_message_contacts_delete",
+              "trigger:retrieval_message_contacts_insert",
+              "trigger:retrieval_message_contacts_update"
+            ],
+            "added_table_constraints": {
+              "message_contacts": 6
+            },
+            "added_tables": [
+              "message_contacts"
+            ],
+            "changed_foreign_keys": [],
+            "changed_original_tables": [],
+            "changed_schema_objects": [],
+            "changed_table_constraints": [],
+            "missing_tables": [],
+            "removed_foreign_keys": {},
+            "removed_migrations": [],
+            "removed_schema_objects": [],
+            "removed_table_constraints": {}
+          },
+          "fingerprint": {
+            "foreign_key_errors": 0,
+            "integrity_ok": true,
+            "migration_versions": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23,
+              24,
+              25,
+              26,
+              27,
+              28,
+              29,
+              30,
+              31,
+              32,
+              33,
+              34
+            ],
+            "tables": {
+              "app_state_full_sync_broken": {
+                "columns": [
+                  "collection",
+                  "marked_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "app_state_recovery_intents": {
+                "columns": [
+                  "id",
+                  "collection"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "call_events": {
+                "columns": [
+                  "rowid",
+                  "chat_jid",
+                  "chat_name",
+                  "sender_jid",
+                  "sender_name",
+                  "call_id",
+                  "msg_id",
+                  "event_type",
+                  "direction",
+                  "media",
+                  "outcome",
+                  "reason",
+                  "call_type",
+                  "duration_secs",
+                  "ts",
+                  "participants"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "change_state": {
+                "columns": [
+                  "id",
+                  "floor",
+                  "retained_count",
+                  "suppress"
+                ],
+                "original": {
+                  "rows": 1
+                },
+                "rows": 1
+              },
+              "chat_archive_setting": {
+                "columns": [
+                  "id",
+                  "enabled",
+                  "timestamp_ms"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "chats": {
+                "columns": [
+                  "jid",
+                  "kind",
+                  "name",
+                  "last_message_ts",
+                  "archived",
+                  "pinned",
+                  "muted_until",
+                  "unread",
+                  "unread_count",
+                  "archive_action_ms",
+                  "archive_incoming_ms",
+                  "archive_cleared_ms",
+                  "archive_setting_min_ms"
+                ],
+                "original": {
+                  "rows": 2
+                },
+                "rows": 2
+              },
+              "contact_aliases": {
+                "columns": [
+                  "jid",
+                  "alias",
+                  "notes",
+                  "updated_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "contact_tags": {
+                "columns": [
+                  "jid",
+                  "tag",
+                  "updated_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "contacts": {
+                "columns": [
+                  "jid",
+                  "phone",
+                  "push_name",
+                  "full_name",
+                  "first_name",
+                  "business_name",
+                  "system_name",
+                  "updated_at"
+                ],
+                "original": {
+                  "rows": 1
+                },
+                "rows": 1
+              },
+              "group_participants": {
+                "columns": [
+                  "group_jid",
+                  "user_jid",
+                  "role",
+                  "updated_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "groups": {
+                "columns": [
+                  "jid",
+                  "name",
+                  "owner_jid",
+                  "created_ts",
+                  "is_parent",
+                  "linked_parent_jid",
+                  "left_at",
+                  "updated_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "message_changes": {
+                "columns": [
+                  "sequence",
+                  "recorded_at",
+                  "operation",
+                  "chat_jid",
+                  "msg_id",
+                  "new_chat_jid",
+                  "new_msg_id",
+                  "reason",
+                  "message_ts"
+                ],
+                "original": {
+                  "rows": 4
+                },
+                "rows": 4
+              },
+              "message_contacts": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "position",
+                  "display_name",
+                  "vcard"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "message_local_media_aliases": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "local_path",
+                  "downloaded_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "message_locations": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "latitude",
+                  "longitude",
+                  "name",
+                  "address",
+                  "is_live"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "message_payload_purges": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "purged_at",
+                  "deleted_at",
+                  "deletion_reason"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "message_receipts": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "recipient_jid",
+                  "status",
+                  "ts"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "messages": {
+                "columns": [
+                  "rowid",
+                  "chat_jid",
+                  "chat_name",
+                  "msg_id",
+                  "sender_jid",
+                  "sender_name",
+                  "ts",
+                  "from_me",
+                  "text",
+                  "display_text",
+                  "quoted_msg_id",
+                  "quoted_sender_jid",
+                  "is_forwarded",
+                  "forwarding_score",
+                  "reaction_to_id",
+                  "reaction_emoji",
+                  "media_type",
+                  "media_caption",
+                  "filename",
+                  "mime_type",
+                  "direct_path",
+                  "media_key",
+                  "file_sha256",
+                  "file_enc_sha256",
+                  "file_length",
+                  "local_path",
+                  "downloaded_at",
+                  "media_unavailable_at",
+                  "revoked",
+                  "deleted_for_me",
+                  "deleted_at",
+                  "deletion_reason",
+                  "payload_purged_at",
+                  "edited",
+                  "edited_ts",
+                  "buttons"
+                ],
+                "original": {
+                  "rows": 4
+                },
+                "rows": 4
+              },
+              "messages_fts": {
+                "columns": [
+                  "text",
+                  "media_caption",
+                  "filename",
+                  "chat_name",
+                  "sender_name",
+                  "display_text"
+                ],
+                "original": {
+                  "rows": 4
+                },
+                "rows": 4
+              },
+              "messages_fts_config": {
+                "columns": [
+                  "k",
+                  "v"
+                ],
+                "original": {
+                  "rows": 1
+                },
+                "rows": 1
+              },
+              "messages_fts_content": {
+                "columns": [
+                  "id",
+                  "c0",
+                  "c1",
+                  "c2",
+                  "c3",
+                  "c4",
+                  "c5"
+                ],
+                "original": {
+                  "rows": 4
+                },
+                "rows": 4
+              },
+              "messages_fts_data": {
+                "columns": [
+                  "id",
+                  "block"
+                ],
+                "original": {
+                  "rows": 6
+                },
+                "rows": 6
+              },
+              "messages_fts_docsize": {
+                "columns": [
+                  "id",
+                  "sz"
+                ],
+                "original": {
+                  "rows": 4
+                },
+                "rows": 4
+              },
+              "messages_fts_idx": {
+                "columns": [
+                  "segid",
+                  "term",
+                  "pgno"
+                ],
+                "original": {
+                  "rows": 4
+                },
+                "rows": 4
+              },
+              "poll_votes": {
+                "columns": [
+                  "chat_jid",
+                  "poll_msg_id",
+                  "voter_jid",
+                  "vote_msg_id",
+                  "selected_options_json",
+                  "ts"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "polls": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "sender_jid",
+                  "question",
+                  "options_json",
+                  "selectable_count",
+                  "created_ts"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "retrieval_state": {
+                "columns": [
+                  "id",
+                  "store_id",
+                  "revision",
+                  "last_sync_at"
+                ],
+                "original": {
+                  "rows": 1
+                },
+                "rows": 1
+              },
+              "schema_migrations": {
+                "columns": [
+                  "version",
+                  "name",
+                  "applied_at"
+                ],
+                "original": {
+                  "rows": 33
+                },
+                "rows": 34
+              },
+              "sqlite_sequence": {
+                "columns": [
+                  "name",
+                  "seq"
+                ],
+                "original": {
+                  "rows": 3
+                },
+                "rows": 3
+              },
+              "starred": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "sender_jid",
+                  "from_me",
+                  "starred_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "status_messages": {
+                "columns": [
+                  "rowid",
+                  "msg_id",
+                  "ts",
+                  "from_me",
+                  "sender_jid",
+                  "sender_name",
+                  "text",
+                  "media_type",
+                  "media_caption",
+                  "filename",
+                  "mime_type",
+                  "direct_path",
+                  "media_key",
+                  "file_sha256",
+                  "file_enc_sha256",
+                  "file_length",
+                  "background_color",
+                  "font"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "unavailable_app_state_keys": {
+                "columns": [
+                  "account_jid",
+                  "key_id"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              }
+            }
+          },
+          "passed": true,
+          "phase": "old-1-read-only",
+          "read_only_unchanged": true
+        },
+        {
+          "comparison": {
+            "added_columns": {},
+            "added_foreign_keys": {},
+            "added_migrations": [
+              34
+            ],
+            "added_schema_objects": [
+              "index:sqlite_autoindex_message_contacts_1",
+              "trigger:retrieval_message_contacts_delete",
+              "trigger:retrieval_message_contacts_insert",
+              "trigger:retrieval_message_contacts_update"
+            ],
+            "added_table_constraints": {
+              "message_contacts": 6
+            },
+            "added_tables": [
+              "message_contacts"
+            ],
+            "changed_foreign_keys": [],
+            "changed_original_tables": [],
+            "changed_schema_objects": [],
+            "changed_table_constraints": [],
+            "missing_tables": [],
+            "removed_foreign_keys": {},
+            "removed_migrations": [],
+            "removed_schema_objects": [],
+            "removed_table_constraints": {}
+          },
+          "fingerprint": {
+            "foreign_key_errors": 0,
+            "integrity_ok": true,
+            "migration_versions": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15,
+              16,
+              17,
+              18,
+              19,
+              20,
+              21,
+              22,
+              23,
+              24,
+              25,
+              26,
+              27,
+              28,
+              29,
+              30,
+              31,
+              32,
+              33,
+              34
+            ],
+            "tables": {
+              "app_state_full_sync_broken": {
+                "columns": [
+                  "collection",
+                  "marked_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "app_state_recovery_intents": {
+                "columns": [
+                  "id",
+                  "collection"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "call_events": {
+                "columns": [
+                  "rowid",
+                  "chat_jid",
+                  "chat_name",
+                  "sender_jid",
+                  "sender_name",
+                  "call_id",
+                  "msg_id",
+                  "event_type",
+                  "direction",
+                  "media",
+                  "outcome",
+                  "reason",
+                  "call_type",
+                  "duration_secs",
+                  "ts",
+                  "participants"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "change_state": {
+                "columns": [
+                  "id",
+                  "floor",
+                  "retained_count",
+                  "suppress"
+                ],
+                "original": {
+                  "rows": 1
+                },
+                "rows": 1
+              },
+              "chat_archive_setting": {
+                "columns": [
+                  "id",
+                  "enabled",
+                  "timestamp_ms"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "chats": {
+                "columns": [
+                  "jid",
+                  "kind",
+                  "name",
+                  "last_message_ts",
+                  "archived",
+                  "pinned",
+                  "muted_until",
+                  "unread",
+                  "unread_count",
+                  "archive_action_ms",
+                  "archive_incoming_ms",
+                  "archive_cleared_ms",
+                  "archive_setting_min_ms"
+                ],
+                "original": {
+                  "rows": 2
+                },
+                "rows": 2
+              },
+              "contact_aliases": {
+                "columns": [
+                  "jid",
+                  "alias",
+                  "notes",
+                  "updated_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "contact_tags": {
+                "columns": [
+                  "jid",
+                  "tag",
+                  "updated_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "contacts": {
+                "columns": [
+                  "jid",
+                  "phone",
+                  "push_name",
+                  "full_name",
+                  "first_name",
+                  "business_name",
+                  "system_name",
+                  "updated_at"
+                ],
+                "original": {
+                  "rows": 1
+                },
+                "rows": 1
+              },
+              "group_participants": {
+                "columns": [
+                  "group_jid",
+                  "user_jid",
+                  "role",
+                  "updated_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "groups": {
+                "columns": [
+                  "jid",
+                  "name",
+                  "owner_jid",
+                  "created_ts",
+                  "is_parent",
+                  "linked_parent_jid",
+                  "left_at",
+                  "updated_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "message_changes": {
+                "columns": [
+                  "sequence",
+                  "recorded_at",
+                  "operation",
+                  "chat_jid",
+                  "msg_id",
+                  "new_chat_jid",
+                  "new_msg_id",
+                  "reason",
+                  "message_ts"
+                ],
+                "original": {
+                  "rows": 4
+                },
+                "rows": 4
+              },
+              "message_contacts": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "position",
+                  "display_name",
+                  "vcard"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "message_local_media_aliases": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "local_path",
+                  "downloaded_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "message_locations": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "latitude",
+                  "longitude",
+                  "name",
+                  "address",
+                  "is_live"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "message_payload_purges": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "purged_at",
+                  "deleted_at",
+                  "deletion_reason"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "message_receipts": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "recipient_jid",
+                  "status",
+                  "ts"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "messages": {
+                "columns": [
+                  "rowid",
+                  "chat_jid",
+                  "chat_name",
+                  "msg_id",
+                  "sender_jid",
+                  "sender_name",
+                  "ts",
+                  "from_me",
+                  "text",
+                  "display_text",
+                  "quoted_msg_id",
+                  "quoted_sender_jid",
+                  "is_forwarded",
+                  "forwarding_score",
+                  "reaction_to_id",
+                  "reaction_emoji",
+                  "media_type",
+                  "media_caption",
+                  "filename",
+                  "mime_type",
+                  "direct_path",
+                  "media_key",
+                  "file_sha256",
+                  "file_enc_sha256",
+                  "file_length",
+                  "local_path",
+                  "downloaded_at",
+                  "media_unavailable_at",
+                  "revoked",
+                  "deleted_for_me",
+                  "deleted_at",
+                  "deletion_reason",
+                  "payload_purged_at",
+                  "edited",
+                  "edited_ts",
+                  "buttons"
+                ],
+                "original": {
+                  "rows": 4
+                },
+                "rows": 4
+              },
+              "messages_fts": {
+                "columns": [
+                  "text",
+                  "media_caption",
+                  "filename",
+                  "chat_name",
+                  "sender_name",
+                  "display_text"
+                ],
+                "original": {
+                  "rows": 4
+                },
+                "rows": 4
+              },
+              "messages_fts_config": {
+                "columns": [
+                  "k",
+                  "v"
+                ],
+                "original": {
+                  "rows": 1
+                },
+                "rows": 1
+              },
+              "messages_fts_content": {
+                "columns": [
+                  "id",
+                  "c0",
+                  "c1",
+                  "c2",
+                  "c3",
+                  "c4",
+                  "c5"
+                ],
+                "original": {
+                  "rows": 4
+                },
+                "rows": 4
+              },
+              "messages_fts_data": {
+                "columns": [
+                  "id",
+                  "block"
+                ],
+                "original": {
+                  "rows": 6
+                },
+                "rows": 6
+              },
+              "messages_fts_docsize": {
+                "columns": [
+                  "id",
+                  "sz"
+                ],
+                "original": {
+                  "rows": 4
+                },
+                "rows": 4
+              },
+              "messages_fts_idx": {
+                "columns": [
+                  "segid",
+                  "term",
+                  "pgno"
+                ],
+                "original": {
+                  "rows": 4
+                },
+                "rows": 4
+              },
+              "poll_votes": {
+                "columns": [
+                  "chat_jid",
+                  "poll_msg_id",
+                  "voter_jid",
+                  "vote_msg_id",
+                  "selected_options_json",
+                  "ts"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "polls": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "sender_jid",
+                  "question",
+                  "options_json",
+                  "selectable_count",
+                  "created_ts"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "retrieval_state": {
+                "columns": [
+                  "id",
+                  "store_id",
+                  "revision",
+                  "last_sync_at"
+                ],
+                "original": {
+                  "rows": 1
+                },
+                "rows": 1
+              },
+              "schema_migrations": {
+                "columns": [
+                  "version",
+                  "name",
+                  "applied_at"
+                ],
+                "original": {
+                  "rows": 33
+                },
+                "rows": 34
+              },
+              "sqlite_sequence": {
+                "columns": [
+                  "name",
+                  "seq"
+                ],
+                "original": {
+                  "rows": 3
+                },
+                "rows": 3
+              },
+              "starred": {
+                "columns": [
+                  "chat_jid",
+                  "msg_id",
+                  "sender_jid",
+                  "from_me",
+                  "starred_at"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "status_messages": {
+                "columns": [
+                  "rowid",
+                  "msg_id",
+                  "ts",
+                  "from_me",
+                  "sender_jid",
+                  "sender_name",
+                  "text",
+                  "media_type",
+                  "media_caption",
+                  "filename",
+                  "mime_type",
+                  "direct_path",
+                  "media_key",
+                  "file_sha256",
+                  "file_enc_sha256",
+                  "file_length",
+                  "background_color",
+                  "font"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              },
+              "unavailable_app_state_keys": {
+                "columns": [
+                  "account_jid",
+                  "key_id"
+                ],
+                "original": {
+                  "rows": 0
+                },
+                "rows": 0
+              }
+            }
+          },
+          "passed": true,
+          "phase": "old-1-writable",
+          "read_only_unchanged": true
+        }
+      ],
+      "store": "line-1"
+    }
+  ]
+}
