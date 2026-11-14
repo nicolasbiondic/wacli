@@ -1,0 +1,672 @@
+=== RUN   TestSendKeepUnreadRealTransport
+=== RUN   TestSendKeepUnreadRealTransport / delegated=false / keep=true / manual=false
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+
+App state regular_low resolved via full sync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+
+Connected.
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="inactive"></receipt>
+    send_keep_unread_transport_test.go:70: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:71: STORE after first wire input: unread=true unread_count=1
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="inactive"></receipt>
+    send_keep_unread_transport_test.go:72: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:73: STORE after second wire input: unread=true unread_count=2
+
+Stopping sync.
+    send_keep_unread_transport_test.go:268: PEER received <presence type="unavailable" name="Synthetic Proof"></presence>
+03:12:23.573 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    send_keep_unread_transport_test.go:95: COMMAND direct: no sync owner or IPC listener; Cobra opens, locks, authenticates and connects
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <presence type="available" name="Synthetic Proof"></presence>
+    send_keep_unread_transport_test.go:268: PEER received <ib><unified_session></unified_session></ib>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="usync"><usync context="interactive"><query><contact></contact><business><verified_name></verified_name></business><disappearing_mode></disappearing_mode><username></username></query><list><user><contact></contact></user></list></usync></iq>
+    send_keep_unread_transport_test.go:551: PEER served synthetic registration/LID identity and device list over usync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="usync"><usync context="background"><query><business><verified_name></verified_name></business><status></status><picture></picture><devices></devices><lid></lid></query><list><user></user></list></usync></iq>
+    send_keep_unread_transport_test.go:551: PEER served synthetic registration/LID identity and device list over usync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="usync"><usync context="message"><query><devices></devices></query><list><user></user><user></user></list></usync></iq>
+    send_keep_unread_transport_test.go:551: PEER served synthetic registration/LID identity and device list over usync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><key><user></user></key></iq>
+    send_keep_unread_transport_test.go:568: PEER served real signed Signal prekey bundle for synthetic recipient device
+    send_keep_unread_transport_test.go:268: PEER received <message type="text"><participants><to><enc type="pkmsg"></enc></to></participants><device-identity></device-identity></message>
+    send_keep_unread_transport_test.go:521: PEER accepted real encrypted message; Signal decrypt and synthetic text match; returning message ack
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="privacy"><tokens><token type="trusted_contact"></token></tokens></iq>
+    send_keep_unread_transport_test.go:123: COBRA sent=true; output ID equals encrypted message ID and peer ack ID (IDs redacted)
+    send_keep_unread_transport_test.go:142: STORE after direct send (command App closed): unread=false unread_count=0
+    send_keep_unread_transport_test.go:142: after direct send (command App closed): lost unread policy: got (false,0), want (true,2)
+    send_keep_unread_transport_test.go:143: STORE accepted outbound row exists at canonical phone chat; from_me=true
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+
+Connected.
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+
+App state regular_low resolved via full sync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="sender"></receipt>
+    send_keep_unread_transport_test.go:148: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:149: STORE after own-device encrypted echo: unread=false unread_count=0
+    send_keep_unread_transport_test.go:149: after own-device encrypted echo: lost unread policy: got (false,0), want (true,2)
+
+Stopping sync.
+    send_keep_unread_transport_test.go:268: PEER received <presence type="unavailable" name="Synthetic Proof"></presence>
+03:12:23.663 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+
+Connected.
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+
+App state regular_low resolved via full sync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_keep_unread_transport_test.go:153: STORE reopened store before replay: unread=false unread_count=0
+    send_keep_unread_transport_test.go:153: reopened store before replay: lost unread policy: got (false,0), want (true,2)
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="sender"></receipt>
+    send_keep_unread_transport_test.go:154: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:155: STORE same ID replay over new socket after restart: unread=false unread_count=0
+    send_keep_unread_transport_test.go:155: same ID replay over new socket after restart: lost unread policy: got (false,0), want (true,2)
+    send_keep_unread_transport_test.go:156: STORE accepted outbound row exists at canonical phone chat; from_me=true
+
+Stopping sync.
+    send_keep_unread_transport_test.go:268: PEER received <presence type="unavailable" name="Synthetic Proof"></presence>
+03:12:23.696 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    send_keep_unread_transport_test.go:158: WIRE totals: encrypted_messages=1 read_receipts=0 app_state_patches=0 device_queries=2 prekey_bundles=1
+=== RUN   TestSendKeepUnreadRealTransport / delegated=false / keep=true / manual=true
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+
+Connected.
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+
+App state regular_low resolved via full sync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="inactive"></receipt>
+    send_keep_unread_transport_test.go:70: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:71: STORE after first wire input: unread=true unread_count=1
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="inactive"></receipt>
+    send_keep_unread_transport_test.go:72: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:73: STORE after second wire input: unread=true unread_count=2
+    send_keep_unread_transport_test.go:83: STORE manual unread marker: unread=true unread_count=0
+
+Stopping sync.
+    send_keep_unread_transport_test.go:268: PEER received <presence type="unavailable" name="Synthetic Proof"></presence>
+03:12:23.858 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    send_keep_unread_transport_test.go:95: COMMAND direct: no sync owner or IPC listener; Cobra opens, locks, authenticates and connects
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <presence type="available" name="Synthetic Proof"></presence>
+    send_keep_unread_transport_test.go:268: PEER received <ib><unified_session></unified_session></ib>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="usync"><usync context="interactive"><query><contact></contact><business><verified_name></verified_name></business><disappearing_mode></disappearing_mode><username></username></query><list><user><contact></contact></user></list></usync></iq>
+    send_keep_unread_transport_test.go:551: PEER served synthetic registration/LID identity and device list over usync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="usync"><usync context="background"><query><business><verified_name></verified_name></business><status></status><picture></picture><devices></devices><lid></lid></query><list><user></user></list></usync></iq>
+    send_keep_unread_transport_test.go:551: PEER served synthetic registration/LID identity and device list over usync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="usync"><usync context="message"><query><devices></devices></query><list><user></user><user></user></list></usync></iq>
+    send_keep_unread_transport_test.go:551: PEER served synthetic registration/LID identity and device list over usync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><key><user></user></key></iq>
+    send_keep_unread_transport_test.go:568: PEER served real signed Signal prekey bundle for synthetic recipient device
+    send_keep_unread_transport_test.go:268: PEER received <message type="text"><participants><to><enc type="pkmsg"></enc></to></participants><device-identity></device-identity></message>
+    send_keep_unread_transport_test.go:521: PEER accepted real encrypted message; Signal decrypt and synthetic text match; returning message ack
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="privacy"><tokens><token type="trusted_contact"></token></tokens></iq>
+    send_keep_unread_transport_test.go:123: COBRA sent=true; output ID equals encrypted message ID and peer ack ID (IDs redacted)
+    send_keep_unread_transport_test.go:142: STORE after direct send (command App closed): unread=false unread_count=0
+    send_keep_unread_transport_test.go:142: after direct send (command App closed): lost unread policy: got (false,0), want (true,0)
+    send_keep_unread_transport_test.go:143: STORE accepted outbound row exists at canonical phone chat; from_me=true
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+
+Connected.
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+
+App state regular_low resolved via full sync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="sender"></receipt>
+    send_keep_unread_transport_test.go:148: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:149: STORE after own-device encrypted echo: unread=false unread_count=0
+    send_keep_unread_transport_test.go:149: after own-device encrypted echo: lost unread policy: got (false,0), want (true,0)
+
+Stopping sync.
+    send_keep_unread_transport_test.go:268: PEER received <presence type="unavailable" name="Synthetic Proof"></presence>
+03:12:23.948 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+
+Connected.
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+
+App state regular_low resolved via full sync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_keep_unread_transport_test.go:153: STORE reopened store before replay: unread=false unread_count=0
+    send_keep_unread_transport_test.go:153: reopened store before replay: lost unread policy: got (false,0), want (true,0)
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="sender"></receipt>
+    send_keep_unread_transport_test.go:154: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:155: STORE same ID replay over new socket after restart: unread=false unread_count=0
+    send_keep_unread_transport_test.go:155: same ID replay over new socket after restart: lost unread policy: got (false,0), want (true,0)
+    send_keep_unread_transport_test.go:156: STORE accepted outbound row exists at canonical phone chat; from_me=true
+
+Stopping sync.
+    send_keep_unread_transport_test.go:268: PEER received <presence type="unavailable" name="Synthetic Proof"></presence>
+03:12:23.979 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    send_keep_unread_transport_test.go:158: WIRE totals: encrypted_messages=1 read_receipts=0 app_state_patches=0 device_queries=2 prekey_bundles=1
+=== RUN   TestSendKeepUnreadRealTransport / delegated=false / keep=false / manual=false
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+
+App state regular_low resolved via full sync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+
+Connected.
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="inactive"></receipt>
+    send_keep_unread_transport_test.go:70: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:71: STORE after first wire input: unread=true unread_count=1
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="inactive"></receipt>
+    send_keep_unread_transport_test.go:72: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:73: STORE after second wire input: unread=true unread_count=2
+
+Stopping sync.
+    send_keep_unread_transport_test.go:268: PEER received <presence type="unavailable" name="Synthetic Proof"></presence>
+03:12:24.137 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    send_keep_unread_transport_test.go:95: COMMAND direct: no sync owner or IPC listener; Cobra opens, locks, authenticates and connects
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <presence type="available" name="Synthetic Proof"></presence>
+    send_keep_unread_transport_test.go:268: PEER received <ib><unified_session></unified_session></ib>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="usync"><usync context="interactive"><query><contact></contact><business><verified_name></verified_name></business><disappearing_mode></disappearing_mode><username></username></query><list><user><contact></contact></user></list></usync></iq>
+    send_keep_unread_transport_test.go:551: PEER served synthetic registration/LID identity and device list over usync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="usync"><usync context="background"><query><business><verified_name></verified_name></business><status></status><picture></picture><devices></devices><lid></lid></query><list><user></user></list></usync></iq>
+    send_keep_unread_transport_test.go:551: PEER served synthetic registration/LID identity and device list over usync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="usync"><usync context="message"><query><devices></devices></query><list><user></user><user></user></list></usync></iq>
+    send_keep_unread_transport_test.go:551: PEER served synthetic registration/LID identity and device list over usync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><key><user></user></key></iq>
+    send_keep_unread_transport_test.go:568: PEER served real signed Signal prekey bundle for synthetic recipient device
+    send_keep_unread_transport_test.go:268: PEER received <message type="text"><participants><to><enc type="pkmsg"></enc></to></participants><device-identity></device-identity></message>
+    send_keep_unread_transport_test.go:521: PEER accepted real encrypted message; Signal decrypt and synthetic text match; returning message ack
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="privacy"><tokens><token type="trusted_contact"></token></tokens></iq>
+    send_keep_unread_transport_test.go:123: COBRA sent=true; output ID equals encrypted message ID and peer ack ID (IDs redacted)
+    send_keep_unread_transport_test.go:127: CONTROL no flag: v0.26.0 local acknowledgement must clear unread
+    send_keep_unread_transport_test.go:142: STORE after direct send (command App closed): unread=false unread_count=0
+    send_keep_unread_transport_test.go:143: STORE accepted outbound row exists at canonical phone chat; from_me=true
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+
+Connected.
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+
+App state regular_low resolved via full sync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="sender"></receipt>
+    send_keep_unread_transport_test.go:148: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:149: STORE after own-device encrypted echo: unread=false unread_count=0
+
+Stopping sync.
+    send_keep_unread_transport_test.go:268: PEER received <presence type="unavailable" name="Synthetic Proof"></presence>
+03:12:24.230 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+
+Connected.
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+
+App state regular_low resolved via full sync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_keep_unread_transport_test.go:153: STORE reopened store before replay: unread=false unread_count=0
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="sender"></receipt>
+    send_keep_unread_transport_test.go:154: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:155: STORE same ID replay over new socket after restart: unread=false unread_count=0
+    send_keep_unread_transport_test.go:156: STORE accepted outbound row exists at canonical phone chat; from_me=true
+
+Stopping sync.
+    send_keep_unread_transport_test.go:268: PEER received <presence type="unavailable" name="Synthetic Proof"></presence>
+03:12:24.261 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    send_keep_unread_transport_test.go:158: WIRE totals: encrypted_messages=1 read_receipts=0 app_state_patches=0 device_queries=2 prekey_bundles=1
+=== RUN   TestSendKeepUnreadRealTransport / delegated=false / keep=false / manual=true
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+
+App state regular_low resolved via full sync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+
+Connected.
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="inactive"></receipt>
+    send_keep_unread_transport_test.go:70: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:71: STORE after first wire input: unread=true unread_count=1
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="inactive"></receipt>
+    send_keep_unread_transport_test.go:72: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:73: STORE after second wire input: unread=true unread_count=2
+    send_keep_unread_transport_test.go:83: STORE manual unread marker: unread=true unread_count=0
+
+Stopping sync.
+    send_keep_unread_transport_test.go:268: PEER received <presence type="unavailable" name="Synthetic Proof"></presence>
+03:12:24.423 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    send_keep_unread_transport_test.go:95: COMMAND direct: no sync owner or IPC listener; Cobra opens, locks, authenticates and connects
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <presence type="available" name="Synthetic Proof"></presence>
+    send_keep_unread_transport_test.go:268: PEER received <ib><unified_session></unified_session></ib>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="usync"><usync context="interactive"><query><contact></contact><business><verified_name></verified_name></business><disappearing_mode></disappearing_mode><username></username></query><list><user><contact></contact></user></list></usync></iq>
+    send_keep_unread_transport_test.go:551: PEER served synthetic registration/LID identity and device list over usync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="usync"><usync context="background"><query><business><verified_name></verified_name></business><status></status><picture></picture><devices></devices><lid></lid></query><list><user></user></list></usync></iq>
+    send_keep_unread_transport_test.go:551: PEER served synthetic registration/LID identity and device list over usync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="usync"><usync context="message"><query><devices></devices></query><list><user></user><user></user></list></usync></iq>
+    send_keep_unread_transport_test.go:551: PEER served synthetic registration/LID identity and device list over usync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><key><user></user></key></iq>
+    send_keep_unread_transport_test.go:568: PEER served real signed Signal prekey bundle for synthetic recipient device
+    send_keep_unread_transport_test.go:268: PEER received <message type="text"><participants><to><enc type="pkmsg"></enc></to></participants><device-identity></device-identity></message>
+    send_keep_unread_transport_test.go:521: PEER accepted real encrypted message; Signal decrypt and synthetic text match; returning message ack
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="privacy"><tokens><token type="trusted_contact"></token></tokens></iq>
+    send_keep_unread_transport_test.go:123: COBRA sent=true; output ID equals encrypted message ID and peer ack ID (IDs redacted)
+    send_keep_unread_transport_test.go:127: CONTROL no flag: v0.26.0 local acknowledgement must clear unread
+    send_keep_unread_transport_test.go:142: STORE after direct send (command App closed): unread=false unread_count=0
+    send_keep_unread_transport_test.go:143: STORE accepted outbound row exists at canonical phone chat; from_me=true
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+
+Connected.
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+
+App state regular_low resolved via full sync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="sender"></receipt>
+    send_keep_unread_transport_test.go:148: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:149: STORE after own-device encrypted echo: unread=false unread_count=0
+
+Stopping sync.
+    send_keep_unread_transport_test.go:268: PEER received <presence type="unavailable" name="Synthetic Proof"></presence>
+03:12:24.510 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+
+Connected.
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+
+App state regular_low resolved via full sync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_keep_unread_transport_test.go:153: STORE reopened store before replay: unread=false unread_count=0
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="sender"></receipt>
+    send_keep_unread_transport_test.go:154: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:155: STORE same ID replay over new socket after restart: unread=false unread_count=0
+    send_keep_unread_transport_test.go:156: STORE accepted outbound row exists at canonical phone chat; from_me=true
+
+Stopping sync.
+    send_keep_unread_transport_test.go:268: PEER received <presence type="unavailable" name="Synthetic Proof"></presence>
+03:12:24.541 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    send_keep_unread_transport_test.go:158: WIRE totals: encrypted_messages=1 read_receipts=0 app_state_patches=0 device_queries=2 prekey_bundles=1
+=== RUN   TestSendKeepUnreadRealTransport / delegated=true / keep=true / manual=false
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+
+App state regular_low resolved via full sync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+
+Connected.
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="inactive"></receipt>
+    send_keep_unread_transport_test.go:70: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:71: STORE after first wire input: unread=true unread_count=1
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="inactive"></receipt>
+    send_keep_unread_transport_test.go:72: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:73: STORE after second wire input: unread=true unread_count=2
+
+Stopping sync.
+    send_keep_unread_transport_test.go:268: PEER received <presence type="unavailable" name="Synthetic Proof"></presence>
+03:12:24.702 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+
+Connected.
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+
+App state regular_low resolved via full sync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_keep_unread_transport_test.go:93: COMMAND delegated: real follow owner holds LOCK; Cobra must use IPC
+    send_keep_unread_transport_test.go:341: IPC decoded version=2 keep_unread=true kind=text
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="usync"><usync context="interactive"><query><contact></contact><business><verified_name></verified_name></business><disappearing_mode></disappearing_mode><username></username></query><list><user><contact></contact></user></list></usync></iq>
+    send_keep_unread_transport_test.go:551: PEER served synthetic registration/LID identity and device list over usync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="usync"><usync context="background"><query><business><verified_name></verified_name></business><status></status><picture></picture><devices></devices><lid></lid></query><list><user></user></list></usync></iq>
+    send_keep_unread_transport_test.go:551: PEER served synthetic registration/LID identity and device list over usync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="usync"><usync context="message"><query><devices></devices></query><list><user></user><user></user></list></usync></iq>
+    send_keep_unread_transport_test.go:551: PEER served synthetic registration/LID identity and device list over usync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><key><user></user></key></iq>
+    send_keep_unread_transport_test.go:568: PEER served real signed Signal prekey bundle for synthetic recipient device
+    send_keep_unread_transport_test.go:268: PEER received <message type="text"><participants><to><enc type="pkmsg"></enc></to></participants><device-identity></device-identity></message>
+    send_keep_unread_transport_test.go:521: PEER accepted real encrypted message; Signal decrypt and synthetic text match; returning message ack
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="privacy"><tokens><token type="trusted_contact"></token></tokens></iq>
+    send_keep_unread_transport_test.go:123: COBRA sent=true; output ID equals encrypted message ID and peer ack ID (IDs redacted)
+    send_keep_unread_transport_test.go:130: STORE after delegated send: unread=false unread_count=0
+    send_keep_unread_transport_test.go:130: after delegated send: lost unread policy: got (false,0), want (true,2)
+    send_keep_unread_transport_test.go:131: STORE accepted outbound row exists at canonical phone chat; from_me=true
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="sender"></receipt>
+    send_keep_unread_transport_test.go:132: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:133: STORE after own-device encrypted echo: unread=false unread_count=0
+    send_keep_unread_transport_test.go:133: after own-device encrypted echo: lost unread policy: got (false,0), want (true,2)
+
+Stopping sync.
+    send_keep_unread_transport_test.go:268: PEER received <presence type="unavailable" name="Synthetic Proof"></presence>
+03:12:24.770 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+
+Connected.
+
+App state regular_low resolved via full sync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_keep_unread_transport_test.go:153: STORE reopened store before replay: unread=false unread_count=0
+    send_keep_unread_transport_test.go:153: reopened store before replay: lost unread policy: got (false,0), want (true,2)
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="sender"></receipt>
+    send_keep_unread_transport_test.go:154: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:155: STORE same ID replay over new socket after restart: unread=false unread_count=0
+    send_keep_unread_transport_test.go:155: same ID replay over new socket after restart: lost unread policy: got (false,0), want (true,2)
+    send_keep_unread_transport_test.go:156: STORE accepted outbound row exists at canonical phone chat; from_me=true
+
+Stopping sync.
+    send_keep_unread_transport_test.go:268: PEER received <presence type="unavailable" name="Synthetic Proof"></presence>
+03:12:24.801 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    send_keep_unread_transport_test.go:158: WIRE totals: encrypted_messages=1 read_receipts=0 app_state_patches=0 device_queries=2 prekey_bundles=1
+=== RUN   TestSendKeepUnreadRealTransport / delegated=true / keep=true / manual=true
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+
+App state regular_low resolved via full sync
+
+Connected.
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="inactive"></receipt>
+    send_keep_unread_transport_test.go:70: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:71: STORE after first wire input: unread=true unread_count=1
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="inactive"></receipt>
+    send_keep_unread_transport_test.go:72: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:73: STORE after second wire input: unread=true unread_count=2
+    send_keep_unread_transport_test.go:83: STORE manual unread marker: unread=true unread_count=0
+
+Stopping sync.
+    send_keep_unread_transport_test.go:268: PEER received <presence type="unavailable" name="Synthetic Proof"></presence>
+03:12:24.960 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+
+Connected.
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+
+App state regular_low resolved via full sync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_keep_unread_transport_test.go:93: COMMAND delegated: real follow owner holds LOCK; Cobra must use IPC
+    send_keep_unread_transport_test.go:341: IPC decoded version=2 keep_unread=true kind=text
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="usync"><usync context="interactive"><query><contact></contact><business><verified_name></verified_name></business><disappearing_mode></disappearing_mode><username></username></query><list><user><contact></contact></user></list></usync></iq>
+    send_keep_unread_transport_test.go:551: PEER served synthetic registration/LID identity and device list over usync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="usync"><usync context="background"><query><business><verified_name></verified_name></business><status></status><picture></picture><devices></devices><lid></lid></query><list><user></user></list></usync></iq>
+    send_keep_unread_transport_test.go:551: PEER served synthetic registration/LID identity and device list over usync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="usync"><usync context="message"><query><devices></devices></query><list><user></user><user></user></list></usync></iq>
+    send_keep_unread_transport_test.go:551: PEER served synthetic registration/LID identity and device list over usync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><key><user></user></key></iq>
+    send_keep_unread_transport_test.go:568: PEER served real signed Signal prekey bundle for synthetic recipient device
+    send_keep_unread_transport_test.go:268: PEER received <message type="text"><participants><to><enc type="pkmsg"></enc></to></participants><device-identity></device-identity></message>
+    send_keep_unread_transport_test.go:521: PEER accepted real encrypted message; Signal decrypt and synthetic text match; returning message ack
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="privacy"><tokens><token type="trusted_contact"></token></tokens></iq>
+    send_keep_unread_transport_test.go:123: COBRA sent=true; output ID equals encrypted message ID and peer ack ID (IDs redacted)
+    send_keep_unread_transport_test.go:130: STORE after delegated send: unread=false unread_count=0
+    send_keep_unread_transport_test.go:130: after delegated send: lost unread policy: got (false,0), want (true,0)
+    send_keep_unread_transport_test.go:131: STORE accepted outbound row exists at canonical phone chat; from_me=true
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="sender"></receipt>
+    send_keep_unread_transport_test.go:132: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:133: STORE after own-device encrypted echo: unread=false unread_count=0
+    send_keep_unread_transport_test.go:133: after own-device encrypted echo: lost unread policy: got (false,0), want (true,0)
+
+Stopping sync.
+    send_keep_unread_transport_test.go:268: PEER received <presence type="unavailable" name="Synthetic Proof"></presence>
+03:12:25.028 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+
+Connected.
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+
+App state regular_low resolved via full sync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_keep_unread_transport_test.go:153: STORE reopened store before replay: unread=false unread_count=0
+    send_keep_unread_transport_test.go:153: reopened store before replay: lost unread policy: got (false,0), want (true,0)
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="sender"></receipt>
+    send_keep_unread_transport_test.go:154: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:155: STORE same ID replay over new socket after restart: unread=false unread_count=0
+    send_keep_unread_transport_test.go:155: same ID replay over new socket after restart: lost unread policy: got (false,0), want (true,0)
+    send_keep_unread_transport_test.go:156: STORE accepted outbound row exists at canonical phone chat; from_me=true
+
+Stopping sync.
+    send_keep_unread_transport_test.go:268: PEER received <presence type="unavailable" name="Synthetic Proof"></presence>
+03:12:25.059 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    send_keep_unread_transport_test.go:158: WIRE totals: encrypted_messages=1 read_receipts=0 app_state_patches=0 device_queries=2 prekey_bundles=1
+=== RUN   TestSendKeepUnreadRealTransport / delegated=true / keep=false / manual=false
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+
+App state regular_low resolved via full sync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+
+Connected.
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="inactive"></receipt>
+    send_keep_unread_transport_test.go:70: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:71: STORE after first wire input: unread=true unread_count=1
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="inactive"></receipt>
+    send_keep_unread_transport_test.go:72: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:73: STORE after second wire input: unread=true unread_count=2
+
+Stopping sync.
+    send_keep_unread_transport_test.go:268: PEER received <presence type="unavailable" name="Synthetic Proof"></presence>
+03:12:25.231 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+
+Connected.
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+
+App state regular_low resolved via full sync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_keep_unread_transport_test.go:93: COMMAND delegated: real follow owner holds LOCK; Cobra must use IPC
+    send_keep_unread_transport_test.go:341: IPC decoded version=1 keep_unread=false kind=text
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="usync"><usync context="interactive"><query><contact></contact><business><verified_name></verified_name></business><disappearing_mode></disappearing_mode><username></username></query><list><user><contact></contact></user></list></usync></iq>
+    send_keep_unread_transport_test.go:551: PEER served synthetic registration/LID identity and device list over usync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="usync"><usync context="background"><query><business><verified_name></verified_name></business><status></status><picture></picture><devices></devices><lid></lid></query><list><user></user></list></usync></iq>
+    send_keep_unread_transport_test.go:551: PEER served synthetic registration/LID identity and device list over usync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="usync"><usync context="message"><query><devices></devices></query><list><user></user><user></user></list></usync></iq>
+    send_keep_unread_transport_test.go:551: PEER served synthetic registration/LID identity and device list over usync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><key><user></user></key></iq>
+    send_keep_unread_transport_test.go:568: PEER served real signed Signal prekey bundle for synthetic recipient device
+    send_keep_unread_transport_test.go:268: PEER received <message type="text"><participants><to><enc type="pkmsg"></enc></to></participants><device-identity></device-identity></message>
+    send_keep_unread_transport_test.go:521: PEER accepted real encrypted message; Signal decrypt and synthetic text match; returning message ack
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="privacy"><tokens><token type="trusted_contact"></token></tokens></iq>
+    send_keep_unread_transport_test.go:123: COBRA sent=true; output ID equals encrypted message ID and peer ack ID (IDs redacted)
+    send_keep_unread_transport_test.go:127: CONTROL no flag: v0.26.0 local acknowledgement must clear unread
+    send_keep_unread_transport_test.go:130: STORE after delegated send: unread=false unread_count=0
+    send_keep_unread_transport_test.go:131: STORE accepted outbound row exists at canonical phone chat; from_me=true
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="sender"></receipt>
+    send_keep_unread_transport_test.go:132: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:133: STORE after own-device encrypted echo: unread=false unread_count=0
+
+Stopping sync.
+    send_keep_unread_transport_test.go:268: PEER received <presence type="unavailable" name="Synthetic Proof"></presence>
+03:12:25.297 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+
+Connected.
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+
+App state regular_low resolved via full sync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_keep_unread_transport_test.go:153: STORE reopened store before replay: unread=false unread_count=0
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="sender"></receipt>
+    send_keep_unread_transport_test.go:154: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:155: STORE same ID replay over new socket after restart: unread=false unread_count=0
+    send_keep_unread_transport_test.go:156: STORE accepted outbound row exists at canonical phone chat; from_me=true
+
+Stopping sync.
+    send_keep_unread_transport_test.go:268: PEER received <presence type="unavailable" name="Synthetic Proof"></presence>
+03:12:25.330 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    send_keep_unread_transport_test.go:158: WIRE totals: encrypted_messages=1 read_receipts=0 app_state_patches=0 device_queries=2 prekey_bundles=1
+=== RUN   TestSendKeepUnreadRealTransport / delegated=true / keep=false / manual=true
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+
+Connected.
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+
+App state regular_low resolved via full sync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="inactive"></receipt>
+    send_keep_unread_transport_test.go:70: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:71: STORE after first wire input: unread=true unread_count=1
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="inactive"></receipt>
+    send_keep_unread_transport_test.go:72: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:73: STORE after second wire input: unread=true unread_count=2
+    send_keep_unread_transport_test.go:83: STORE manual unread marker: unread=true unread_count=0
+
+Stopping sync.
+    send_keep_unread_transport_test.go:268: PEER received <presence type="unavailable" name="Synthetic Proof"></presence>
+03:12:25.496 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+
+Connected.
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+
+App state regular_low resolved via full sync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_keep_unread_transport_test.go:93: COMMAND delegated: real follow owner holds LOCK; Cobra must use IPC
+    send_keep_unread_transport_test.go:341: IPC decoded version=1 keep_unread=false kind=text
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="usync"><usync context="interactive"><query><contact></contact><business><verified_name></verified_name></business><disappearing_mode></disappearing_mode><username></username></query><list><user><contact></contact></user></list></usync></iq>
+    send_keep_unread_transport_test.go:551: PEER served synthetic registration/LID identity and device list over usync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="usync"><usync context="background"><query><business><verified_name></verified_name></business><status></status><picture></picture><devices></devices><lid></lid></query><list><user></user></list></usync></iq>
+    send_keep_unread_transport_test.go:551: PEER served synthetic registration/LID identity and device list over usync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="usync"><usync context="message"><query><devices></devices></query><list><user></user><user></user></list></usync></iq>
+    send_keep_unread_transport_test.go:551: PEER served synthetic registration/LID identity and device list over usync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><key><user></user></key></iq>
+    send_keep_unread_transport_test.go:568: PEER served real signed Signal prekey bundle for synthetic recipient device
+    send_keep_unread_transport_test.go:268: PEER received <message type="text"><participants><to><enc type="pkmsg"></enc></to></participants><device-identity></device-identity></message>
+    send_keep_unread_transport_test.go:521: PEER accepted real encrypted message; Signal decrypt and synthetic text match; returning message ack
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="privacy"><tokens><token type="trusted_contact"></token></tokens></iq>
+    send_keep_unread_transport_test.go:123: COBRA sent=true; output ID equals encrypted message ID and peer ack ID (IDs redacted)
+    send_keep_unread_transport_test.go:127: CONTROL no flag: v0.26.0 local acknowledgement must clear unread
+    send_keep_unread_transport_test.go:130: STORE after delegated send: unread=false unread_count=0
+    send_keep_unread_transport_test.go:131: STORE accepted outbound row exists at canonical phone chat; from_me=true
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="sender"></receipt>
+    send_keep_unread_transport_test.go:132: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:133: STORE after own-device encrypted echo: unread=false unread_count=0
+
+Stopping sync.
+    send_keep_unread_transport_test.go:268: PEER received <presence type="unavailable" name="Synthetic Proof"></presence>
+03:12:25.566 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+
+Connected.
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+
+App state regular_low resolved via full sync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_keep_unread_transport_test.go:153: STORE reopened store before replay: unread=false unread_count=0
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="sender"></receipt>
+    send_keep_unread_transport_test.go:154: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:155: STORE same ID replay over new socket after restart: unread=false unread_count=0
+    send_keep_unread_transport_test.go:156: STORE accepted outbound row exists at canonical phone chat; from_me=true
+
+Stopping sync.
+    send_keep_unread_transport_test.go:268: PEER received <presence type="unavailable" name="Synthetic Proof"></presence>
+03:12:25.599 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    send_keep_unread_transport_test.go:158: WIRE totals: encrypted_messages=1 read_receipts=0 app_state_patches=0 device_queries=2 prekey_bundles=1
+=== RUN   TestSendKeepUnreadRealTransport / stable-v1-owner-upgrade
+    send_keep_unread_transport_test.go:255: NOISE XX: real SDK verified synthetic test-CA certificate; WebSocket connected
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+
+App state regular_low resolved via full sync
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+
+Connected.
+    send_keep_unread_transport_test.go:268: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="inactive"></receipt>
+    send_keep_unread_transport_test.go:171: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:268: PEER received <receipt type="inactive"></receipt>
+    send_keep_unread_transport_test.go:172: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_keep_unread_transport_test.go:173: STORE before v1-owner request: unread=true unread_count=2
+    send_keep_unread_transport_test.go:341: IPC decoded version=2 keep_unread=true kind=text
+{"success":false,"data":null,"error":"--keep-unread requires a newer sync owner; upgrade wacli and restart sync --follow (not sent): unsupported send delegate version 2"}
+    send_keep_unread_transport_test.go:182: COBRA error: --keep-unread requires a newer sync owner; upgrade wacli and restart sync --follow (not sent): unsupported send delegate version 2
+    send_keep_unread_transport_test.go:186: STORE after refused request (no fallback/retry): unread=true unread_count=2
+
+Stopping sync.
+    send_keep_unread_transport_test.go:268: PEER received <presence type="unavailable" name="Synthetic Proof"></presence>
+03:12:25.762 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    send_keep_unread_transport_test.go:188: WIRE totals: encrypted_messages=0 read_receipts=0 app_state_patches=0 device_queries=0 prekey_bundles=0
+    send_keep_unread_transport_test.go:189: STABLE OWNER: v0.26.0-equivalent v1 guard on real IPC listener; one v2 request, zero dispatches, zero wire messages
+--- FAIL: TestSendKeepUnreadRealTransport (2.36s)
+    --- FAIL: TestSendKeepUnreadRealTransport / delegated=false / keep=true / manual=false (0.29s)
+    --- FAIL: TestSendKeepUnreadRealTransport / delegated=false / keep=true / manual=true (0.28s)
+    --- PASS: TestSendKeepUnreadRealTransport / delegated=false / keep=false / manual=false (0.28s)
+    --- PASS: TestSendKeepUnreadRealTransport / delegated=false / keep=false / manual=true (0.28s)
+    --- FAIL: TestSendKeepUnreadRealTransport / delegated=true / keep=true / manual=false (0.26s)
+    --- FAIL: TestSendKeepUnreadRealTransport / delegated=true / keep=true / manual=true (0.26s)
+    --- PASS: TestSendKeepUnreadRealTransport / delegated=true / keep=false / manual=false (0.28s)
+    --- PASS: TestSendKeepUnreadRealTransport / delegated=true / keep=false / manual=true (0.26s)
+    --- PASS: TestSendKeepUnreadRealTransport / stable-v1-owner-upgrade (0.17s)
+FAIL
+FAIL github.com/openclaw/wacli/cmd/wacli 2.375s
+FAIL

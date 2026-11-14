@@ -1,0 +1,13 @@
+<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><style>body{margin:0;background:#18202b;color:#dce5ef;font:15px/1.5 "DejaVu Sans Mono",monospace}
+.win{margin:16px;width:1080px;border-radius:10px;overflow:hidden;background:#101720}
+.bar{padding:10px 18px;background:#283548;color:#b9cce2}pre{padding:16px 20px;margin:0;
+white-space:pre-wrap;overflow-wrap:anywhere}.cmd{color:#b4e59a}</style></head><body><div class="win"><div class="bar">PR 559: real outbound keep-unread</div><pre><span class="cmd">$ go test -tags sqlite_fts5 -run &#x27;^TestSendKeepUnreadRealTransport$&#x27; -count=1 -v github.com/openclaw/wacli/cmd/wacli</span>
+PR #559 | head 8c34a44335e1 | STABLE v1-only owner: upgrade, no dispatch/retry
+Observed excerpts; full verbose logs retained separately.
+STORE before v1-owner request: unread=true unread_count=2
+IPC decoded version=2 keep_unread=true kind=text
+COBRA error: --keep-unread requires a newer sync owner; upgrade wacli and restart sync --follow (not sent): unsupported send delegate version 2
+STORE after refused request (no fallback/retry): unread=true unread_count=2
+WIRE totals: encrypted_messages=0 read_receipts=0 app_state_patches=0 device_queries=0 prekey_bundles=0
+STABLE OWNER: v0.26.0-equivalent v1 guard on real IPC listener; one v2 request, zero dispatches, zero wire messages
+</pre></div></body></html>

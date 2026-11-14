@@ -1,0 +1,70 @@
+$ go test -tags sqlite_fts5 -run '^TestSendKeepUnreadRealTransport$' -count=1 -v github.com/openclaw/wacli/cmd/wacli
+PR #559 | head 8c34a44335e1 | DIRECT keep-unread, counted inputs
+Observed excerpts; full verbose logs retained separately.
+STORE after first wire input: unread=true unread_count=1
+STORE after second wire input: unread=true unread_count=2
+PEER served real signed Signal prekey bundle for synthetic recipient device
+PEER received <message type="text"><participants><to><enc type="pkmsg"></enc></to></participants><device-identity></device-identity></message>
+PEER accepted real encrypted message; Signal decrypt and synthetic text match; returning message ack
+STORE after direct send (command App closed): unread=true unread_count=2
+STORE after own-device encrypted echo: unread=true unread_count=2
+STORE same ID replay over new socket after restart: unread=true unread_count=2
+WIRE totals: encrypted_messages=1 read_receipts=0 app_state_patches=0 device_queries=2 prekey_bundles=1
+
+$ go test -tags sqlite_fts5 -run '^TestSendKeepUnreadRealTransport$' -count=1 -v github.com/openclaw/wacli/cmd/wacli
+PR #559 | head 8c34a44335e1 | FLAGGED markers and real delegated IPC
+Observed excerpts; full verbose logs retained separately.
+CASE delegated=false / keep=true / manual=true
+STORE after direct send (command App closed): unread=true unread_count=0
+STORE after own-device encrypted echo: unread=true unread_count=0
+STORE same ID replay over new socket after restart: unread=true unread_count=0
+CASE delegated=true / keep=true / manual=false
+IPC decoded version=2 keep_unread=true kind=text
+STORE after delegated send: unread=true unread_count=2
+STORE after own-device encrypted echo: unread=true unread_count=2
+STORE same ID replay over new socket after restart: unread=true unread_count=2
+CASE delegated=true / keep=true / manual=true
+IPC decoded version=2 keep_unread=true kind=text
+STORE after delegated send: unread=true unread_count=0
+STORE after own-device encrypted echo: unread=true unread_count=0
+STORE same ID replay over new socket after restart: unread=true unread_count=0
+
+$ go test -tags sqlite_fts5 -run '^TestSendKeepUnreadRealTransport$' -count=1 -v github.com/openclaw/wacli/cmd/wacli
+PR #559 | head 8c34a44335e1 | CONTROL: no flag retains v0.26.0 acknowledgement
+Observed excerpts; full verbose logs retained separately.
+CASE delegated=false / keep=false / manual=false
+STORE after direct send (command App closed): unread=false unread_count=0
+CASE delegated=false / keep=false / manual=true
+STORE after direct send (command App closed): unread=false unread_count=0
+CASE delegated=true / keep=false / manual=false
+IPC decoded version=1 keep_unread=false kind=text
+STORE after delegated send: unread=false unread_count=0
+CASE delegated=true / keep=false / manual=true
+IPC decoded version=1 keep_unread=false kind=text
+STORE after delegated send: unread=false unread_count=0
+
+$ go test -tags sqlite_fts5 -run '^TestSendKeepUnreadRealTransport$' -count=1 -v github.com/openclaw/wacli/cmd/wacli
+PR #559 | head 8c34a44335e1 | STABLE v1-only owner: upgrade, no dispatch/retry
+Observed excerpts; full verbose logs retained separately.
+STORE before v1-owner request: unread=true unread_count=2
+IPC decoded version=2 keep_unread=true kind=text
+COBRA error: --keep-unread requires a newer sync owner; upgrade wacli and restart sync --follow (not sent): unsupported send delegate version 2
+STORE after refused request (no fallback/retry): unread=true unread_count=2
+WIRE totals: encrypted_messages=0 read_receipts=0 app_state_patches=0 device_queries=0 prekey_bundles=0
+STABLE OWNER: v0.26.0-equivalent v1 guard on real IPC listener; one v2 request, zero dispatches, zero wire messages
+
+$ go test -tags sqlite_fts5 -run '^TestSendKeepUnreadRealTransport$' -count=1 -v github.com/openclaw/wacli/cmd/wacli
+PR #559 | head 8c34a44335e1 | GREEN exact head / RED restored producer acknowledgement
+Observed excerpts; full verbose logs retained separately.
+--- PASS: TestSendKeepUnreadRealTransport (3.24s)
+PASS
+Red mutation: only text producer SkipOwnReadMark=false; same real sends.
+after direct send (command App closed): lost unread policy: got (false,0), want (true,2)
+after direct send (command App closed): lost unread policy: got (false,0), want (true,0)
+after delegated send: lost unread policy: got (false,0), want (true,2)
+after delegated send: lost unread policy: got (false,0), want (true,0)
+--- FAIL: TestSendKeepUnreadRealTransport (2.36s)
+    --- FAIL: TestSendKeepUnreadRealTransport / delegated=false / keep=true / manual=false (0.29s)
+    --- FAIL: TestSendKeepUnreadRealTransport / delegated=false / keep=true / manual=true (0.28s)
+    --- FAIL: TestSendKeepUnreadRealTransport / delegated=true / keep=true / manual=false (0.26s)
+    --- FAIL: TestSendKeepUnreadRealTransport / delegated=true / keep=true / manual=true (0.26s)

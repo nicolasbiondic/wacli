@@ -1,0 +1,13 @@
+diff --git a/cmd/wacli/send.go b/cmd/wacli/send.go
+index 28b4067..21b0be2 100644
+--- a/cmd/wacli/send.go
++++ b/cmd/wacli/send.go
+@@ -237,7 +237,7 @@ func persistOutboundTextWith(ctx context.Context, db *store.DB, resolver outboun
+   storeErr = fmt.Errorf("chat update: %w", err)
+  }
+  if err := db.UpsertMessage(store.UpsertMessageParams{
+-  SkipOwnReadMark: keepUnread,
++  SkipOwnReadMark: false,
+   ChatJID:         chat.String(),
+   ChatName:        chatName,
+   MsgID:           msgID,

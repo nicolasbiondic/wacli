@@ -1,0 +1,17 @@
+<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><style>body{margin:0;background:#18202b;color:#dce5ef;font:15px/1.5 "DejaVu Sans Mono",monospace}
+.win{margin:16px;width:1080px;border-radius:10px;overflow:hidden;background:#101720}
+.bar{padding:10px 18px;background:#283548;color:#b9cce2}pre{padding:16px 20px;margin:0;
+white-space:pre-wrap;overflow-wrap:anywhere}.cmd{color:#b4e59a}</style></head><body><div class="win"><div class="bar">PR 559: real outbound keep-unread</div><pre><span class="cmd">$ go test -tags sqlite_fts5 -run &#x27;^TestSendKeepUnreadRealTransport$&#x27; -count=1 -v github.com/openclaw/wacli/cmd/wacli</span>
+PR #559 | head 8c34a44335e1 | CONTROL: no flag retains v0.26.0 acknowledgement
+Observed excerpts; full verbose logs retained separately.
+CASE delegated=false / keep=false / manual=false
+STORE after direct send (command App closed): unread=false unread_count=0
+CASE delegated=false / keep=false / manual=true
+STORE after direct send (command App closed): unread=false unread_count=0
+CASE delegated=true / keep=false / manual=false
+IPC decoded version=1 keep_unread=false kind=text
+STORE after delegated send: unread=false unread_count=0
+CASE delegated=true / keep=false / manual=true
+IPC decoded version=1 keep_unread=false kind=text
+STORE after delegated send: unread=false unread_count=0
+</pre></div></body></html>
