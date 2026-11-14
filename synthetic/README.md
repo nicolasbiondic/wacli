@@ -1,0 +1,3 @@
+# Supplemental synthetic first-upgrade evidence
+
+The real snapshots already contain `messages.kind`, so they do not test first-time column creation. The supplemental stock v0.26.0 synthetic baseline has no such column. Its strict kit verdict is FAIL solely because migration 37 intentionally extends `retrieval_messages_update`. A separate explicit PR-specific assertion passes all four NEW/OLD read-only/writable phases: removing exactly one `OR old.kind IS NOT new.kind` term from the new trigger tokens must reproduce the original trigger exactly; all other original schema/data invariants remain strict. The raw strict failure and separate result are both preserved, not relabeled as a strict pass.

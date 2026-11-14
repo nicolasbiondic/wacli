@@ -1,0 +1,131 @@
+{
+  "disposable_copies_deleted": true,
+  "explicit_allowance": "Only retrieval_messages_update may add exactly OR old.kind IS NOT new.kind; all other strict invariants remain enforced.",
+  "passed_with_explicit_assertion": true,
+  "phases": [
+    {
+      "exact_kind_trigger_extension": false,
+      "passed_with_explicit_assertion": true,
+      "phase": "new-read-only",
+      "read_only_unchanged": true,
+      "strict_comparison": {
+        "added_columns": {},
+        "added_foreign_keys": {},
+        "added_migrations": [],
+        "added_schema_objects": [],
+        "added_table_constraints": {},
+        "added_tables": [],
+        "changed_foreign_keys": [],
+        "changed_original_tables": [],
+        "changed_schema_objects": [],
+        "changed_table_constraints": [],
+        "missing_tables": [],
+        "removed_foreign_keys": {},
+        "removed_migrations": [],
+        "removed_schema_objects": [],
+        "removed_table_constraints": {}
+      }
+    },
+    {
+      "exact_kind_trigger_extension": true,
+      "passed_with_explicit_assertion": true,
+      "phase": "new-writable",
+      "read_only_unchanged": true,
+      "strict_comparison": {
+        "added_columns": {
+          "messages": [
+            "kind"
+          ]
+        },
+        "added_foreign_keys": {},
+        "added_migrations": [
+          37
+        ],
+        "added_schema_objects": [],
+        "added_table_constraints": {
+          "messages": 1
+        },
+        "added_tables": [],
+        "changed_foreign_keys": [],
+        "changed_original_tables": [],
+        "changed_schema_objects": [
+          "trigger:retrieval_messages_update"
+        ],
+        "changed_table_constraints": [],
+        "missing_tables": [],
+        "removed_foreign_keys": {},
+        "removed_migrations": [],
+        "removed_schema_objects": [],
+        "removed_table_constraints": {}
+      }
+    },
+    {
+      "exact_kind_trigger_extension": true,
+      "passed_with_explicit_assertion": true,
+      "phase": "old-1-read-only",
+      "read_only_unchanged": true,
+      "strict_comparison": {
+        "added_columns": {
+          "messages": [
+            "kind"
+          ]
+        },
+        "added_foreign_keys": {},
+        "added_migrations": [
+          37
+        ],
+        "added_schema_objects": [],
+        "added_table_constraints": {
+          "messages": 1
+        },
+        "added_tables": [],
+        "changed_foreign_keys": [],
+        "changed_original_tables": [],
+        "changed_schema_objects": [
+          "trigger:retrieval_messages_update"
+        ],
+        "changed_table_constraints": [],
+        "missing_tables": [],
+        "removed_foreign_keys": {},
+        "removed_migrations": [],
+        "removed_schema_objects": [],
+        "removed_table_constraints": {}
+      }
+    },
+    {
+      "exact_kind_trigger_extension": true,
+      "passed_with_explicit_assertion": true,
+      "phase": "old-1-writable",
+      "read_only_unchanged": true,
+      "strict_comparison": {
+        "added_columns": {
+          "messages": [
+            "kind"
+          ]
+        },
+        "added_foreign_keys": {},
+        "added_migrations": [
+          37
+        ],
+        "added_schema_objects": [],
+        "added_table_constraints": {
+          "messages": 1
+        },
+        "added_tables": [],
+        "changed_foreign_keys": [],
+        "changed_original_tables": [],
+        "changed_schema_objects": [
+          "trigger:retrieval_messages_update"
+        ],
+        "changed_table_constraints": [],
+        "missing_tables": [],
+        "removed_foreign_keys": {},
+        "removed_migrations": [],
+        "removed_schema_objects": [],
+        "removed_table_constraints": {}
+      }
+    }
+  ],
+  "scope": "synthetic official-v0.26.0 fixture; local retrieval only",
+  "strict_kit_passed": false
+}

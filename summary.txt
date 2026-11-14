@@ -1,0 +1,13 @@
+$ PR #528: current-head REAL-STORE compatibility
+NEW source head: 8658a853e8f2 (clean tree; Go 1.27.4; sqlite_fts5)
+OLD: official v0.26.0; archive checksum verified
+Kit: edec541; all 5 discovered real-store backups tested
+PASS: 20/20 NEW/OLD read-only/writable local retrieval phases
+Integrity OK; foreign-key errors 0; read-only phases unchanged
+Original non-journal data and original schema preserved
+Journal drift allowed only when fresh official-OLD controls show it too
+messages.kind already exists in all five real snapshots; NEW adds migration 37.
+Stock synthetic: strict trigger-change FAIL; exact-extension assertion PASS, 4/4.
+Only SQLite read-only backup touches source stores; no session.db copied
+No auth, sync, networking or production writes; disposable copies deleted
+Scope: offline local retrieval/upgrade/rollback, not live synchronization
