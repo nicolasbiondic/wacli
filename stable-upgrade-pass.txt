@@ -1,0 +1,130 @@
+=== RUN   TestStableOwnerUpgradeTransport
+    send_stable_upgrade_transport_test.go:84: OFFICIAL v0.26.0 binary sha256=3750e566e88a3a7ae47e485c02392ad60b972160fc85e5bd789e896673245f76
+    send_stable_upgrade_transport_test.go:84: OFFICIAL tarball checksum verified against checksums.txt sha256=2c28f65e2f9aaf32585288229db1f916c6c5fb5db9513715017d528513604b44
+    send_stable_upgrade_transport_test.go:84: OFFICIAL executable equals executable extracted from checksum-verified release tarball
+    send_stable_upgrade_transport_test.go:121: RELEASE COPY: same_size=true differing_bytes=32 one_32_byte_window=true outside_window_identical=true instruction_bytes_unchanged=true
+    send_stable_upgrade_transport_test.go:122: ELF CHECK: the replaced 32-byte trust-anchor window is in a non-executable data section
+    send_stable_upgrade_transport_test.go:123: RELEASE COPY sha256=3f86b83bacc925d348eada04f92224490fa713f69f0a728197b6740d8042fd23
+    send_stable_upgrade_transport_test.go:151: STORE CREATED: unmodified released v0.26.0 auth status initialized this disposable store; authenticated=false
+    send_stable_upgrade_transport_test.go:176: SESSION FIXTURE: synthetic already-paired device and real Signal keys added only to test session.db
+    send_stable_upgrade_transport_test.go:225: ISOLATION: clean child environment; isolated HOME; no WACLI_*; HTTPS_PROXY/HTTP_PROXY fail closed; TLS trusts only test CA
+    send_stable_upgrade_transport_test.go:507: PROXY approved CONNECT web.whatsapp.com:443; upstream is only the in-process loopback TLS peer
+    send_stable_upgrade_transport_test.go:197: NOISE XX: actual owner connected through local TLS/WebSocket and accepted the test CA
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_stable_upgrade_transport_test.go:296: RELEASED OWNER READY: real v0.26.0 sync --follow connected and opened its own AfterConnect IPC listener
+    send_stable_upgrade_transport_test.go:207: PEER received <receipt type="inactive"></receipt>
+    send_stable_upgrade_transport_test.go:297: SOCKET INPUT: released owner decrypted real Signal message, persisted it and sent delivery receipt
+    send_stable_upgrade_transport_test.go:298: STORE stable incoming A one: chat=A unread=true unread_count=1 (same disposable file, read-only SQL)
+    send_stable_upgrade_transport_test.go:207: PEER received <receipt type="inactive"></receipt>
+    send_stable_upgrade_transport_test.go:299: SOCKET INPUT: released owner decrypted real Signal message, persisted it and sent delivery receipt
+    send_stable_upgrade_transport_test.go:300: STORE stable incoming A two: chat=A unread=true unread_count=2 (same disposable file, read-only SQL)
+    send_stable_upgrade_transport_test.go:207: PEER received <receipt type="inactive"></receipt>
+    send_stable_upgrade_transport_test.go:301: SOCKET INPUT: released owner decrypted real Signal message, persisted it and sent delivery receipt
+    send_stable_upgrade_transport_test.go:302: STORE stable received A=2 B=1: chat=A unread=true unread_count=2 (same disposable file, read-only SQL)
+    send_stable_upgrade_transport_test.go:302: STORE stable received A=2 B=1: chat=B unread=true unread_count=1 (same disposable file, read-only SQL)
+    send_stable_upgrade_transport_test.go:305: STEP refusal: candidate real Cobra send text --keep-unread to A meets released owner's LOCK
+{"success":false,"data":null,"error":"--keep-unread requires a newer sync owner; upgrade wacli and restart sync --follow (not sent): unsupported send delegate version 2"}
+    send_stable_upgrade_transport_test.go:312: ACTUAL RELEASE REFUSAL: --keep-unread requires a newer sync owner; upgrade wacli and restart sync --follow (not sent): unsupported send delegate version 2
+    send_stable_upgrade_transport_test.go:313: STORE after actual stable-owner refusal: chat=A unread=true unread_count=2 (same disposable file, read-only SQL)
+    send_stable_upgrade_transport_test.go:313: STORE after actual stable-owner refusal: chat=B unread=true unread_count=1 (same disposable file, read-only SQL)
+    send_stable_upgrade_transport_test.go:314: WIRE totals: encrypted_messages=0 read_receipts=0 app_state_patches=0 device_queries=0 prekey_bundles=0
+    send_stable_upgrade_transport_test.go:315: NO FALLBACK: released owner could accept v1, but no message was sent or retried without keep-unread
+    send_stable_upgrade_transport_test.go:317: STEP old-owner compatibility: candidate ordinary send to B uses IPC v1; released owner encrypts and sends
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="get" xmlns="usync"><usync context="interactive"><query><contact></contact><business><verified_name></verified_name></business><disappearing_mode></disappearing_mode><username></username></query><list><user><contact></contact></user></list></usync></iq>
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="get" xmlns="usync"><usync context="background"><query><business><verified_name></verified_name></business><status></status><picture></picture><devices></devices><lid></lid></query><list><user></user></list></usync></iq>
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="get" xmlns="usync"><usync context="message"><query><devices></devices></query><list><user></user><user></user></list></usync></iq>
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="get" xmlns="encrypt"><key><user></user></key></iq>
+    send_stable_upgrade_transport_test.go:668: PEER served real signed Signal recipient bundle
+    send_stable_upgrade_transport_test.go:207: PEER received <message type="text"><participants><to><enc type="pkmsg"></enc></to></participants><device-identity></device-identity></message>
+    send_stable_upgrade_transport_test.go:677: PEER ACCEPTED: actual outbound Signal message decrypted and synthetic text verified; returning ack
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="set" xmlns="privacy"><tokens><token type="trusted_contact"></token></tokens></iq>
+    send_stable_upgrade_transport_test.go:318: CANDIDATE COBRA: sent=true, no store warning (synthetic address and message ID omitted)
+    send_stable_upgrade_transport_test.go:322: STORE candidate ordinary send via stable owner: chat=A unread=true unread_count=2 (same disposable file, read-only SQL)
+    send_stable_upgrade_transport_test.go:322: STORE candidate ordinary send via stable owner: chat=B unread=false unread_count=0 (same disposable file, read-only SQL)
+    send_stable_upgrade_transport_test.go:323: WIRE totals: encrypted_messages=1 read_receipts=0 app_state_patches=0 device_queries=2 prekey_bundles=1
+    send_stable_upgrade_transport_test.go:325: STEP upgrade/restart: stop actual stable owner, verify exit and LOCK release, keep the SAME store
+    send_stable_upgrade_transport_test.go:207: PEER received <presence type="unavailable" name="Synthetic Upgrade"></presence>
+    send_stable_upgrade_transport_test.go:276: RELEASED OWNER EXIT: SIGTERM sent only to owned PID; wait_error=<nil>
+    send_stable_upgrade_transport_test.go:277: RELEASED OWNER stdout/stderr:
+        warning: sync storage is uncapped; use --max-messages or --max-db-size to bound local history growth
+
+        Connected.
+
+App state regular_low resolved via full sync
+
+        Shutting down (interrupt again to force quit)...
+
+        Stopping sync.
+        Messages stored: 3
+    send_stable_upgrade_transport_test.go:338: LOCK RELEASE VERIFIED: stable PID exited and the same store lock can be acquired
+    send_stable_upgrade_transport_test.go:339: STORE stable stopped before candidate opens same store: chat=A unread=true unread_count=2 (same disposable file, read-only SQL)
+    send_stable_upgrade_transport_test.go:339: STORE stable stopped before candidate opens same store: chat=B unread=false unread_count=0 (same disposable file, read-only SQL)
+    send_stable_upgrade_transport_test.go:197: NOISE XX: actual owner connected through local TLS/WebSocket and accepted the test CA
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="get" xmlns="encrypt"><count></count></iq>
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="set" xmlns="passive"><active></active></iq>
+
+Connected.
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_low"></collection></sync></iq>
+
+App state regular_low resolved via full sync
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular_high"></collection></sync></iq>
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="set" xmlns="w:sync:app:state"><sync><collection name="regular"></collection></sync></iq>
+    send_stable_upgrade_transport_test.go:341: STORE candidate owner restarted on same store: chat=A unread=true unread_count=2 (same disposable file, read-only SQL)
+    send_stable_upgrade_transport_test.go:341: STORE candidate owner restarted on same store: chat=B unread=false unread_count=0 (same disposable file, read-only SQL)
+    send_stable_upgrade_transport_test.go:342: STEP upgraded owner: candidate Cobra keep-unread send delegates over actual IPC v2
+    send_keep_unread_transport_test.go:341: IPC decoded version=2 keep_unread=true kind=text
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="get" xmlns="usync"><usync context="interactive"><query><contact></contact><business><verified_name></verified_name></business><disappearing_mode></disappearing_mode><username></username></query><list><user><contact></contact></user></list></usync></iq>
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="get" xmlns="usync"><usync context="background"><query><business><verified_name></verified_name></business><status></status><picture></picture><devices></devices><lid></lid></query><list><user></user></list></usync></iq>
+warning: send command was invoked 0s after the previous send; rapid automated sends may trigger WhatsApp rate limits or account restrictions
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="get" xmlns="usync"><usync context="message"><query><devices></devices></query><list><user></user><user></user></list></usync></iq>
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="get" xmlns="encrypt"><key><user></user></key></iq>
+    send_stable_upgrade_transport_test.go:668: PEER served real signed Signal recipient bundle
+    send_stable_upgrade_transport_test.go:207: PEER received <message type="text"><participants><to><enc type="pkmsg"></enc></to></participants><device-identity></device-identity></message>
+    send_stable_upgrade_transport_test.go:677: PEER ACCEPTED: actual outbound Signal message decrypted and synthetic text verified; returning ack
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="set" xmlns="privacy"><tokens><token type="trusted_contact"></token></tokens></iq>
+    send_stable_upgrade_transport_test.go:343: CANDIDATE COBRA: sent=true, no store warning (synthetic address and message ID omitted)
+    send_stable_upgrade_transport_test.go:347: STORE candidate v2 flagged send accepted: chat=A unread=true unread_count=2 (same disposable file, read-only SQL)
+    send_stable_upgrade_transport_test.go:347: STORE candidate v2 flagged send accepted: chat=B unread=false unread_count=0 (same disposable file, read-only SQL)
+    send_stable_upgrade_transport_test.go:207: PEER received <receipt type="sender"></receipt>
+    send_stable_upgrade_transport_test.go:348: SOCKET input decrypted, App.Sync persistence completed and delivery/sender receipt acknowledged
+    send_stable_upgrade_transport_test.go:349: STORE after actual own-device encrypted echo: chat=A unread=true unread_count=2 (same disposable file, read-only SQL)
+    send_stable_upgrade_transport_test.go:349: STORE after actual own-device encrypted echo: chat=B unread=false unread_count=0 (same disposable file, read-only SQL)
+    send_stable_upgrade_transport_test.go:350: WIRE totals: encrypted_messages=2 read_receipts=0 app_state_patches=0 device_queries=4 prekey_bundles=2
+    send_stable_upgrade_transport_test.go:352: STEP candidate default: ordinary send to A must still acknowledge unread
+    send_keep_unread_transport_test.go:341: IPC decoded version=1 keep_unread=false kind=text
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="get" xmlns="usync"><usync context="interactive"><query><contact></contact><business><verified_name></verified_name></business><disappearing_mode></disappearing_mode><username></username></query><list><user><contact></contact></user></list></usync></iq>
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="get" xmlns="usync"><usync context="background"><query><business><verified_name></verified_name></business><status></status><picture></picture><devices></devices><lid></lid></query><list><user></user></list></usync></iq>
+warning: send command was invoked 0s after the previous send; rapid automated sends may trigger WhatsApp rate limits or account restrictions
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="get" xmlns="usync"><usync context="message"><query><devices></devices></query><list><user></user></list></usync></iq>
+    send_stable_upgrade_transport_test.go:207: PEER received <message type="text"><participants><to><enc type="pkmsg"></enc></to></participants><device-identity></device-identity></message>
+    send_stable_upgrade_transport_test.go:677: PEER ACCEPTED: actual outbound Signal message decrypted and synthetic text verified; returning ack
+    send_stable_upgrade_transport_test.go:353: CANDIDATE COBRA: sent=true, no store warning (synthetic address and message ID omitted)
+    send_stable_upgrade_transport_test.go:357: STORE ordinary candidate send clears A: chat=A unread=false unread_count=0 (same disposable file, read-only SQL)
+    send_stable_upgrade_transport_test.go:357: STORE ordinary candidate send clears A: chat=B unread=false unread_count=0 (same disposable file, read-only SQL)
+    send_stable_upgrade_transport_test.go:358: WIRE totals: encrypted_messages=3 read_receipts=0 app_state_patches=0 device_queries=6 prekey_bundles=2
+    send_stable_upgrade_transport_test.go:362: STEP old-client/new-owner compatibility: actual released CLI sends ordinary text to B through candidate IPC
+    send_keep_unread_transport_test.go:341: IPC decoded version=1 keep_unread=false kind=text
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="get" xmlns="usync"><usync context="interactive"><query><contact></contact><business><verified_name></verified_name></business><disappearing_mode></disappearing_mode><username></username></query><list><user><contact></contact></user></list></usync></iq>
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="get" xmlns="usync"><usync context="background"><query><business><verified_name></verified_name></business><status></status><picture></picture><devices></devices><lid></lid></query><list><user></user></list></usync></iq>
+warning: send command was invoked 0s after the previous send; rapid automated sends may trigger WhatsApp rate limits or account restrictions
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="get" xmlns="usync"><usync context="message"><query><devices></devices></query><list><user></user><user></user></list></usync></iq>
+    send_stable_upgrade_transport_test.go:207: PEER received <message type="text"><participants><to><enc type="pkmsg"></enc></to></participants><device-identity></device-identity></message>
+    send_stable_upgrade_transport_test.go:677: PEER ACCEPTED: actual outbound Signal message decrypted and synthetic text verified; returning ack
+    send_stable_upgrade_transport_test.go:207: PEER received <iq type="set" xmlns="privacy"><tokens><token type="trusted_contact"></token></tokens></iq>
+    send_stable_upgrade_transport_test.go:371: STORE released v1 client accepted by candidate owner: chat=A unread=false unread_count=0 (same disposable file, read-only SQL)
+    send_stable_upgrade_transport_test.go:371: STORE released v1 client accepted by candidate owner: chat=B unread=false unread_count=0 (same disposable file, read-only SQL)
+    send_stable_upgrade_transport_test.go:372: WIRE totals: encrypted_messages=4 read_receipts=0 app_state_patches=0 device_queries=8 prekey_bundles=2
+
+Stopping sync.
+    send_stable_upgrade_transport_test.go:207: PEER received <presence type="unavailable" name="Synthetic Upgrade"></presence>
+04:47:04.029 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    send_stable_upgrade_transport_test.go:377: PROXY ASSERTION: exactly one approved CONNECT target web.whatsapp.com:443; zero other CONNECT targets; all actual TCP peers and upstreams loopback
+    send_stable_upgrade_transport_test.go:378: UPGRADE PASS: actual released guard refused v2; old-owner v1 send worked; same-store restart retained A=2; candidate v2/echo preserved it; ordinary sends and old-client/new-owner compatibility worked
+    send_stable_upgrade_transport_test.go:135: CLEANUP: patched executable removed; original release remains unchanged
+--- PASS: TestStableOwnerUpgradeTransport (1.06s)
+PASS
+ok   github.com/openclaw/wacli/cmd/wacli 1.081s

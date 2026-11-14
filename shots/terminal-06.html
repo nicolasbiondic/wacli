@@ -1,0 +1,23 @@
+<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><style>body{margin:0;background:#18202b;color:#dce5ef;font:15px/1.5 "DejaVu Sans Mono",monospace}
+.win{margin:16px;width:1080px;border-radius:10px;overflow:hidden;background:#101720}
+.bar{padding:10px 18px;background:#283548;color:#b9cce2}pre{padding:16px 20px;margin:0;
+white-space:pre-wrap;overflow-wrap:anywhere}.cmd{color:#b4e59a}</style></head><body><div class="win"><div class="bar">PR 559: actual stable-owner upgrade</div><pre><span class="cmd">$ WACLI_STABLE_PROOF_BINARY=&quot;$RELEASE&quot; go test -tags sqlite_fts5 -run &#x27;^TestStableOwnerUpgradeTransport$&#x27; -count=1 -v github.com/openclaw/wacli/cmd/wacli</span>
+PR #559 | unchanged candidate 8c34a44335e1 | actual released v0.26.0 owner
+Observed excerpts; full verbose output and exact harness published separately.
+RELEASE COPY: same_size=true differing_bytes=32 one_32_byte_window=true outside_window_identical=true instruction_bytes_unchanged=true
+ELF CHECK: the replaced 32-byte trust-anchor window is in a non-executable data section
+STORE stable received A=2 B=1: chat=A unread=true unread_count=2
+STORE stable received A=2 B=1: chat=B unread=true unread_count=1
+ACTUAL RELEASE REFUSAL: --keep-unread requires a newer sync owner; upgrade wacli and restart sync --follow (not sent): unsupported send delegate version 2
+WIRE totals: encrypted_messages=0 read_receipts=0 app_state_patches=0
+STORE candidate ordinary send via stable owner: chat=B unread=false unread_count=0
+RELEASED OWNER EXIT: SIGTERM sent only to owned PID; wait_error=&lt;nil&gt;
+LOCK RELEASE VERIFIED: stable PID exited and the same store lock can be acquired
+STORE candidate owner restarted on same store: chat=A unread=true unread_count=2
+IPC decoded version=2 keep_unread=true kind=text
+STORE candidate v2 flagged send accepted: chat=A unread=true unread_count=2
+STORE after actual own-device encrypted echo: chat=A unread=true unread_count=2
+STORE ordinary candidate send clears A: chat=A unread=false unread_count=0
+STORE released v1 client accepted by candidate owner: chat=B unread=false unread_count=0
+PROXY ASSERTION: exactly one approved CONNECT target web.whatsapp.com:443; zero other CONNECT targets; all actual TCP peers and upstreams loopback
+--- PASS: TestStableOwnerUpgradeTransport (1.06s)</pre></div></body></html>

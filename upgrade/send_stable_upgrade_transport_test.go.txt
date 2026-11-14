@@ -1,0 +1,737 @@
+package main
+
+import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
+	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/sha256"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"database/sql"
+	"debug/elf"
+	"encoding/binary"
+	"encoding/hex"
+	"encoding/json"
+	"encoding/pem"
+	"fmt"
+	"io"
+	"math/big"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"syscall"
+	"testing"
+	"time"
+
+	"github.com/coder/websocket"
+	"github.com/openclaw/wacli/internal/lock"
+	"github.com/openclaw/wacli/internal/sqliteutil"
+	"go.mau.fi/libsignal/protocol"
+	"go.mau.fi/libsignal/session"
+	"go.mau.fi/whatsmeow"
+	waBinary "go.mau.fi/whatsmeow/binary"
+	"go.mau.fi/whatsmeow/proto/waE2E"
+	waStore "go.mau.fi/whatsmeow/store"
+	"go.mau.fi/whatsmeow/types"
+	"go.mau.fi/whatsmeow/util/keys"
+	"google.golang.org/protobuf/proto"
+)
+
+// Out-of-tree proof for candidate 8c34a44. Apply this single file to that head
+// and set WACLI_STABLE_PROOF_BINARY to the verified official v0.26.0 executable.
+// Run with -tags sqlite_fts5: the released binary creates an FTS5-backed store.
+// The released owner is NOT byte-identical: only its one 32-byte WhatsApp Noise
+// root key is replaced by the ephemeral test CA public key. All bytes outside
+// that window, including every executable instruction and the IPC guard, match.
+// Its HTTP CONNECT proxy permits only the public WhatsApp websocket target and
+// tunnels it to the loopback TLS peer. No private endpoints/accounts/stores.
+// Existing exact-head helpers supply real Signal/Noise and candidate Cobra/Sync.
+// Pairing/login bootstrap, remote service policy and phone UI are not proven.
+// No t.Parallel: SDK root and HTTP transport are process-wide.
+func TestStableOwnerUpgradeTransport(t *testing.T) {
+	release := os.Getenv("WACLI_STABLE_PROOF_BINARY")
+	if release == "" {
+		t.Skip("set WACLI_STABLE_PROOF_BINARY to official v0.26.0")
+	}
+	if runtime.GOOS != "linux" {
+		t.Skip("release proof uses the official Linux amd64 executable")
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 90*time.Second)
+	t.Cleanup(cancel)
+	f := &keepTransport{
+		t: t, ctx: ctx, dir: t.TempDir(), base: time.Date(2023, time.November, 14, 22, 13, 20, 0, time.UTC),
+		chat:  types.NewJID("555"+"1230000", types.DefaultUserServer),
+		lid:   types.NewJID("555"+"000002", types.HiddenUserServer),
+		peers: make(chan *keepTransportNoise, 8), receipts: make(chan string, 32), sent: make(chan string, 16),
+	}
+	u := &stableUpgradePeer{f: f,
+		chatB:   types.NewJID("555"+"1230001", types.DefaultUserServer),
+		lidB:    types.NewJID("555"+"000003", types.HiddenUserServer),
+		devices: make(map[types.JID]*waStore.Device),
+	}
+	original := stableReleaseBytes(t, release)
+	root, static := keys.NewKeyPair(), keys.NewKeyPair()
+	oldRoot := whatsmeow.WACertPubKey
+	if bytes.Count(original, oldRoot[:]) != 1 {
+		t.Fatal("official executable must contain the SDK Noise root exactly once")
+	}
+	offset := bytes.Index(original, oldRoot[:])
+	executable, err := elf.NewFile(bytes.NewReader(original))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer executable.Close()
+	dataWindow := false
+	for _, section := range executable.Sections {
+		if uint64(offset) >= section.Offset && uint64(offset+32) <= section.Offset+section.Size {
+			dataWindow = section.Flags&elf.SHF_EXECINSTR == 0
+			break
+		}
+	}
+	if !dataWindow {
+		t.Fatal("Noise root window must be in a non-executable ELF data section")
+	}
+	patched := bytes.Clone(original)
+	copy(patched[offset:offset+32], root.Pub[:])
+	differences := 0
+	for i := range original {
+		if original[i] != patched[i] {
+			differences++
+			if i < offset || i >= offset+32 {
+				t.Fatal("executable changed outside the one Noise root window")
+			}
+		}
+	}
+	if len(original) != len(patched) || differences == 0 || differences > 32 ||
+		!bytes.Equal(original[:offset], patched[:offset]) || !bytes.Equal(original[offset+32:], patched[offset+32:]) {
+		t.Fatal("unexpected release-copy mutation")
+	}
+	t.Logf("RELEASE COPY: same_size=true differing_bytes=%d one_32_byte_window=true outside_window_identical=true instruction_bytes_unchanged=true", differences)
+	t.Log("ELF CHECK: the replaced 32-byte trust-anchor window is in a non-executable data section")
+	t.Logf("RELEASE COPY sha256=%x", sha256.Sum256(patched))
+	patchedPath := filepath.Join(t.TempDir(), "wacli-stable-test-root")
+	if err := os.WriteFile(patchedPath, patched, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.Remove(patchedPath); err != nil {
+			t.Error(err)
+		}
+		if got, err := os.ReadFile(release); err != nil || !bytes.Equal(got, original) {
+			t.Error("original release executable changed")
+		}
+		t.Log("CLEANUP: patched executable removed; original release remains unchanged")
+	})
+	home := t.TempDir()
+	// No inherited WACLI_*, config, credentials or proxy bypass variables.
+	binPath := filepath.Join(string(os.PathSeparator), "usr", "bin") + string(os.PathListSeparator) + filepath.Join(string(os.PathSeparator), "bin")
+	env := []string{"HOME=" + home, "PATH=" + binPath, "LC_ALL=C",
+		"HTTPS_PROXY=http://127.0.0.1:1", "HTTP_PROXY=http://127.0.0.1:1", "NO_PROXY="}
+	cmd := exec.CommandContext(ctx, release, "--store", f.dir, "--json", "auth", "status")
+	cmd.Env = env
+	output, err := cmd.CombinedOutput()
+	if err != nil || !bytes.Contains(output, []byte(`"authenticated":false`)) {
+		t.Fatalf("released auth status failed: %v, %s", err, output)
+	}
+	if _, err := os.Stat(filepath.Join(f.dir, "wacli.db")); err != nil {
+		t.Fatal(err)
+	}
+	t.Log("STORE CREATED: unmodified released v0.26.0 auth status initialized this disposable store; authenticated=false")
+
+	f.self = f.device(filepath.Join(f.dir, "session.db"), types.JID{User: "555" + "0000000", Device: 7, Server: types.DefaultUserServer})
+	f.self.LID = types.JID{User: "555" + "000001", Device: 7, Server: types.HiddenUserServer}
+	f.self.PushName = "Synthetic Upgrade"
+	if err := f.self.Save(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.self.PreKeys.GetOrGenPreKeys(ctx, 5); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.self.PreKeys.MarkPreKeysAsUploaded(ctx, 5); err != nil {
+		t.Fatal(err)
+	}
+	for _, lid := range []types.JID{f.lid, u.lidB} {
+		device := lid
+		device.Device = 2
+		u.devices[device] = f.device(filepath.Join(t.TempDir(), "recipient.db"), device)
+	}
+	f.recipient = u.devices[types.JID{User: f.lid.User, Device: 2, Server: types.HiddenUserServer}]
+	f.incoming = f.sender(f.chat)
+	incomingB := f.sender(u.chatB)
+	own := f.self.GetLID()
+	own.Device = 1
+	f.own = f.sender(own)
+	t.Log("SESSION FIXTURE: synthetic already-paired device and real Signal keys added only to test session.db")
+
+	whatsmeow.WACertPubKey = *root.Pub
+	t.Cleanup(func() { whatsmeow.WACertPubKey = oldRoot })
+	cert := keepTransportCertificate(t, root, static)
+	caPEM, tlsCert := stableUpgradeTLS(t)
+	peerServer := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{InsecureSkipVerify: true})
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		defer conn.CloseNow()
+		p, err := keepTransportHandshake(ctx, conn, static, cert)
+		if err != nil {
+			t.Errorf("offline Noise handshake: %v", err)
+			return
+		}
+		p.done = make(chan struct{})
+		defer close(p.done)
+		f.peers <- p
+		t.Log("NOISE XX: actual owner connected through local TLS/WebSocket and accepted the test CA")
+		if err := p.write(ctx, waBinary.Node{Tag: "success", Attrs: waBinary.Attrs{"lid": f.self.GetLID(), "t": time.Now().Unix()}}); err != nil {
+			t.Error(err)
+			return
+		}
+		for {
+			n, err := p.read(ctx)
+			if err != nil {
+				return
+			}
+			t.Logf("PEER received %s", keepTransportShape(*n))
+			if err := u.respond(p, n); err != nil {
+				t.Errorf("offline peer: %v", err)
+				return
+			}
+		}
+	}))
+	peerServer.TLS = &tls.Config{Certificates: []tls.Certificate{tlsCert}, MinVersion: tls.VersionTLS12}
+	peerServer.StartTLS()
+	t.Cleanup(peerServer.Close)
+	proxy, connects, rejected := stableUpgradeProxy(t, peerServer.Listener.Addr().String())
+	caPath := filepath.Join(t.TempDir(), "test-ca.pem")
+	if err := os.WriteFile(caPath, caPEM, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	env = []string{"HOME=" + home, "PATH=" + binPath, "LC_ALL=C",
+		"HTTPS_PROXY=" + proxy.URL, "HTTP_PROXY=" + proxy.URL, "NO_PROXY=",
+		"SSL_CERT_FILE=" + caPath, "SSL_CERT_DIR=" + t.TempDir()}
+	t.Log("ISOLATION: clean child environment; isolated HOME; no WACLI_*; HTTPS_PROXY/HTTP_PROXY fail closed; TLS trusts only test CA")
+
+	// Candidate keeps its exact production client. Only the socket dial points
+	// at the same offline peer; released subprocesses use the CONNECT proxy.
+	previousTransport := http.DefaultTransport
+	transport := previousTransport.(*http.Transport).Clone()
+	transport.Proxy = nil
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(caPEM) {
+		t.Fatal("test CA PEM rejected")
+	}
+	transport.DialContext = func(context.Context, string, string) (net.Conn, error) {
+		return nil, fmt.Errorf("offline proof denies non-TLS external dial")
+	}
+	transport.DialTLSContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		if addr != "web.whatsapp.com:443" {
+			return nil, fmt.Errorf("offline proof denies other TLS target")
+		}
+		d := tls.Dialer{Config: &tls.Config{RootCAs: pool, ServerName: "web.whatsapp.com", MinVersion: tls.VersionTLS12}}
+		return d.DialContext(ctx, network, peerServer.Listener.Addr().String())
+	}
+	http.DefaultTransport = transport
+	t.Cleanup(func() { transport.CloseIdleConnections(); http.DefaultTransport = previousTransport })
+
+	owner := exec.CommandContext(ctx, patchedPath, "--store", f.dir, "sync", "--follow", "--presence-mode", "quiet")
+	owner.Env = env
+	var ownerOutput bytes.Buffer
+	owner.Stdout, owner.Stderr = &ownerOutput, &ownerOutput
+	if err := owner.Start(); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	var ownerErr error
+	go func() { ownerErr = owner.Wait(); close(done) }()
+	var stopOnce sync.Once
+	stopStable := func() {
+		stopOnce.Do(func() {
+			select {
+			case <-done:
+			default:
+				if err := owner.Process.Signal(syscall.SIGTERM); err != nil {
+					t.Error(err)
+				}
+			}
+			select {
+			case <-done:
+			case <-time.After(10 * time.Second):
+				_ = owner.Process.Kill() // Only the PID created above.
+				<-done
+				t.Error("released owner did not exit gracefully")
+			}
+			t.Logf("RELEASED OWNER EXIT: SIGTERM sent only to owned PID; wait_error=%v", ownerErr)
+			t.Logf("RELEASED OWNER stdout/stderr:\n%s", ownerOutput.String())
+		})
+	}
+	t.Cleanup(stopStable)
+	p := f.takePeer()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		if _, err := os.Stat(filepath.Join(f.dir, ".send.sock")); err == nil {
+			break
+		}
+		select {
+		case <-done:
+			t.Fatalf("released owner exited before IPC ready: %v, %s", ownerErr, ownerOutput.String())
+		case <-ctx.Done():
+			t.Fatal("released owner never opened its post-connect IPC listener")
+		case <-ticker.C:
+		}
+	}
+	t.Log("RELEASED OWNER READY: real v0.26.0 sync --follow connected and opened its own AfterConnect IPC listener")
+	u.deliver(p, f.incoming("upgrade-a-one", f.chat, f.base))
+	u.state("stable incoming A one", 1, -1)
+	u.deliver(p, f.incoming("upgrade-a-two", f.chat, f.base.Add(time.Second)))
+	u.state("stable incoming A two", 2, -1)
+	u.deliver(p, incomingB("upgrade-b-one", u.chatB, f.base.Add(time.Second)))
+	u.state("stable received A=2 B=1", 2, 1)
+
+	flags := &rootFlags{storeDir: f.dir, asJSON: true, timeout: 10 * time.Second}
+	t.Log("STEP refusal: candidate real Cobra send text --keep-unread to A meets released owner's LOCK")
+	err = u.candidateSend(flags, f.chat, true)
+	if err == nil || !strings.Contains(err.Error(), "unsupported send delegate version 2") ||
+		!strings.Contains(err.Error(), "upgrade wacli and restart sync --follow") || !strings.Contains(err.Error(), "not sent") {
+		t.Fatalf("actual released-owner refusal missing: %v", err)
+	}
+	writeRootError(*flags, err)
+	t.Logf("ACTUAL RELEASE REFUSAL: %v", err)
+	u.state("after actual stable-owner refusal", 2, 1)
+	f.wireAssertions(0)
+	t.Log("NO FALLBACK: released owner could accept v1, but no message was sent or retried without keep-unread")
+
+	t.Log("STEP old-owner compatibility: candidate ordinary send to B uses IPC v1; released owner encrypts and sends")
+	if err := u.candidateSend(flags, u.chatB, false); err != nil {
+		t.Fatal(err)
+	}
+	_ = f.takeSent()
+	u.state("candidate ordinary send via stable owner", 2, 0)
+	f.wireAssertions(1)
+
+	t.Log("STEP upgrade/restart: stop actual stable owner, verify exit and LOCK release, keep the SAME store")
+	stopStable()
+	if ownerErr != nil {
+		t.Fatalf("released owner exit: %v", ownerErr)
+	}
+	f.waitClosed(p)
+	lk, err := lock.AcquireWithTimeout(ctx, f.dir, 0)
+	if err != nil {
+		t.Fatalf("released owner retained LOCK: %v", err)
+	}
+	if err := lk.Release(); err != nil {
+		t.Fatal(err)
+	}
+	t.Log("LOCK RELEASE VERIFIED: stable PID exited and the same store lock can be acquired")
+	u.state("stable stopped before candidate opens same store", 2, 0)
+	a, candidatePeer, stopCandidate := f.follow(flags, true, false)
+	u.state("candidate owner restarted on same store", 2, 0)
+	t.Log("STEP upgraded owner: candidate Cobra keep-unread send delegates over actual IPC v2")
+	if err := u.candidateSend(flags, f.chat, true); err != nil {
+		t.Fatal(err)
+	}
+	id := f.takeSent()
+	u.state("candidate v2 flagged send accepted", 2, 0)
+	f.deliver(a, candidatePeer, f.own(id, f.chat, time.Now().UTC()))
+	u.state("after actual own-device encrypted echo", 2, 0)
+	f.wireAssertions(2)
+
+	t.Log("STEP candidate default: ordinary send to A must still acknowledge unread")
+	if err := u.candidateSend(flags, f.chat, false); err != nil {
+		t.Fatal(err)
+	}
+	_ = f.takeSent()
+	u.state("ordinary candidate send clears A", 0, 0)
+	f.wireAssertions(3)
+
+	// Extra compatibility direction: the actual old CLI produces a v1 request
+	// while the candidate owner holds LOCK. It must never open another socket.
+	t.Log("STEP old-client/new-owner compatibility: actual released CLI sends ordinary text to B through candidate IPC")
+	oldClient := exec.CommandContext(ctx, patchedPath, "--store", f.dir, "--json", "--timeout", "10s",
+		"send", "text", "--to", u.chatB.String(), "--message", "synthetic automatic reply", "--no-preview", "--post-send-wait", "0")
+	oldClient.Env = env
+	output, err = oldClient.CombinedOutput()
+	if err != nil || !bytes.Contains(output, []byte(`"sent":true`)) {
+		t.Fatalf("released client/candidate owner compatibility: %v, %s", err, output)
+	}
+	_ = f.takeSent()
+	u.state("released v1 client accepted by candidate owner", 0, 0)
+	f.wireAssertions(4)
+	stopCandidate()
+	if connects.Load() != 1 || rejected.Load() != 0 {
+		t.Fatalf("proxy isolation mismatch: approved=%d rejected=%d", connects.Load(), rejected.Load())
+	}
+	t.Log("PROXY ASSERTION: exactly one approved CONNECT target web.whatsapp.com:443; zero other CONNECT targets; all actual TCP peers and upstreams loopback")
+	t.Log("UPGRADE PASS: actual released guard refused v2; old-owner v1 send worked; same-store restart retained A=2; candidate v2/echo preserved it; ordinary sends and old-client/new-owner compatibility worked")
+}
+
+func stableReleaseBytes(t *testing.T, path string) []byte {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(data)
+	expected := "3750e566e88a3a7a" + "e47e485c02392ad6" + "0b972160fc85e5bd" + "789e896673245f76"
+	if hex.EncodeToString(digest[:]) != expected {
+		t.Fatal("unexpected official release executable checksum")
+	}
+	archivePath := filepath.Join(filepath.Dir(path), "wacli_0.26.0_linux_amd64.tar.gz")
+	archive, err := os.ReadFile(archivePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checksums, err := os.ReadFile(filepath.Join(filepath.Dir(path), "checksums.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	archiveDigest := sha256.Sum256(archive)
+	if !strings.Contains(string(checksums), fmt.Sprintf("%x  %s", archiveDigest, filepath.Base(archivePath))) {
+		t.Fatal("release tarball differs from checksums.txt")
+	}
+	gz, err := gzip.NewReader(bytes.NewReader(archive))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer gz.Close()
+	tr := tar.NewReader(gz)
+	matched := false
+	for {
+		h, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if filepath.Base(h.Name) == "wacli" {
+			extracted, err := io.ReadAll(tr)
+			if err != nil || !bytes.Equal(extracted, data) {
+				t.Fatal("installed executable differs from verified release tarball")
+			}
+			matched = true
+		}
+	}
+	if !matched {
+		t.Fatal("release tarball has no executable")
+	}
+	t.Logf("OFFICIAL v0.26.0 binary sha256=%x", digest)
+	t.Logf("OFFICIAL tarball checksum verified against checksums.txt sha256=%x", archiveDigest)
+	t.Log("OFFICIAL executable equals executable extracted from checksum-verified release tarball")
+	return data
+}
+
+func stableUpgradeTLS(t *testing.T) ([]byte, tls.Certificate) {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ca := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "Synthetic upgrade CA"},
+		NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour),
+		IsCA: true, BasicConstraintsValid: true, KeyUsage: x509.KeyUsageCertSign}
+	caDER, err := x509.CreateCertificate(rand.Reader, ca, ca, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	leaf := &x509.Certificate{SerialNumber: big.NewInt(2), DNSNames: []string{"web.whatsapp.com"},
+		NotBefore: ca.NotBefore, NotAfter: ca.NotAfter, KeyUsage: x509.KeyUsageDigitalSignature,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}}
+	leafDER, err := x509.CreateCertificate(rand.Reader, leaf, ca, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caDER}),
+		tls.Certificate{Certificate: [][]byte{leafDER, caDER}, PrivateKey: key}
+}
+
+func stableUpgradeProxy(t *testing.T, target string) (*httptest.Server, *atomic.Int32, *atomic.Int32) {
+	t.Helper()
+	targetHost, _, err := net.SplitHostPort(target)
+	if err != nil || !net.ParseIP(targetHost).IsLoopback() {
+		t.Fatal("CONNECT proxy may tunnel only to a loopback peer")
+	}
+	var connects, rejected atomic.Int32
+	var mu sync.Mutex
+	active := make(map[net.Conn]bool)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		host, _, _ := net.SplitHostPort(r.RemoteAddr)
+		if r.Method != http.MethodConnect || r.Host != "web.whatsapp.com:443" || !net.ParseIP(host).IsLoopback() {
+			rejected.Add(1)
+			http.Error(w, "offline proof denied target", http.StatusForbidden)
+			return
+		}
+		upstream, err := net.Dial("tcp", target)
+		if err != nil {
+			t.Error(err)
+			http.Error(w, "offline peer unavailable", 502)
+			return
+		}
+		actualHost, _, err := net.SplitHostPort(upstream.RemoteAddr().String())
+		if err != nil || !net.ParseIP(actualHost).IsLoopback() {
+			_ = upstream.Close()
+			t.Error("CONNECT proxy opened a non-loopback upstream")
+			return
+		}
+		client, rw, err := w.(http.Hijacker).Hijack()
+		if err != nil {
+			_ = upstream.Close()
+			t.Error(err)
+			return
+		}
+		mu.Lock()
+		active[client], active[upstream] = true, true
+		mu.Unlock()
+		defer func() {
+			_ = client.Close()
+			_ = upstream.Close()
+			mu.Lock()
+			delete(active, client)
+			delete(active, upstream)
+			mu.Unlock()
+		}()
+		connects.Add(1)
+		t.Log("PROXY approved CONNECT web.whatsapp.com:443; upstream is only the in-process loopback TLS peer")
+		if _, err := rw.WriteString("HTTP/1.1 200 Connection Established\r\n\r\n"); err != nil {
+			return
+		}
+		if err := rw.Flush(); err != nil {
+			return
+		}
+		copied := make(chan struct{})
+		go func() { _, _ = io.Copy(upstream, rw); _ = upstream.Close(); close(copied) }()
+		_, _ = io.Copy(client, upstream)
+		_ = client.Close()
+		<-copied
+	}))
+	t.Cleanup(func() {
+		mu.Lock()
+		for conn := range active {
+			_ = conn.Close()
+		}
+		mu.Unlock()
+		server.Close()
+	})
+	return server, &connects, &rejected
+}
+
+type stableUpgradePeer struct {
+	f           *keepTransport
+	chatB, lidB types.JID
+	devices     map[types.JID]*waStore.Device
+}
+
+func (u *stableUpgradePeer) candidateSend(flags *rootFlags, to types.JID, keep bool) error {
+	u.f.t.Helper()
+	cmd := newSendTextCmd(flags)
+	cmd.SilenceErrors, cmd.SilenceUsage = true, true
+	args := []string{"--to", to.String(), "--message", "synthetic automatic reply", "--no-preview", "--post-send-wait", "0"}
+	if keep {
+		args = append(args, "--keep-unread")
+	}
+	cmd.SetArgs(args)
+	var executeErr error
+	output := captureRootStdout(u.f.t, func() { executeErr = cmd.Execute() })
+	if executeErr != nil {
+		return executeErr
+	}
+	var response struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Sent         bool   `json:"sent"`
+			StoreWarning string `json:"store_warning"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(output), &response); err != nil || !response.Success || !response.Data.Sent || response.Data.StoreWarning != "" {
+		u.f.t.Fatalf("Cobra did not report accepted/persisted send: %v", err)
+	}
+	u.f.t.Log("CANDIDATE COBRA: sent=true, no store warning (synthetic address and message ID omitted)")
+	return nil
+}
+
+func (u *stableUpgradePeer) state(label string, a, b int) {
+	u.f.t.Helper()
+	db, err := sql.Open("sqlite3", sqliteutil.FileURI(filepath.Join(u.f.dir, "wacli.db"), "mode=ro&_query_only=1&_busy_timeout=5000"))
+	if err != nil {
+		u.f.t.Fatal(err)
+	}
+	defer db.Close()
+	for i, jid := range []types.JID{u.f.chat, u.chatB} {
+		want, name := a, "A"
+		if i == 1 {
+			want, name = b, "B"
+		}
+		if want < 0 {
+			continue
+		}
+		var unread, count int
+		if err := db.QueryRow("SELECT COALESCE(unread,0), COALESCE(unread_count,0) FROM chats WHERE jid=?", jid.String()).Scan(&unread, &count); err != nil {
+			u.f.t.Fatal(err)
+		}
+		u.f.t.Logf("STORE %s: chat=%s unread=%v unread_count=%d (same disposable file, read-only SQL)", label, name, unread != 0, count)
+		if count != want || (unread != 0) != (want > 0) {
+			u.f.t.Fatalf("unexpected unread state at %s for chat %s", label, name)
+		}
+	}
+}
+
+func (u *stableUpgradePeer) deliver(p *keepTransportNoise, n waBinary.Node) {
+	u.f.t.Helper()
+	if err := p.write(u.f.ctx, n); err != nil {
+		u.f.t.Fatal(err)
+	}
+	select {
+	case id := <-u.f.receipts:
+		if id != fmt.Sprint(n.Attrs["id"]) {
+			u.f.t.Fatal("stable delivery receipt ID differs")
+		}
+	case <-u.f.ctx.Done():
+		u.f.t.Fatal("released owner did not decrypt/persist/receipt input")
+	}
+	u.f.t.Log("SOCKET INPUT: released owner decrypted real Signal message, persisted it and sent delivery receipt")
+}
+
+func (u *stableUpgradePeer) respond(p *keepTransportNoise, n *waBinary.Node) error {
+	f := u.f
+	response := waBinary.Node{Tag: "iq", Attrs: waBinary.Attrs{"id": n.Attrs["id"], "type": "result", "from": types.ServerJID}}
+	if usync, ok := n.GetOptionalChildByTag("usync"); n.Tag == "iq" && ok {
+		var users []waBinary.Node
+		_, devices := usync.GetOptionalChildByTag("query", "devices")
+		if devices {
+			f.deviceQueries.Add(1)
+		}
+		list := usync.GetChildByTag("list")
+		for _, user := range list.GetChildren() {
+			jid, _ := user.Attrs["jid"].(types.JID)
+			if jid.IsEmpty() {
+				contact := user.GetChildByTag("contact")
+				raw, _ := contact.Content.([]byte)
+				jid = f.chat
+				if strings.Contains(string(raw), u.chatB.User) {
+					jid = u.chatB
+				}
+			}
+			children := []waBinary.Node{{Tag: "contact", Attrs: waBinary.Attrs{"type": "in"}}}
+			lid := types.EmptyJID
+			if jid == f.chat {
+				lid = f.lid
+			}
+			if jid == u.chatB {
+				lid = u.lidB
+			}
+			if !lid.IsEmpty() {
+				children = append(children, waBinary.Node{Tag: "lid", Attrs: waBinary.Attrs{"val": lid}})
+			}
+			if devices {
+				var dl []waBinary.Node
+				if jid.User == f.chat.User || jid.User == f.lid.User || jid.User == u.chatB.User || jid.User == u.lidB.User {
+					dl = []waBinary.Node{{Tag: "device", Attrs: waBinary.Attrs{"id": "2"}}}
+				}
+				children = append(children, waBinary.Node{Tag: "devices", Content: []waBinary.Node{{Tag: "device-list", Content: dl}}})
+			}
+			users = append(users, waBinary.Node{Tag: "user", Attrs: waBinary.Attrs{"jid": jid}, Content: children})
+		}
+		response.Content = []waBinary.Node{{Tag: "usync", Content: []waBinary.Node{{Tag: "list", Content: users}}}}
+		return p.write(f.ctx, response)
+	}
+	if key, ok := n.GetOptionalChildByTag("key"); n.Tag == "iq" && n.Attrs["xmlns"] == "encrypt" && ok {
+		var users []waBinary.Node
+		for _, user := range key.GetChildren() {
+			jid, _ := user.Attrs["jid"].(types.JID)
+			d := u.devices[jid]
+			if d == nil {
+				return fmt.Errorf("unexpected synthetic recipient in prekey request")
+			}
+			var reg, signedID [4]byte
+			binary.BigEndian.PutUint32(reg[:], d.RegistrationID)
+			binary.BigEndian.PutUint32(signedID[:], d.SignedPreKey.KeyID)
+			users = append(users, waBinary.Node{Tag: "user", Attrs: waBinary.Attrs{"jid": jid}, Content: []waBinary.Node{
+				{Tag: "registration", Content: reg[:]}, {Tag: "identity", Content: d.IdentityKey.Pub[:]},
+				{Tag: "skey", Content: []waBinary.Node{{Tag: "id", Content: signedID[1:]}, {Tag: "value", Content: d.SignedPreKey.Pub[:]}, {Tag: "signature", Content: d.SignedPreKey.Signature[:]}}},
+			}})
+			f.bundles.Add(1)
+		}
+		response.Content = []waBinary.Node{{Tag: "list", Content: users}}
+		f.t.Log("PEER served real signed Signal recipient bundle")
+		return p.write(f.ctx, response)
+	}
+	if n.Tag == "message" {
+		if err := u.decrypt(n); err != nil {
+			return err
+		}
+		f.messages.Add(1)
+		f.sent <- fmt.Sprint(n.Attrs["id"])
+		f.t.Log("PEER ACCEPTED: actual outbound Signal message decrypted and synthetic text verified; returning ack")
+		return p.write(f.ctx, waBinary.Node{Tag: "ack", Attrs: waBinary.Attrs{"id": n.Attrs["id"], "class": "message", "from": n.Attrs["to"], "t": time.Now().Unix()}})
+	}
+	return f.respond(p, n)
+}
+
+func (u *stableUpgradePeer) decrypt(n *waBinary.Node) error {
+	participants := n.GetChildByTag("participants")
+	for _, to := range participants.GetChildren() {
+		jid, _ := to.Attrs["jid"].(types.JID)
+		d := u.devices[jid]
+		if d == nil {
+			continue
+		}
+		enc := to.GetChildByTag("enc")
+		data, ok := enc.Content.([]byte)
+		if !ok {
+			return fmt.Errorf("missing actual encrypted bytes")
+		}
+		from := u.f.self.GetLID().SignalAddress()
+		builder := session.NewBuilderFromSignal(d, from, waStore.SignalProtobufSerializer)
+		cipher := session.NewCipher(builder, from)
+		var plain []byte
+		var err error
+		switch enc.Attrs["type"] {
+		case "pkmsg":
+			msg, decodeErr := protocol.NewPreKeySignalMessageFromBytes(data, waStore.SignalProtobufSerializer.PreKeySignalMessage, waStore.SignalProtobufSerializer.SignalMessage)
+			if decodeErr != nil {
+				return decodeErr
+			}
+			plain, err = cipher.DecryptMessage(u.f.ctx, msg)
+		case "msg":
+			msg, decodeErr := protocol.NewSignalMessageFromBytes(data, waStore.SignalProtobufSerializer.SignalMessage)
+			if decodeErr != nil {
+				return decodeErr
+			}
+			plain, err = cipher.Decrypt(u.f.ctx, msg)
+		default:
+			return fmt.Errorf("unexpected encryption type")
+		}
+		if err != nil {
+			return err
+		}
+		if len(plain) == 0 {
+			return fmt.Errorf("empty Signal plaintext")
+		}
+		padding := int(plain[len(plain)-1])
+		if padding < 1 || padding > len(plain) {
+			return fmt.Errorf("bad Signal padding")
+		}
+		var message waE2E.Message
+		if err := proto.Unmarshal(plain[:len(plain)-padding], &message); err != nil {
+			return err
+		}
+		if message.GetConversation() != "synthetic automatic reply" && message.GetExtendedTextMessage().GetText() != "synthetic automatic reply" {
+			return fmt.Errorf("outbound plaintext does not match actual CLI text")
+		}
+		return nil
+	}
+	return fmt.Errorf("no synthetic recipient ciphertext")
+}

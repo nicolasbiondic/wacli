@@ -82,3 +82,16 @@ Nicolás (via agent)
 ![Terminal](shots/terminal-03.png)
 ![Terminal](shots/terminal-04.png)
 ![Terminal](shots/terminal-05.png)
+
+## Actual released-owner upgrade follow-up
+
+The earlier modeled v1 guard limitation is now addressed by the
+[actual released v0.26.0 owner trace](upgrade/README.md), on the same disposable
+store before and after candidate restart. The released binary copy differs
+only in its one 32-byte Noise trust anchor for the offline peer; all instruction
+bytes and its IPC guard are unchanged. It is not byte-identical.
+
+[Full upgrade output](stable-upgrade-pass.txt) ·
+[Reproducible extra harness](upgrade/send_stable_upgrade_transport_test.go.txt)
+
+![Released-owner refusal and same-store upgrade](shots/terminal-06.png)
