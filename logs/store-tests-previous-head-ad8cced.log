@@ -1,0 +1,30 @@
+=== RUN   TestUpsertMessageIdenticalRedeliveryKeepsTheStoredTimestamp
+--- PASS: TestUpsertMessageIdenticalRedeliveryKeepsTheStoredTimestamp (0.10s)
+=== RUN   TestUpsertMessageIdenticalMediaRedeliveryKeepsTheStoredTimestamp
+--- PASS: TestUpsertMessageIdenticalMediaRedeliveryKeepsTheStoredTimestamp (0.11s)
+=== RUN   TestUpsertMessageRedeliveryKeepsConversationOrder
+--- PASS: TestUpsertMessageRedeliveryKeepsConversationOrder (0.09s)
+=== RUN   TestUpsertMessageRedeliveryWithoutTimestampKeepsTheStoredOne
+--- PASS: TestUpsertMessageRedeliveryWithoutTimestampKeepsTheStoredOne (0.09s)
+=== RUN   TestUpsertMessageTimestampUnchangedOutsideIdenticalReception
+=== RUN   TestUpsertMessageTimestampUnchangedOutsideIdenticalReception/a_message_from_this_account_takes_the_later_timestamp
+    message_redelivery_ts_test.go:134: timestamp = 2025-03-01 10:00:00 +0000 UTC, want the later 2025-03-01 10:40:00 +0000 UTC
+=== RUN   TestUpsertMessageTimestampUnchangedOutsideIdenticalReception/changed_content_takes_the_later_timestamp_with_its_content
+    message_redelivery_ts_test.go:147: message = text "hello" ts 2025-03-01 10:00:00 +0000 UTC, want hello at 2025-03-01 10:40:00 +0000 UTC
+=== RUN   TestUpsertMessageTimestampUnchangedOutsideIdenticalReception/an_earlier_copy_still_cannot_move_the_timestamp_back
+    message_redelivery_ts_test.go:156: timestamp = 2025-03-01 10:00:00 +0000 UTC, want 2025-03-01 10:40:00 +0000 UTC
+--- FAIL: TestUpsertMessageTimestampUnchangedOutsideIdenticalReception (0.32s)
+    --- FAIL: TestUpsertMessageTimestampUnchangedOutsideIdenticalReception/a_message_from_this_account_takes_the_later_timestamp (0.09s)
+    --- FAIL: TestUpsertMessageTimestampUnchangedOutsideIdenticalReception/changed_content_takes_the_later_timestamp_with_its_content (0.13s)
+    --- FAIL: TestUpsertMessageTimestampUnchangedOutsideIdenticalReception/an_earlier_copy_still_cannot_move_the_timestamp_back (0.11s)
+=== RUN   TestUpsertMessageStaleMediaReplayStillLosesToFresherMetadata
+=== RUN   TestUpsertMessageStaleMediaReplayStillLosesToFresherMetadata/old,_fresh,_old_replay
+    message_redelivery_ts_test.go:195: after the stale replay: path "/old", unavailable set false, ts 2025-03-01 10:00:00 +0000 UTC; want /fresh, set, 2025-03-01 10:40:00 +0000 UTC
+=== RUN   TestUpsertMessageStaleMediaReplayStillLosesToFresherMetadata/identical_redelivery_in_between
+    message_redelivery_ts_test.go:213: after the stale replay: path "/old", unavailable set false, ts 2025-03-01 10:00:00 +0000 UTC; want /fresh, set, 2025-03-01 10:50:00 +0000 UTC
+--- FAIL: TestUpsertMessageStaleMediaReplayStillLosesToFresherMetadata (0.22s)
+    --- FAIL: TestUpsertMessageStaleMediaReplayStillLosesToFresherMetadata/old,_fresh,_old_replay (0.11s)
+    --- FAIL: TestUpsertMessageStaleMediaReplayStillLosesToFresherMetadata/identical_redelivery_in_between (0.11s)
+FAIL
+FAIL	github.com/openclaw/wacli/internal/store	0.946s
+FAIL

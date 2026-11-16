@@ -1,0 +1,36 @@
+=== RUN   TestRedeliveryKeepsOrderRealTransport
+    redelivery_transport_test.go:205: NOISE XX: ConnectContext verified test-CA certificate; synthetic paired device
+App state regular_low resolved via full sync
+    redelivery_transport_test.go:83: WIRE first delivery: Signal-encrypted message m1 delivered with stanza t=22:13:20; SDK decrypted, App.Sync stored it, receipt acknowledged
+    redelivery_transport_test.go:83: WIRE first delivery: Signal-encrypted message m2 delivered with stanza t=22:14:20; SDK decrypted, App.Sync stored it, receipt acknowledged
+    redelivery_transport_test.go:83: WIRE first delivery: Signal-encrypted message m3 delivered with stanza t=22:15:20; SDK decrypted, App.Sync stored it, receipt acknowledged
+
+Idle for 20ms, exiting.
+01:06:13.590 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    redelivery_transport_test.go:142: STORE after first sync: m1 ts=22:13:20 text="synthetic message m1"
+    redelivery_transport_test.go:142: STORE after first sync: m2 ts=22:14:20 text="synthetic message m2"
+    redelivery_transport_test.go:142: STORE after first sync: m3 ts=22:15:20 text="synthetic message m3"
+    redelivery_transport_test.go:142: STORE after first sync: conversation order (ts ascending) = [m1 m2 m3]
+    redelivery_transport_test.go:128: CLI `wacli messages list --chat 5551230000@s.whatsapp.net --asc` after first sync (real command, read-only):
+        TIME                 CHAT                       FROM                       ID  TEXT
+        2023-11-14 22:13:20  5551230000@s.whatsapp.net  5551230000@s.whatsapp.net  m1  synthetic message m1
+        2023-11-14 22:14:20  5551230000@s.whatsapp.net  5551230000@s.whatsapp.net  m2  synthetic message m2
+        2023-11-14 22:15:20  5551230000@s.whatsapp.net  5551230000@s.whatsapp.net  m3  synthetic message m3
+    redelivery_transport_test.go:205: NOISE XX: ConnectContext verified test-CA certificate; synthetic paired device
+App state regular_low resolved via full sync
+    redelivery_transport_test.go:83: WIRE redelivery after reopening the store: Signal-encrypted message m1 delivered with stanza t=22:53:20; SDK decrypted, App.Sync stored it, receipt acknowledged
+
+Idle for 20ms, exiting.
+01:06:14.023 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    redelivery_transport_test.go:151: STORE after redelivery of m1 (stanza t=+40m): m1 ts=22:13:20 text="synthetic message m1"
+    redelivery_transport_test.go:151: STORE after redelivery of m1 (stanza t=+40m): m2 ts=22:14:20 text="synthetic message m2"
+    redelivery_transport_test.go:151: STORE after redelivery of m1 (stanza t=+40m): m3 ts=22:15:20 text="synthetic message m3"
+    redelivery_transport_test.go:151: STORE after redelivery of m1 (stanza t=+40m): conversation order (ts ascending) = [m1 m2 m3]
+    redelivery_transport_test.go:128: CLI `wacli messages list --chat 5551230000@s.whatsapp.net --asc` after redelivery of m1 (real command, read-only):
+        TIME                 CHAT                       FROM                       ID  TEXT
+        2023-11-14 22:13:20  5551230000@s.whatsapp.net  5551230000@s.whatsapp.net  m1  synthetic message m1
+        2023-11-14 22:14:20  5551230000@s.whatsapp.net  5551230000@s.whatsapp.net  m2  synthetic message m2
+        2023-11-14 22:15:20  5551230000@s.whatsapp.net  5551230000@s.whatsapp.net  m3  synthetic message m3
+--- PASS: TestRedeliveryKeepsOrderRealTransport (1.79s)
+PASS
+ok  	github.com/openclaw/wacli/internal/wa	1.802s
