@@ -1,0 +1,25 @@
+=== RUN   TestOwnMessageUpgradedStoreRealTransport
+    own_chat_name_transport_test.go:102: STORE legacy store, as opened: chats.name = "Shop Account"
+    own_chat_name_transport_test.go:105: CLI `wacli chats list` legacy store, as opened (real command, read-only):
+        KIND  NAME          JID                        LAST                 FLAGS
+        dm    Shop Account  5551230000@s.whatsapp.net  2023-11-14 22:13:20  
+    own_chat_name_transport_test.go:282: NOISE XX: ConnectContext verified test-CA certificate; synthetic paired device
+App state regular_low resolved via full sync
+    own_chat_name_transport_test.go:239: WIRE legacy store, own message: Signal-encrypted message own-3 from this account's other device, stanza notify="Shop Account"; SDK decrypted, App.Sync stored it, receipt acknowledged
+
+Idle for 20ms, exiting.
+01:27:13.586 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    own_chat_name_transport_test.go:110: STORE legacy store, after an own message: chats.name = "Shop Account"
+    own_chat_name_transport_test.go:282: NOISE XX: ConnectContext verified test-CA certificate; synthetic paired device
+App state regular_low resolved via full sync
+    own_chat_name_transport_test.go:239: WIRE legacy store, message from the customer: Signal-encrypted message in-3 from customer, stanza notify="Ana"; SDK decrypted, App.Sync stored it, receipt acknowledged
+
+Idle for 20ms, exiting.
+01:27:14.285 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    own_chat_name_transport_test.go:117: STORE legacy store, after the customer's message: chats.name = "Ana"
+    own_chat_name_transport_test.go:120: CLI `wacli chats list` legacy store, after the customer's message (real command, read-only):
+        KIND  NAME  JID                        LAST                 FLAGS
+        dm    Ana   5551230000@s.whatsapp.net  2023-11-14 22:31:00  unread:1
+--- PASS: TestOwnMessageUpgradedStoreRealTransport (1.50s)
+PASS
+ok  	github.com/openclaw/wacli/internal/wa	1.511s

@@ -1,0 +1,34 @@
+=== RUN   TestOwnMessageNamesNewChatRealTransport
+    own_chat_name_transport_test.go:282: NOISE XX: ConnectContext verified test-CA certificate; synthetic paired device
+App state regular_low resolved via full sync
+    own_chat_name_transport_test.go:239: WIRE first sync, own message to a new chat: Signal-encrypted message own-1 from this account's other device, stanza notify="Shop Account"; SDK decrypted, App.Sync stored it, receipt acknowledged
+
+Idle for 20ms, exiting.
+01:23:06.401 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    own_chat_name_transport_test.go:60: STORE after the own message: chats.name = "Shop Account"
+    own_chat_name_transport_test.go:61: CLI `wacli chats list` after the own message (real command, read-only):
+        KIND  NAME          JID                        LAST                 FLAGS
+        dm    Shop Account  5551230000@s.whatsapp.net  2023-11-14 22:13:20  
+    own_chat_name_transport_test.go:62: SNAPSHOT: store after the first message copied for an upgrade check
+    own_chat_name_transport_test.go:64: chat name after an own message = "Shop Account", want the JID "5551230000@s.whatsapp.net"
+    own_chat_name_transport_test.go:282: NOISE XX: ConnectContext verified test-CA certificate; synthetic paired device
+App state regular_low resolved via full sync
+    own_chat_name_transport_test.go:239: WIRE reopened store, message from the customer: Signal-encrypted message in-1 from customer, stanza notify="Ana"; SDK decrypted, App.Sync stored it, receipt acknowledged
+
+Idle for 20ms, exiting.
+01:23:07.284 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    own_chat_name_transport_test.go:70: STORE after the customer's message: chats.name = "Ana"
+    own_chat_name_transport_test.go:282: NOISE XX: ConnectContext verified test-CA certificate; synthetic paired device
+App state regular_low resolved via full sync
+    own_chat_name_transport_test.go:239: WIRE reopened store, another own message: Signal-encrypted message own-2 from this account's other device, stanza notify="Shop Account"; SDK decrypted, App.Sync stored it, receipt acknowledged
+
+Idle for 20ms, exiting.
+01:23:08.202 [Client/Socket ERROR] Error reading from websocket: failed to get reader: received close frame: status = StatusNormalClosure and reason = "proof complete"
+    own_chat_name_transport_test.go:78: STORE after a later own message: chats.name = "Ana"
+    own_chat_name_transport_test.go:79: CLI `wacli chats list` after a later own message (real command, read-only):
+        KIND  NAME  JID                        LAST                 FLAGS
+        dm    Ana   5551230000@s.whatsapp.net  2023-11-14 22:15:20  
+--- FAIL: TestOwnMessageNamesNewChatRealTransport (2.77s)
+FAIL
+FAIL	github.com/openclaw/wacli/internal/wa	2.783s
+FAIL

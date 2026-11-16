@@ -1,0 +1,5 @@
+schema objects=71 schema_sha256=4b69999111c47c3d migrations=(33, 33)
+  rows chats: 1
+  rows messages: 1
+  rows contacts: 2
+  integrity_check: ok | foreign_key_check rows: 0
