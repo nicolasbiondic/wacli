@@ -25,7 +25,7 @@ func (c *Client) CreateGroup(ctx context.Context, req CreateGroupRequest) (*type
 	if cli == nil || !cli.IsConnected() {
 		return nil, fmt.Errorf("not connected")
 	}
-	return cli.CreateGroup(ctx, whatsmeow.ReqCreateGroup{
+	return createGroupNoReplay(ctx, cli, whatsmeow.ReqCreateGroup{
 		Name:         req.Name,
 		Participants: req.Participants,
 		GroupAnnounce: types.GroupAnnounce{

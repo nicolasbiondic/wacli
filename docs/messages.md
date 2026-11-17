@@ -18,7 +18,7 @@ wacli messages edit --chat JID --id MSG_ID --message TEXT [--post-send-wait 2s]
 wacli messages delete --chat JID --id MSG_ID [--for-me] [--delete-media] [--post-send-wait 2s]
 wacli messages purge --chat JID --id MSG_ID [--dry-run] [--confirm]
 wacli messages revoke --chat JID --id MSG_ID [--post-send-wait 2s]
-wacli messages forward --chat JID --id MSG_ID --to RECIPIENT [--pick N] [--post-send-wait 2s]
+wacli messages forward --chat JID --id MSG_ID --to JID_OR_PHONE [--post-send-wait 2s]
 ```
 
 ## Pagination and freshness
@@ -226,7 +226,7 @@ referral; `messages purge` clears it.
 - `messages edit` updates one of your own recent sent text messages. WhatsApp only accepts edits inside its current edit window.
 - `messages delete` revokes one of your own sent messages for everyone. `messages revoke` is the explicit form of the same delete-for-everyone operation.
 - `messages delete --for-me` removes a stored message only for your WhatsApp account using WhatsApp's `deleteMessageForMe` app-state patch; it can target messages sent by you or by others. `--delete-media` is only valid with `--for-me`.
-- `messages forward` forwards a stored text, image, video, GIF, audio, sticker, or document message to another recipient and marks the outgoing copy as forwarded. Media forwards require synced media metadata; reaction forwarding is not supported.
+- `messages forward` forwards a stored text, image, video, GIF, audio, sticker, or document message to another recipient and marks the outgoing copy as forwarded. Media forwards require synced media metadata; reaction forwarding is not supported. When `sync --follow` holds the store, the forward is delegated to it as a send (kind `forward`): it waits in the send queue and send spacing like `send text`, and its JSON keeps the standalone shape. A send attempt that runs out of time (45 s) is reported as "may still have gone through": check the recipient's chat before forwarding again. `--to` must be a JID (containing `@`) or an exact phone number: forward never looks up contact, group or chat names (a fuzzy match could copy a message to the wrong person), so `--pick` does not apply, and the error never lists candidates. Its warmup warnings name "the forward recipient", not the JID.
 - These commands look up the target in the local store first and honor `--read-only`/`WACLI_READONLY`. Delete-for-everyone and edit require a message sent by you.
 - Deleted messages and WhatsApp delete-for-me events are kept as local tombstones with `deleted_at` and `deletion_reason`. Their original text, reply, interactive, and media metadata remains available to direct `messages show`, but tombstones stay hidden from normal list/search/starred/export results and FTS.
 - Sync, history, and backfill ingestion merge messages by chat JID and message ID. A message missing from any partial import is left unchanged, and a later live copy does not resurrect an existing tombstone.
@@ -252,7 +252,7 @@ wacli messages delete --chat 1234567890@s.whatsapp.net --id ABC123
 wacli messages delete --chat 1234567890@s.whatsapp.net --id ABC123 --for-me
 wacli messages purge --chat 1234567890@s.whatsapp.net --id ABC123 --dry-run
 wacli messages revoke --chat 1234567890@s.whatsapp.net --id ABC123
-wacli messages forward --chat 1234567890@s.whatsapp.net --id ABC123 --to "Family"
+wacli messages forward --chat 1234567890@s.whatsapp.net --id ABC123 --to 120363000000000001@g.us
 ```
 
 Raw message text, captions, and explicit edits retain their original whitespace in stored records and JSON output. Human display text remains normalized. Content trimmed by an older version cannot be reconstructed from the local store alone.

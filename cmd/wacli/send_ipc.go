@@ -39,6 +39,7 @@ type sendDelegateRequest struct {
 	JID                  string   `json:"jid,omitempty"`
 	Preview              bool     `json:"preview,omitempty"`
 	To                   string   `json:"to,omitempty"`
+	Chat                 string   `json:"chat,omitempty"`
 	Pick                 int      `json:"pick,omitempty"`
 	Message              string   `json:"message,omitempty"`
 	Mentions             []string `json:"mentions,omitempty"`
@@ -95,6 +96,9 @@ type sendDelegateRequest struct {
 
 	// Business profile (kinds business_profile_get/set).
 	BusinessProfile *businessProfileUpdateRequest `json:"business_profile,omitempty"`
+
+	// Group creation (kind group_create).
+	GroupCreate *groupCreateRequest `json:"group_create,omitempty"`
 }
 
 type sendDelegateResponse struct {
@@ -105,6 +109,7 @@ type sendDelegateResponse struct {
 	Sent           bool                 `json:"sent,omitempty"`
 	To             string               `json:"to,omitempty"`
 	ID             string               `json:"id,omitempty"`
+	Source         string               `json:"source,omitempty"`
 	Target         string               `json:"target,omitempty"`
 	Reaction       string               `json:"reaction,omitempty"`
 	Question       string               `json:"question,omitempty"`
@@ -128,6 +133,7 @@ type sendDelegateResponse struct {
 	AppStateResync    *app.AppStateResyncResult `json:"app_state_resync,omitempty"`
 	GroupParticipants *groupParticipantsResult  `json:"group_participants,omitempty"`
 	GroupInviteLink   *groupInviteLinkResult    `json:"group_invite_link,omitempty"`
+	GroupCreate       *groupCreateResult        `json:"group_create,omitempty"`
 
 	BusinessProfile    *wa.BusinessProfileFull   `json:"business_profile,omitempty"`
 	BusinessProfileSet *businessProfileSetResult `json:"business_profile_set,omitempty"`
@@ -332,7 +338,7 @@ func handleSendDelegateConn(ctx context.Context, conn net.Conn, execute sendDele
 		_ = json.NewEncoder(conn).Encode(resp)
 		return
 	}
-	if req.Kind == chatStateKind || req.Kind == contactsSaveKind || req.Kind == appStateWriteKind || req.Kind == appStateResyncKind || req.Kind == groupParticipantsKind || req.Kind == groupInviteLinkKind || req.Kind == businessProfileSetKind {
+	if req.Kind == chatStateKind || req.Kind == contactsSaveKind || req.Kind == appStateWriteKind || req.Kind == appStateResyncKind || req.Kind == groupParticipantsKind || req.Kind == groupInviteLinkKind || req.Kind == groupCreateKind || req.Kind == businessProfileSetKind {
 		// State operations must not hold the message-send queue (#454).
 		if requestCtx.Err() != nil {
 			_ = json.NewEncoder(conn).Encode(sendDelegateResponse{OK: false, Error: "request deadline passed before dispatch; it was not sent"})
@@ -449,6 +455,8 @@ func executeDelegatedSend(parent context.Context, a *app.App, req sendDelegateRe
 		return executeDelegatedPresenceSubscribe(ctx, a, req)
 	case "edit":
 		return executeDelegatedEdit(ctx, a, req)
+	case forwardKind:
+		return executeDelegatedForward(ctx, a, req)
 	case markReadKind:
 		return executeDelegatedMarkRead(ctx, a, req)
 	case markReadThroughKind:
@@ -468,6 +476,13 @@ func executeDelegatedSend(parent context.Context, a *app.App, req sendDelegateRe
 	case groupInviteLinkKind:
 		result, err := executeGroupInviteLink(ctx, a.WA(), req)
 		return sendDelegateResponse{OK: err == nil, GroupInviteLink: result}, err
+	case groupCreateKind:
+		var create groupCreateRequest
+		if req.GroupCreate != nil {
+			create = *req.GroupCreate
+		}
+		info, err := executeGroupCreate(ctx, a.DB(), a.WA(), create)
+		return sendDelegateResponse{OK: err == nil, GroupCreate: &groupCreateResult{Info: info}}, err
 	case contactsSaveKind:
 		return executeDelegatedContactsSave(ctx, a, req)
 	case appStateWriteKind:
@@ -632,6 +647,25 @@ func executeDelegatedEdit(ctx context.Context, a *app.App, req sendDelegateReque
 	}
 	waitForPostSendRetryReceipts(ctx, millisDuration(req.PostSendWaitMS, 0))
 	return sendDelegateResponse{OK: true, Sent: true, To: chatJID.String(), ID: string(sentID), Target: msg.MsgID}, nil
+}
+
+func executeDelegatedForward(ctx context.Context, a forwardApp, req sendDelegateRequest) (sendDelegateResponse, error) {
+	if strings.TrimSpace(req.Chat) == "" || strings.TrimSpace(req.ID) == "" || strings.TrimSpace(req.To) == "" {
+		return sendDelegateResponse{}, fmt.Errorf("--chat, --id, and --to are required")
+	}
+	if req.Pick != 0 {
+		return sendDelegateResponse{}, errForwardPick
+	}
+	plan, err := prepareForward(ctx, a, req.Chat, req.ID, req.To)
+	if err != nil {
+		return sendDelegateResponse{}, err
+	}
+	sent, err := sendForward(ctx, a, plan)
+	if err != nil {
+		return sendDelegateResponse{}, err
+	}
+	waitForPostSendRetryReceipts(ctx, millisDuration(req.PostSendWaitMS, 0))
+	return sendDelegateResponse{OK: true, Sent: true, To: sent.to.String(), ID: sent.id, Source: plan.source.MsgID, StoreWarning: sent.storeWarning()}, nil
 }
 
 func executeDelegatedText(ctx context.Context, a outboundSendApp, req sendDelegateRequest) (sendDelegateResponse, error) {

@@ -15,7 +15,13 @@ import (
 	"go.mau.fi/whatsmeow/types"
 )
 
-func messageChatJIDFilter(ctx context.Context, a *app.App, chat string) ([]string, error) {
+type messageChatApp interface {
+	DB() *store.DB
+	StoreDir() string
+	LocalResolver() (app.LocalResolver, error)
+}
+
+func messageChatJIDFilter(ctx context.Context, a messageChatApp, chat string) ([]string, error) {
 	chat = strings.TrimSpace(chat)
 	if chat == "" {
 		return nil, nil
@@ -194,7 +200,7 @@ func isNoRows(err error) bool {
 	return errors.Is(err, sql.ErrNoRows)
 }
 
-func loadMessageMutationTarget(ctx context.Context, a *app.App, chat, id string) (store.Message, types.JID, error) {
+func loadMessageMutationTarget(ctx context.Context, a messageChatApp, chat, id string) (store.Message, types.JID, error) {
 	chatJIDs, err := messageChatJIDFilter(ctx, a, chat)
 	if err != nil {
 		return store.Message{}, types.JID{}, err

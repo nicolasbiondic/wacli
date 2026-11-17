@@ -94,6 +94,7 @@ func (o *groupDelegateOrder) acquire(ctx context.Context, group string) (func(),
 const (
 	groupParticipantsKind = "group_participants"
 	groupInviteLinkKind   = "group_invite_link"
+	groupCreateKind       = "group_create"
 )
 
 func explainGroupDelegateError(err error, kind, action string) error {

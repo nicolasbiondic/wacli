@@ -301,7 +301,7 @@ func TestGroupParticipantsSnapshotAndValidation(t *testing.T) {
 }
 
 func TestGroupsDelegateQueueAndDeadline(t *testing.T) {
-	for _, kind := range []string{groupParticipantsKind, groupInviteLinkKind} {
+	for _, kind := range []string{groupParticipantsKind, groupInviteLinkKind, groupCreateKind} {
 		for _, mode := range []string{"bypass-queue", "expired", "uncertain"} {
 			t.Run(kind+"/"+mode, func(t *testing.T) {
 				serverConn, clientConn := net.Pipe()

@@ -16,7 +16,9 @@ import (
 	"go.mau.fi/whatsmeow/types"
 )
 
-const sendAttemptTimeout = 45 * time.Second
+// sendAttemptTimeout bounds one send attempt. A var only so tests can shorten it.
+var sendAttemptTimeout = 45 * time.Second
+
 const minUploadBytesPerSecond = 64 * 1024
 const postSendRetryReceiptWait = 2 * time.Second
 const rapidSendWarningThreshold = 5 * time.Second
@@ -89,16 +91,27 @@ func runSendAttempt[T any](ctx context.Context, timeout time.Duration, op func(c
 	case res := <-ch:
 		if errors.Is(res.err, context.DeadlineExceeded) && errors.Is(attemptCtx.Err(), context.DeadlineExceeded) && ctx.Err() == nil {
 			var zero T
-			return zero, fmt.Errorf("send timed out after %s", timeout)
+			return zero, &sendAttemptTimeoutError{timeout: timeout}
 		}
 		return res.value, res.err
 	case <-attemptCtx.Done():
 		var zero T
 		if errors.Is(attemptCtx.Err(), context.DeadlineExceeded) && ctx.Err() == nil {
-			return zero, fmt.Errorf("send timed out after %s", timeout)
+			return zero, &sendAttemptTimeoutError{timeout: timeout}
 		}
 		return zero, attemptCtx.Err()
 	}
+}
+
+// sendAttemptTimeoutError is a send attempt that ran out of time, possibly
+// after its frame left. Its text is the historical one; the type lets a caller
+// tell it apart from refusals.
+type sendAttemptTimeoutError struct {
+	timeout time.Duration
+}
+
+func (e *sendAttemptTimeoutError) Error() string {
+	return fmt.Sprintf("send timed out after %s", e.timeout)
 }
 
 func isRetryableSendError(err error) bool {
@@ -181,6 +194,13 @@ type whatsappRegistrationResolver interface {
 }
 
 func warmupRecipient(ctx context.Context, wa userInfoResolver, jid types.JID, stderr io.Writer) types.JID {
+	return warmupRecipientAs(ctx, wa, jid, "", stderr)
+}
+
+// warmupRecipientAs names the recipient as label in its warnings, so callers
+// writing to a shared log can keep the JID out of it. An empty label prints
+// the JID, as warmupRecipient always has.
+func warmupRecipientAs(ctx context.Context, wa userInfoResolver, jid types.JID, label string, stderr io.Writer) types.JID {
 	if jid.Server != types.DefaultUserServer && jid.Server != types.HiddenUserServer {
 		return jid
 	}
@@ -188,7 +208,7 @@ func warmupRecipient(ctx context.Context, wa userInfoResolver, jid types.JID, st
 		if resolver, ok := any(wa).(whatsappRegistrationResolver); ok {
 			registrations, regErr := resolver.IsOnWhatsApp(ctx, []string{"+" + jid.User})
 			if regErr != nil {
-				fmt.Fprintf(stderr, "warn: send registration warmup for %s failed (send will proceed): %v\n", jid, regErr)
+				fmt.Fprintf(stderr, "warn: send registration warmup for %s failed (send will proceed): %v\n", warmupLabel(label, jid), regErr)
 			} else if len(registrations) > 0 && registrations[0].IsIn && !registrations[0].JID.IsEmpty() {
 				jid = registrations[0].JID.ToNonAD()
 			}
@@ -196,7 +216,14 @@ func warmupRecipient(ctx context.Context, wa userInfoResolver, jid types.JID, st
 	}
 	_, err := wa.GetUserInfo(ctx, []types.JID{jid})
 	if err != nil {
-		fmt.Fprintf(stderr, "warn: send warmup for %s failed (send will proceed): %v\n", jid, err)
+		fmt.Fprintf(stderr, "warn: send warmup for %s failed (send will proceed): %v\n", warmupLabel(label, jid), err)
 	}
 	return jid
+}
+
+func warmupLabel(label string, jid types.JID) string {
+	if label != "" {
+		return label
+	}
+	return jid.String()
 }
