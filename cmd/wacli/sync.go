@@ -42,7 +42,7 @@ func newSyncCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			resolvedWebhookSecret, err := resolveWebhookSecret(webhookSecret, webhookSecretFile, webhookURL)
+			resolvedWebhookSecret, webhookSecretFileMode, err := resolveWebhookSecret(webhookSecret, webhookSecretFile, webhookURL)
 			if err != nil {
 				return err
 			}
@@ -108,24 +108,26 @@ func newSyncCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			res, err := a.Sync(ctx, appPkg.SyncOptions{
-				Mode:                mode,
-				PresenceMode:        presenceMode,
-				AllowQR:             false,
-				AfterConnect:        afterConnect,
-				DownloadMedia:       downloadMedia,
-				RefreshContacts:     refreshContacts,
-				RefreshGroups:       refreshGroups,
-				RefreshChannels:     refreshChannels,
-				IdleExit:            idleExit,
-				MaxReconnect:        maxReconnect,
-				StaleThreshold:      staleThreshold,
-				MaxMessages:         maxMessages,
-				MaxDBSizeBytes:      maxDBSize,
-				WarnNoLimits:        true,
-				WebhookURL:          webhookURL,
-				WebhookSecret:       resolvedWebhookSecret,
-				WebhookAllowPrivate: webhookAllowPrivate,
-				WebhookEvents:       webhookEvents,
+				Mode:                  mode,
+				PresenceMode:          presenceMode,
+				AllowQR:               false,
+				AfterConnect:          afterConnect,
+				DownloadMedia:         downloadMedia,
+				RefreshContacts:       refreshContacts,
+				RefreshGroups:         refreshGroups,
+				RefreshChannels:       refreshChannels,
+				IdleExit:              idleExit,
+				MaxReconnect:          maxReconnect,
+				StaleThreshold:        staleThreshold,
+				MaxMessages:           maxMessages,
+				MaxDBSizeBytes:        maxDBSize,
+				WarnNoLimits:          true,
+				WebhookURL:            webhookURL,
+				WebhookSecret:         resolvedWebhookSecret,
+				WebhookSecretFile:     webhookSecretFile,
+				WebhookSecretFileMode: webhookSecretFileMode,
+				WebhookAllowPrivate:   webhookAllowPrivate,
+				WebhookEvents:         webhookEvents,
 			})
 			if err != nil {
 				return err

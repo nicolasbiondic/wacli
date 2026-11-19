@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -198,6 +200,70 @@ func TestSyncWarnsWhenStorageUncapped(t *testing.T) {
 	})
 	if !strings.Contains(out, "warning: sync storage is uncapped") {
 		t.Fatalf("stderr = %q", out)
+	}
+}
+
+func syncStderr(t *testing.T, opts SyncOptions) string {
+	t.Helper()
+	a := newTestApp(t)
+	a.wa = newFakeWA()
+	opts.Mode = SyncModeOnce
+	opts.IdleExit = time.Millisecond
+	return captureStderr(t, func() {
+		if _, err := a.Sync(context.Background(), opts); err != nil {
+			t.Fatalf("Sync: %v", err)
+		}
+	})
+}
+
+func TestSyncWarnsOnceWhenWebhookHasNoSecret(t *testing.T) {
+	out := syncStderr(t, SyncOptions{WebhookURL: "https://example.test/hook"})
+
+	if n := strings.Count(out, "warning: --webhook has no secret"); n != 1 {
+		t.Fatalf("expected one unsigned-webhook warning, got %d in %q", n, out)
+	}
+}
+
+func TestSyncDoesNotWarnAboutAnUnsignedWebhookWhenThereIsASecretOrNoWebhook(t *testing.T) {
+	for name, opts := range map[string]SyncOptions{
+		"secret":     {WebhookURL: "https://example.test/hook", WebhookSecret: "s"},
+		"no webhook": {},
+	} {
+		if out := syncStderr(t, opts); strings.Contains(out, "no secret") {
+			t.Fatalf("%s: unexpected warning in %q", name, out)
+		}
+	}
+}
+
+func TestSyncWarnsWhenWebhookSecretFileIsReadableByGroupOrOthers(t *testing.T) {
+	for _, mode := range []os.FileMode{0o640, 0o644, 0o604, 0o666} {
+		out := syncStderr(t, SyncOptions{
+			WebhookURL:            "https://example.test/hook",
+			WebhookSecret:         "very-secret-value",
+			WebhookSecretFile:     "/run/secrets/wacli",
+			WebhookSecretFileMode: mode,
+		})
+		if !strings.Contains(out, "--webhook-secret-file /run/secrets/wacli is accessible to group or others") ||
+			!strings.Contains(out, fmt.Sprintf("mode %04o", uint32(mode))) {
+			t.Fatalf("mode %04o: stderr = %q", mode, out)
+		}
+		if strings.Contains(out, "very-secret-value") {
+			t.Fatalf("warning leaks the secret: %q", out)
+		}
+	}
+}
+
+func TestSyncAcceptsOwnerOnlyWebhookSecretFilesWithoutWarning(t *testing.T) {
+	for _, mode := range []os.FileMode{0o600, 0o400, 0o700, 0} {
+		out := syncStderr(t, SyncOptions{
+			WebhookURL:            "https://example.test/hook",
+			WebhookSecret:         "s",
+			WebhookSecretFile:     "/run/secrets/wacli",
+			WebhookSecretFileMode: mode,
+		})
+		if strings.Contains(out, "accessible to group or others") {
+			t.Fatalf("mode %04o: unexpected warning in %q", mode, out)
+		}
 	}
 }
 

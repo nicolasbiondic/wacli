@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -49,7 +50,7 @@ func TestResolveWebhookSecret(t *testing.T) {
 				path = writeSecretFile(t, tt.file)
 			}
 
-			got, err := resolveWebhookSecret(tt.secret, path, tt.url)
+			got, _, err := resolveWebhookSecret(tt.secret, path, tt.url)
 			if tt.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
 					t.Fatalf("error = %v, want it to contain %q", err, tt.wantErr)
@@ -69,7 +70,7 @@ func TestResolveWebhookSecret(t *testing.T) {
 func TestResolveWebhookSecretMissingFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "absent")
 
-	_, err := resolveWebhookSecret("", path, "https://example.test/hook")
+	_, _, err := resolveWebhookSecret("", path, "https://example.test/hook")
 	if err == nil || !strings.Contains(err.Error(), "--webhook-secret-file") || !strings.Contains(err.Error(), path) {
 		t.Fatalf("expected an error naming the file, got %v", err)
 	}
@@ -78,7 +79,7 @@ func TestResolveWebhookSecretMissingFile(t *testing.T) {
 func TestResolveWebhookSecretKeepsSecretsOutOfErrors(t *testing.T) {
 	t.Setenv(envWebhookSecret, "env-secret-value")
 
-	_, err := resolveWebhookSecret("flag-secret-value", writeSecretFile(t, "file-secret-value"), "https://example.test/hook")
+	_, _, err := resolveWebhookSecret("flag-secret-value", writeSecretFile(t, "file-secret-value"), "https://example.test/hook")
 	if err == nil {
 		t.Fatal("expected an error")
 	}
@@ -92,7 +93,7 @@ func TestResolveWebhookSecretKeepsSecretsOutOfErrors(t *testing.T) {
 func TestResolveWebhookSecretRemovesEnvironmentVariable(t *testing.T) {
 	t.Setenv(envWebhookSecret, "from-env")
 
-	if _, err := resolveWebhookSecret("", "", "https://example.test/hook"); err != nil {
+	if _, _, err := resolveWebhookSecret("", "", "https://example.test/hook"); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := os.LookupEnv(envWebhookSecret); ok {
@@ -141,5 +142,36 @@ func TestSyncCommandIgnoresWebhookSecretEnvironmentWithoutWebhook(t *testing.T) 
 	err := cmd.Execute()
 	if err == nil || strings.Contains(err.Error(), "WACLI_WEBHOOK_SECRET") || strings.Contains(err.Error(), "--webhook-secret") {
 		t.Fatalf("expected the webhook-events validation error, got %v", err)
+	}
+}
+
+func TestResolveWebhookSecretReportsTheFileMode(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("permission bits mean nothing on Windows")
+	}
+	const url = "https://example.test/hook"
+	for _, mode := range []os.FileMode{0o600, 0o400, 0o640, 0o644, 0o660, 0o604} {
+		path := writeSecretFile(t, "from-file")
+		if err := os.Chmod(path, mode); err != nil {
+			t.Fatal(err)
+		}
+
+		secret, got, err := resolveWebhookSecret("", path, url)
+		if err != nil {
+			t.Fatalf("mode %04o: %v", mode, err)
+		}
+		if secret != "from-file" || got != mode {
+			t.Fatalf("mode %04o: got secret %q, mode %04o", mode, secret, got)
+		}
+	}
+}
+
+func TestResolveWebhookSecretReportsNoModeForFlagOrEnvironment(t *testing.T) {
+	t.Setenv(envWebhookSecret, "from-env")
+	for _, secret := range []string{"", "from-flag"} {
+		_, mode, err := resolveWebhookSecret(secret, "", "https://example.test/hook")
+		if err != nil || mode != 0 {
+			t.Fatalf("secret %q: mode %04o, err %v", secret, mode, err)
+		}
 	}
 }
