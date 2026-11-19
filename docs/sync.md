@@ -13,7 +13,7 @@ Remote logout stops sync and emits `logged_out`; it retains the existing success
 ## Command
 
 ```bash
-wacli sync [--once] [--follow] [--idle-exit 30s] [--max-reconnect 5m] [--stale-threshold DURATION] [--presence-mode normal|quiet] [--send-spacing DURATION|MIN-MAX] [--max-messages N] [--max-db-size SIZE] [--download-media] [--refresh-contacts] [--refresh-groups] [--refresh-channels] [--events] [--webhook URL] [--webhook-secret SECRET] [--webhook-events LIST]
+wacli sync [--once] [--follow] [--idle-exit 30s] [--max-reconnect 5m] [--stale-threshold DURATION] [--presence-mode normal|quiet] [--send-spacing DURATION|MIN-MAX] [--max-messages N] [--max-db-size SIZE] [--download-media] [--refresh-contacts] [--refresh-groups] [--refresh-channels] [--events] [--webhook URL] [--webhook-secret SECRET | --webhook-secret-file PATH] [--webhook-events LIST]
 ```
 
 ## Modes
@@ -32,6 +32,7 @@ wacli sync [--once] [--follow] [--idle-exit 30s] [--max-reconnect 5m] [--stale-t
 - `--refresh-channels` fetches subscribed WhatsApp Channels live and updates local chat rows.
 - `--webhook URL` posts successfully stored live message events as JSON on a bounded background worker. The payload includes `ChatName` when a locally resolved chat name is available.
 - `--webhook-secret SECRET` signs webhook payloads with `X-Wacli-Signature: sha256=<hmac>`.
+- `--webhook-secret-file PATH` reads the same secret from a file (a trailing newline is dropped; use mode `0600`), and `WACLI_WEBHOOK_SECRET` supplies it from the environment when neither option is given. A command-line argument is visible to every local user in the process list, so prefer the file or the variable for long-running daemons. The two options exclude each other, both need `--webhook`, and the variable is ignored without `--webhook` and removed from the environment once read.
 - `--webhook-events LIST` selects which event types are posted, as a comma-separated list of `message`, `receipt`, and `chat_presence`. The default is `message`, which preserves the earlier message event shape. A list that omits `message` stops message posts, so `--webhook-events receipt` posts receipts only. `chat_presence` needs `--presence-mode normal` (the default): WhatsApp only sends typing notifications to devices that mark themselves available. See [Webhook payloads](#webhook-payloads).
 - Webhook delivery is best-effort: failures, request timeouts, and full-queue drops are logged as warnings and do not stop sync. Retries/backoff are intentionally out of scope for this flag.
 - If neither storage cap is configured, sync prints one warning because WhatsApp history can grow the local database substantially.
@@ -129,5 +130,7 @@ wacli sync --follow --download-media
 wacli sync --once --events 2>events.ndjson
 wacli sync --follow --stale-threshold 2m --events 2>events.ndjson
 wacli sync --follow --webhook https://example.com/wacli --webhook-secret "$WACLI_WEBHOOK_SECRET"
+wacli sync --follow --webhook https://example.com/wacli --webhook-secret-file /run/secrets/wacli-webhook
+WACLI_WEBHOOK_SECRET=... wacli sync --follow --webhook https://example.com/wacli
 wacli sync --follow --webhook https://example.com/wacli --webhook-events message,receipt,chat_presence
 ```

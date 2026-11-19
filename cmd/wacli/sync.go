@@ -24,6 +24,7 @@ func newSyncCmd(flags *rootFlags) *cobra.Command {
 	var refreshChannels bool
 	var webhookURL string
 	var webhookSecret string
+	var webhookSecretFile string
 	var webhookAllowPrivate bool
 	var webhookEventsFlag string
 	var sendSpacingFlag string
@@ -41,8 +42,9 @@ func newSyncCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if webhookSecret != "" && webhookURL == "" {
-				return fmt.Errorf("--webhook-secret requires --webhook")
+			resolvedWebhookSecret, err := resolveWebhookSecret(webhookSecret, webhookSecretFile, webhookURL)
+			if err != nil {
+				return err
 			}
 			if cmd.Flags().Changed("webhook-events") && webhookURL == "" {
 				return fmt.Errorf("--webhook-events requires --webhook")
@@ -121,7 +123,7 @@ func newSyncCmd(flags *rootFlags) *cobra.Command {
 				MaxDBSizeBytes:      maxDBSize,
 				WarnNoLimits:        true,
 				WebhookURL:          webhookURL,
-				WebhookSecret:       webhookSecret,
+				WebhookSecret:       resolvedWebhookSecret,
 				WebhookAllowPrivate: webhookAllowPrivate,
 				WebhookEvents:       webhookEvents,
 			})
@@ -152,7 +154,8 @@ func newSyncCmd(flags *rootFlags) *cobra.Command {
 	cmd.Flags().BoolVar(&refreshGroups, "refresh-groups", false, "refresh joined groups and participant snapshots (live)")
 	cmd.Flags().BoolVar(&refreshChannels, "refresh-channels", false, "refresh subscribed channels (live) into local DB")
 	cmd.Flags().StringVar(&webhookURL, "webhook", "", "URL to POST live message JSON")
-	cmd.Flags().StringVar(&webhookSecret, "webhook-secret", "", "HMAC-SHA256 secret for X-Wacli-Signature header")
+	cmd.Flags().StringVar(&webhookSecret, "webhook-secret", "", "HMAC-SHA256 secret for X-Wacli-Signature header (visible in the process list; prefer --webhook-secret-file or WACLI_WEBHOOK_SECRET)")
+	cmd.Flags().StringVar(&webhookSecretFile, "webhook-secret-file", "", "read the HMAC-SHA256 secret for X-Wacli-Signature from a file (or set WACLI_WEBHOOK_SECRET)")
 	cmd.Flags().BoolVar(&webhookAllowPrivate, "webhook-allow-private", false, "allow webhook URLs that resolve to localhost or private networks")
 	cmd.Flags().StringVar(&webhookEventsFlag, "webhook-events", string(appPkg.SyncWebhookEventMessage), "comma-separated event types to POST: message, receipt, chat_presence")
 	cmd.Flags().Int64Var(&storage.maxMessages, "max-messages", 0, "maximum total messages to keep in the local DB before sync stops (0 = unlimited, or WACLI_SYNC_MAX_MESSAGES)")
