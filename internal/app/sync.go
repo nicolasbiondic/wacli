@@ -58,28 +58,32 @@ func (m SyncPresenceMode) SendsAvailablePresence() bool {
 }
 
 type SyncOptions struct {
-	Mode                SyncMode
-	PresenceMode        SyncPresenceMode
-	AllowQR             bool
-	OnQRCode            func(string)
-	PairPhoneNumber     string
-	OnPairCode          func(string)
-	AfterConnect        func(context.Context) error
-	DownloadMedia       bool
-	RefreshContacts     bool
-	RefreshGroups       bool
-	RefreshChannels     bool
-	IdleExit            time.Duration // only used for bootstrap/once
-	MaxReconnect        time.Duration // max time to attempt reconnection before giving up (0 = unlimited)
-	StaleThreshold      time.Duration // force reconnect when keepalive failures last this long in follow mode (0 = disabled)
-	MaxMessages         int64         // 0 = unlimited
-	MaxDBSizeBytes      int64         // 0 = unlimited
-	WarnNoLimits        bool
-	WebhookURL          string
-	WebhookSecret       string
-	WebhookAllowPrivate bool
-	WebhookEvents       SyncWebhookEventSet // nil = messages only
-	afterHistorySync    func(*events.HistorySync)
+	Mode            SyncMode
+	PresenceMode    SyncPresenceMode
+	AllowQR         bool
+	OnQRCode        func(string)
+	PairPhoneNumber string
+	OnPairCode      func(string)
+	AfterConnect    func(context.Context) error
+	DownloadMedia   bool
+	RefreshContacts bool
+	RefreshGroups   bool
+	RefreshChannels bool
+	IdleExit        time.Duration // only used for bootstrap/once
+	MaxReconnect    time.Duration // max time to attempt reconnection before giving up (0 = unlimited)
+	StaleThreshold  time.Duration // force reconnect when keepalive failures last this long in follow mode (0 = disabled)
+	MaxMessages     int64         // 0 = unlimited
+	MaxDBSizeBytes  int64         // 0 = unlimited
+	WarnNoLimits    bool
+	WebhookURL      string
+	WebhookSecret   string
+	// Set when the secret came from a file: its path and permission bits (0 when
+	// unknown), so Sync can warn about a file that group or others can read.
+	WebhookSecretFile     string
+	WebhookSecretFileMode os.FileMode
+	WebhookAllowPrivate   bool
+	WebhookEvents         SyncWebhookEventSet // nil = messages only
+	afterHistorySync      func(*events.HistorySync)
 }
 
 type SyncResult struct {
@@ -110,6 +114,20 @@ func (a *App) Sync(ctx context.Context, opts SyncOptions) (SyncResult, error) {
 			"sync_storage_uncapped",
 			"warning: sync storage is uncapped; use --max-messages or --max-db-size to bound local history growth",
 			nil,
+		)
+	}
+	if opts.WebhookURL != "" && opts.WebhookSecret == "" {
+		a.emitWarning(
+			"sync_webhook_unsigned",
+			"warning: --webhook has no secret (--webhook-secret, --webhook-secret-file or WACLI_WEBHOOK_SECRET); payloads are posted without X-Wacli-Signature",
+			nil,
+		)
+	}
+	if opts.WebhookSecretFile != "" && opts.WebhookSecretFileMode&0o077 != 0 {
+		a.emitWarning(
+			"sync_webhook_secret_file_mode",
+			fmt.Sprintf("warning: --webhook-secret-file %s is accessible to group or others (mode %04o); restrict it with chmod 600", opts.WebhookSecretFile, uint32(opts.WebhookSecretFileMode&0o777)),
+			map[string]any{"path": opts.WebhookSecretFile, "mode": fmt.Sprintf("%04o", uint32(opts.WebhookSecretFileMode&0o777))},
 		)
 	}
 	if err := a.checkSyncStorageLimits(opts); err != nil {
