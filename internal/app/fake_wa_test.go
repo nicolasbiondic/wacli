@@ -117,6 +117,10 @@ type fakeWA struct {
 	// onSubscribePresence, when set, returns an event emitted as WhatsApp's
 	// answer before SubscribePresence returns (nil emits nothing).
 	onSubscribePresence func(types.JID) any
+	// sessionWrites counts Signal session writes (decryptions);
+	// sessionWritesFenced records FenceSessionWrites.
+	sessionWrites       uint64
+	sessionWritesFenced bool
 }
 
 type fakeArchiveCall struct {

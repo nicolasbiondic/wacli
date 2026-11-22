@@ -49,6 +49,19 @@ func (f *fakeWA) handlerCount() int {
 	return len(f.handlers)
 }
 
+func (f *fakeWA) SessionWrites() uint64 {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.sessionWrites
+}
+
+func (f *fakeWA) FenceSessionWrites() uint64 {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.sessionWritesFenced = true
+	return f.sessionWrites
+}
+
 func oneShotChat() types.JID { return types.NewJID("15551234567", types.DefaultUserServer) }
 
 func oneShotIncoming(id string, at time.Time) *events.Message {
@@ -209,19 +222,39 @@ func TestOneShotStoreLeavesAppStateToChatStatePersister(t *testing.T) {
 	}
 }
 
-// A one-shot command prints no sync progress for what it stores: the line
-// has no newline and would be glued to the command's next stderr line.
-func TestOneShotConnectionPrintsNoSyncProgress(t *testing.T) {
+// Issue 580, exit window. whatsmeow can still be decrypting a message when the
+// command closes its connection. Session writes are fenced before the store
+// closes, so a decryption that has not been committed fails and the message
+// stays decryptable for the next connection.
+func TestOneShotCloseFencesSessionWritesBeforeTheStoreCloses(t *testing.T) {
+	a, f, _ := oneShotTestApp(t)
+	s := a.fenceOneShotStore()
+	t.Cleanup(func() { s.release(f) })
+	f.mu.Lock()
+	fenced := f.sessionWritesFenced
+	f.mu.Unlock()
+	if !fenced {
+		t.Fatal("the store closed without fencing Signal session writes: a message whatsmeow finishes decrypting now is acknowledged by its ratchet and stored by nobody")
+	}
+}
+
+// What reaches the handlers after the store closed (a message whose decryption
+// was committed just before the fence, or anything whatsmeow acknowledged on
+// arrival) is lost, and that is reported.
+func TestOneShotReportsWhatReachesItAfterTheStoreClosed(t *testing.T) {
 	a, f, evbuf := oneShotTestApp(t)
-	at := time.Date(2026, 11, 20, 9, 0, 0, 0, time.UTC)
-	for i := range 25 {
-		f.emit(oneShotIncoming(fmt.Sprintf("m-%02d", i), at.Add(time.Duration(i)*time.Second)))
+	s := a.fenceOneShotStore()
+	t.Cleanup(func() { s.release(f) })
+	chat := oneShotChat()
+	f.emit(oneShotIncoming("m-late", time.Date(2026, 11, 20, 9, 0, 0, 0, time.UTC)))
+	f.emit(&events.Receipt{MessageSource: types.MessageSource{Chat: chat, Sender: chat}, MessageIDs: []types.MessageID{"m-1"}, Type: types.ReceiptTypeRead, Timestamp: time.Now()})
+	f.emit(&events.Connected{}) // not something the store keeps
+	if _, err := a.db.GetMessage(chat.String(), "m-late"); err == nil {
+		t.Fatal("message stored after the store closed")
 	}
-	if n, err := a.db.CountMessages(); err != nil || n != 25 {
-		t.Fatalf("messages stored = %d, %v; want 25", n, err)
-	}
-	if strings.Contains(evbuf.String(), `"event":"progress"`) {
-		t.Fatalf("one-shot connection emitted sync progress:\n%s", evbuf.String())
+	s.finish(a)
+	if !strings.Contains(evbuf.String(), `"code":"oneshot_store_dropped"`) || !strings.Contains(evbuf.String(), `"count":2`) {
+		t.Fatalf("want an oneshot_store_dropped warning counting the message and the receipt:\n%s", evbuf.String())
 	}
 }
 
@@ -261,12 +294,53 @@ func TestOneShotExitWaitEndsAtTheCommandDeadline(t *testing.T) {
 	waited := time.Since(start)
 	close(release)
 	<-dispatched
+	t.Cleanup(func() { s.release(f) })
 	if waited > time.Second {
 		t.Fatalf("the wait at exit took %s; it must end at the command's deadline (300ms after connecting)", waited)
 	}
 	s.finish(a)
 	if !strings.Contains(evbuf.String(), `"code":"oneshot_store_incomplete"`) || !strings.Contains(evbuf.String(), "will not deliver it again") {
 		t.Fatalf("no oneshot_store_incomplete warning saying the cut-short event is lost:\n%s", evbuf.String())
+	}
+}
+
+// whatsmeow committed a message's decryption before the fence and hands it
+// over a little later: Close waits for it and stores it, because once its
+// ratchet is committed the redelivered copy would no longer decrypt.
+func TestOneShotCloseWaitsForAMessageAlreadyDecrypted(t *testing.T) {
+	a, f, evbuf := oneShotTestApp(t)
+	f.mu.Lock()
+	f.sessionWrites = 1 // a decryption committed, its message not yet dispatched
+	f.mu.Unlock()
+	late := oneShotIncoming("m-decrypted", time.Date(2026, 11, 20, 9, 0, 0, 0, time.UTC))
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		f.emit(late)
+	}()
+	s := a.fenceOneShotStore()
+	t.Cleanup(func() { s.release(f) })
+	if _, err := a.db.GetMessage(oneShotChat().String(), "m-decrypted"); err != nil {
+		t.Fatalf("the message whose decryption was committed before the fence was not stored: %v", err)
+	}
+	s.finish(a)
+	if strings.Contains(evbuf.String(), `"code":"oneshot_store_`) {
+		t.Fatalf("unexpected warning for a message that was stored:\n%s", evbuf.String())
+	}
+}
+
+// A one-shot command prints no sync progress for what it stores: the line
+// has no newline and would be glued to the command's next stderr line.
+func TestOneShotConnectionPrintsNoSyncProgress(t *testing.T) {
+	a, f, evbuf := oneShotTestApp(t)
+	at := time.Date(2026, 11, 20, 9, 0, 0, 0, time.UTC)
+	for i := range 25 {
+		f.emit(oneShotIncoming(fmt.Sprintf("m-%02d", i), at.Add(time.Duration(i)*time.Second)))
+	}
+	if n, err := a.db.CountMessages(); err != nil || n != 25 {
+		t.Fatalf("messages stored = %d, %v; want 25", n, err)
+	}
+	if strings.Contains(evbuf.String(), `"event":"progress"`) {
+		t.Fatalf("one-shot connection emitted sync progress:\n%s", evbuf.String())
 	}
 }
 

@@ -99,6 +99,11 @@ type WAClient interface {
 	RequestAppStateRecovery(ctx context.Context, name string) (types.MessageID, error)
 	HasLocalAppState(ctx context.Context, name string) (bool, error)
 	ContactJournal() *wa.ContactStoreJournal
+	// SessionWrites and FenceSessionWrites count the Signal session and
+	// sender-key writes that decryptions commit, and make every later one
+	// fail (see wa.Client.FenceSessionWrites).
+	SessionWrites() uint64
+	FenceSessionWrites() uint64
 	Logout(ctx context.Context) error
 	LinkedJID() string
 	LinkedLID() string
@@ -241,7 +246,7 @@ func (a *App) Close() {
 		waClient.Disconnect()
 	}
 	// Before removing any handler: removing one waits for the event being
-	// dispatched, and the one-shot store's wait is what bounds that (see
+	// dispatched, and the fence is what bounds that wait (see
 	// fenceOneShotStore). When the wait was cut short a handler is still
 	// running, so the handlers stay registered: the process is about to exit.
 	oneShot := a.fenceOneShotStore()
@@ -264,6 +269,7 @@ func (a *App) Close() {
 	if waClient != nil {
 		waClient.Close()
 	}
+	oneShot.release(waClient)
 	if a.db != nil {
 		_ = a.db.Close()
 	}
