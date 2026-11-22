@@ -1,0 +1,123 @@
+# openclaw/wacli#590: longer exit series (result lines only)
+# Each block: the command, when it ran, and every line of its -v output that matches
+#   RESULT rep= | lost for good | SUMMARY | --- PASS/FAIL | ok/FAIL/PASS
+# in the original order. Test names of 40 or more characters are masked by the redactor, as in the other files.
+# In run order: the 1:1 exit test, then the group (sender-key) exit test.
+
+## PR head f02efb7579c6 (fork branch fix/oneshot-offline-backlog), 20 exits per kind
+$ WACLI_BACKLOG_EXIT_REPS=20 go test -tags sqlite_fts5 -count=1 -v -run '^TestOneShotExit' github.com/openclaw/wacli/cmd/wacli
+# run 2026-11-22 20:18-20:23 UTC, from a `git archive` copy of the head; 36666 lines of output, 61 kept
+# The test fails if anything the command acknowledged is not in wacli.db when it exits. `lost=1` counts the
+# message whatsmeow was still decrypting when the socket closed: the window this pull request leaves open.
+    offline_backlog_transport_test.go:1248: RESULT rep=1 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1248: RESULT rep=2 stored by the one-shot=4 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1248: RESULT rep=3 stored by the one-shot=2 (incl. its own send) stored after sync=300 still held=0 lost=1 [bl-0001]
+    offline_backlog_transport_test.go:1251: lost for good (neither stored nor still queued: the message being decrypted when the one-shot closed its connection): [bl-0001]
+    offline_backlog_transport_test.go:1248: RESULT rep=4 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1248: RESULT rep=5 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1248: RESULT rep=6 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1248: RESULT rep=7 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1248: RESULT rep=8 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1248: RESULT rep=9 stored by the one-shot=8 (incl. its own send) stored after sync=300 still held=0 lost=1 [bl-0007]
+    offline_backlog_transport_test.go:1251: lost for good (neither stored nor still queued: the message being decrypted when the one-shot closed its connection): [bl-0007]
+    offline_backlog_transport_test.go:1248: RESULT rep=10 stored by the one-shot=4 (incl. its own send) stored after sync=300 still held=0 lost=1 [bl-0003]
+    offline_backlog_transport_test.go:1251: lost for good (neither stored nor still queued: the message being decrypted when the one-shot closed its connection): [bl-0003]
+    offline_backlog_transport_test.go:1248: RESULT rep=11 stored by the one-shot=2 (incl. its own send) stored after sync=300 still held=0 lost=1 [bl-0001]
+    offline_backlog_transport_test.go:1251: lost for good (neither stored nor still queued: the message being decrypted when the one-shot closed its connection): [bl-0001]
+    offline_backlog_transport_test.go:1248: RESULT rep=12 stored by the one-shot=2 (incl. its own send) stored after sync=300 still held=0 lost=1 [bl-0001]
+    offline_backlog_transport_test.go:1251: lost for good (neither stored nor still queued: the message being decrypted when the one-shot closed its connection): [bl-0001]
+    offline_backlog_transport_test.go:1248: RESULT rep=13 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1248: RESULT rep=14 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1248: RESULT rep=15 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1248: RESULT rep=16 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1248: RESULT rep=17 stored by the one-shot=2 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1248: RESULT rep=18 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1248: RESULT rep=19 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1248: RESULT rep=20 stored by the one-shot=2 (incl. its own send) stored after sync=300 still held=0 lost=1 [bl-0001]
+    offline_backlog_transport_test.go:1251: lost for good (neither stored nor still queued: the message being decrypted when the one-shot closed its connection): [bl-0001]
+    offline_backlog_transport_test.go:1255: SUMMARY 6 of 20 runs lost a backlog message at exit (not covered by this change)
+--- PASS: [MASKED] (124.44s)
+    offline_backlog_transport_test.go:1248: RESULT rep=1 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1248: RESULT rep=2 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1248: RESULT rep=3 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1248: RESULT rep=4 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1248: RESULT rep=5 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1248: RESULT rep=6 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1248: RESULT rep=7 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1248: RESULT rep=8 stored by the one-shot=2 (incl. its own send) stored after sync=300 still held=0 lost=1 [bl-0001]
+    offline_backlog_transport_test.go:1251: lost for good (neither stored nor still queued: the message being decrypted when the one-shot closed its connection): [bl-0001]
+    offline_backlog_transport_test.go:1248: RESULT rep=9 stored by the one-shot=2 (incl. its own send) stored after sync=300 still held=0 lost=1 [bl-0001]
+    offline_backlog_transport_test.go:1251: lost for good (neither stored nor still queued: the message being decrypted when the one-shot closed its connection): [bl-0001]
+    offline_backlog_transport_test.go:1248: RESULT rep=10 stored by the one-shot=2 (incl. its own send) stored after sync=300 still held=0 lost=1 [bl-0001]
+    offline_backlog_transport_test.go:1251: lost for good (neither stored nor still queued: the message being decrypted when the one-shot closed its connection): [bl-0001]
+    offline_backlog_transport_test.go:1248: RESULT rep=11 stored by the one-shot=2 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1248: RESULT rep=12 stored by the one-shot=2 (incl. its own send) stored after sync=300 still held=0 lost=1 [bl-0001]
+    offline_backlog_transport_test.go:1251: lost for good (neither stored nor still queued: the message being decrypted when the one-shot closed its connection): [bl-0001]
+    offline_backlog_transport_test.go:1248: RESULT rep=13 stored by the one-shot=2 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1248: RESULT rep=14 stored by the one-shot=4 (incl. its own send) stored after sync=300 still held=0 lost=1 [bl-0003]
+    offline_backlog_transport_test.go:1251: lost for good (neither stored nor still queued: the message being decrypted when the one-shot closed its connection): [bl-0003]
+    offline_backlog_transport_test.go:1248: RESULT rep=15 stored by the one-shot=2 (incl. its own send) stored after sync=300 still held=0 lost=1 [bl-0001]
+    offline_backlog_transport_test.go:1251: lost for good (neither stored nor still queued: the message being decrypted when the one-shot closed its connection): [bl-0001]
+    offline_backlog_transport_test.go:1248: RESULT rep=16 stored by the one-shot=2 (incl. its own send) stored after sync=300 still held=0 lost=1 [bl-0001]
+    offline_backlog_transport_test.go:1251: lost for good (neither stored nor still queued: the message being decrypted when the one-shot closed its connection): [bl-0001]
+    offline_backlog_transport_test.go:1248: RESULT rep=17 stored by the one-shot=5 (incl. its own send) stored after sync=300 still held=0 lost=1 [bl-0004]
+    offline_backlog_transport_test.go:1251: lost for good (neither stored nor still queued: the message being decrypted when the one-shot closed its connection): [bl-0004]
+    offline_backlog_transport_test.go:1248: RESULT rep=18 stored by the one-shot=2 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1248: RESULT rep=19 stored by the one-shot=2 (incl. its own send) stored after sync=300 still held=0 lost=1 [bl-0001]
+    offline_backlog_transport_test.go:1251: lost for good (neither stored nor still queued: the message being decrypted when the one-shot closed its connection): [bl-0001]
+    offline_backlog_transport_test.go:1248: RESULT rep=20 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1255: SUMMARY 9 of 20 runs lost a backlog message at exit (not covered by this change)
+--- PASS: [MASKED] (175.89s)
+PASS
+ok   github.com/openclaw/wacli/cmd/wacli 300.345s
+
+## follow-up branch 21051cc0 (fork branch fix/oneshot-exit-fence, stacked on the PR head), 20 exits per kind
+$ WACLI_BACKLOG_EXIT_REPS=20 go test -tags sqlite_fts5 -count=1 -v -run '^TestOneShotExitLosesNo' github.com/openclaw/wacli/cmd/wacli
+# run 2026-11-22 20:23-20:28 UTC, from a `git archive` copy of that branch; 36677 lines of output, 46 kept
+# Here the test fails if any item is neither stored nor still held by the stand-in after the later sync.
+    offline_backlog_transport_test.go:1269: RESULT rep=1 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=2 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=3 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=4 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=5 stored by the one-shot=10 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=6 stored by the one-shot=2 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=7 stored by the one-shot=5 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=8 stored by the one-shot=42 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=9 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=10 stored by the one-shot=2 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=11 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=12 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=13 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=14 stored by the one-shot=2 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=15 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=16 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=17 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=18 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=19 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=20 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1276: SUMMARY 0 of 20 runs lost a backlog message
+--- PASS: [MASKED] (141.10s)
+    offline_backlog_transport_test.go:1269: RESULT rep=1 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=2 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=3 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=4 stored by the one-shot=7 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=5 stored by the one-shot=2 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=6 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=7 stored by the one-shot=2 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=8 stored by the one-shot=2 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=9 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=10 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=11 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=12 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=13 stored by the one-shot=2 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=14 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=15 stored by the one-shot=4 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=16 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=17 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=18 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=19 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1269: RESULT rep=20 stored by the one-shot=3 (incl. its own send) stored after sync=301 still held=0 lost=0 []
+    offline_backlog_transport_test.go:1276: SUMMARY 0 of 20 runs lost a backlog message
+--- PASS: [MASKED] (155.52s)
+PASS
+ok   github.com/openclaw/wacli/cmd/wacli 296.630s
