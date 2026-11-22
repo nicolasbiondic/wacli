@@ -49,6 +49,7 @@ func (c *Client) init() (err error) {
 	// name whatsmeow stores while applying critical_unblock_low is recorded
 	// in application order (see ContactStoreJournal).
 	c.contactJournal = journalContactStore(deviceStore)
+	fenceSessionStore(deviceStore)
 	logger := newWhatsmeowLogger("Client", "ERROR", os.Stderr)
 	c.client = whatsmeow.NewClient(deviceStore, logger)
 	// FetchAppStateEvents fails closed without this: recovery snapshots must
@@ -74,6 +75,7 @@ func (c *Client) init() (err error) {
 			// after the reconnect and login that follow, so nothing writes
 			// cli.Store.Contacts while it is rewrapped here.
 			journal := journalContactStore(cli.Store)
+			fenceSessionStore(cli.Store)
 			c.mu.Lock()
 			c.contactJournal = journal
 			c.mu.Unlock()
