@@ -536,6 +536,13 @@ func backlogRunCLI(t *testing.T, args []string) (string, string, error) {
 // backlogPairedDevice).
 var backlogContactLID = types.NewJID("88880000001", types.HiddenUserServer)
 
+// backlogGroup is a group the stand-in answers group-info queries for, with
+// the contact as its other member.
+type backlogGroup struct {
+	id, addressing    string // addressing: "lid" or "pn"
+	member, memberLID types.JID
+}
+
 type backlogItem struct {
 	id    string
 	class string // "message": acknowledged by a receipt; "receipt": by an ack
@@ -561,6 +568,7 @@ type backlogPeer struct {
 	// answerAtOnce answers the outgoing message as soon as it arrives, as
 	// WhatsApp does, instead of after the device acknowledged the backlog.
 	answerAtOnce bool
+	group        *backlogGroup
 }
 
 func newBacklogPeer(t *testing.T, ctx context.Context, static *keys.KeyPair, cert []byte) *backlogPeer {
@@ -683,6 +691,8 @@ func (p *backlogPeer) serve(w http.ResponseWriter, r *http.Request) {
 				reply.Content = []waBinary.Node{{Tag: "count", Attrs: waBinary.Attrs{"value": "100"}}}
 			} else if _, ok := node.GetOptionalChildByTag("usync"); ok {
 				reply.Content = []waBinary.Node{{Tag: "usync", Content: []waBinary.Node{{Tag: "list"}}}}
+			} else if _, ok := node.GetOptionalChildByTag("query"); ok && node.Attrs["xmlns"] == "w:g2" && p.group != nil {
+				reply.Content = []waBinary.Node{p.group.node(p.ctx)}
 			} else if collection, ok := node.GetOptionalChildByTag("sync", "collection"); ok {
 				reply.Content = []waBinary.Node{{Tag: "sync", Content: []waBinary.Node{{Tag: "collection", Attrs: waBinary.Attrs{"name": collection.Attrs["name"], "has_more_patches": "false"}}}}}
 			}
@@ -744,6 +754,14 @@ func (p *backlogPeer) serve(w http.ResponseWriter, r *http.Request) {
 			}()
 		}
 	}
+}
+
+func (g *backlogGroup) node(context.Context) waBinary.Node {
+	participant := waBinary.Node{Tag: "participant", Attrs: waBinary.Attrs{"jid": g.member}}
+	if g.addressing == "lid" {
+		participant.Attrs = waBinary.Attrs{"jid": g.memberLID, "phone_number": g.member}
+	}
+	return waBinary.Node{Tag: "group", Attrs: waBinary.Attrs{"id": g.id, "subject": "Synthetic group", "creation": "1700000000", "addressing_mode": g.addressing}, Content: []waBinary.Node{participant}}
 }
 
 // deliver sends everything held, framed as an offline backlog.
@@ -949,17 +967,19 @@ func (p *backlogNoise) write(ctx context.Context, node waBinary.Node) error {
 	return backlogWriteFrame(ctx, p.conn, ciphertext)
 }
 
-// Issue 580, exit. The stand-in answers the send at once, as WhatsApp does,
-// and the backlog is still arriving when `send text --post-send-wait 0` (what
-// an automated caller uses) closes its connection: part of it is delivered at
-// login and part right after the send is answered. Whatever the command
-// acknowledged must be in wacli.db when it exits. A later `sync --once`
-// follows, and the test logs any item that is then neither stored nor still
-// held by the stand-in, without failing on it: that is the one message
-// whatsmeow was still decrypting when the socket closed, which this change
-// does not cover (it is reported here so that its rate can be measured; see
-// WACLI_BACKLOG_EXIT_REPS).
-func TestOneShotExitStoresWhatItAcknowledgedRealTransport(t *testing.T) {
+// Issue 580, exit window. The stand-in answers the send at once, as WhatsApp
+// does, and the backlog is still arriving when `send text --post-send-wait 0`
+// (what an automated caller uses) closes its connection: part of it is
+// delivered at login and part right after the send is answered. whatsmeow may
+// then be decrypting a message when the socket closes; it hands it over after
+// the store has closed. After the one-shot command and a later `sync --once`,
+// every item the stand-in held must be in wacli.db or still held by the
+// stand-in: a message the device decrypted but never stored, whose redelivered
+// copy then no longer decrypts, is the loss these tests catch. They detect
+// that race by chance (about one run in three without the fence), so they
+// repeat (WACLI_BACKLOG_EXIT_REPS, default 4); the deterministic check of the
+// fence is TestFenceWaitsForADecryptionThatCommitted in internal/wa.
+func TestOneShotExitLosesNoBacklogMessageRealTransport(t *testing.T) {
 	backlogExitTest(t, func(env *backlogEnv) func(id string, at time.Time) *backlogItem {
 		return func(id string, at time.Time) *backlogItem {
 			return env.incoming(id, at, backlogText("backlog message "+id))
@@ -967,8 +987,9 @@ func TestOneShotExitStoresWhatItAcknowledgedRealTransport(t *testing.T) {
 	})
 }
 
-// The same with a group backlog: sender-key messages (skmsg).
-func TestOneShotExitStoresWhatItAcknowledgedFromAGroupRealTransport(t *testing.T) {
+// The same with a group backlog: sender-key messages (skmsg), whose
+// decryption commits the group chain instead of a 1:1 session.
+func TestOneShotExitLosesNoGroupMessageRealTransport(t *testing.T) {
 	backlogExitTest(t, func(env *backlogEnv) func(id string, at time.Time) *backlogItem {
 		return env.groupSender(types.NewJID("120363000000000001", types.GroupServer))
 	})
@@ -1009,21 +1030,11 @@ func backlogExitTest(t *testing.T, sender func(*backlogEnv) func(string, time.Ti
 					t.Logf("  one-shot stderr| %s", line)
 				}
 			}
-			rows := env.messages()
-			var unstored []string
-			for _, acked := range env.peer.acknowledgedItems() {
-				if _, ok := rows[acked.id]; !ok {
-					unstored = append(unstored, acked.id)
-				}
-			}
-			if len(unstored) > 0 {
-				t.Fatalf("acknowledged to the server but not in wacli.db when the command exited: %v", unstored)
-			}
-			afterOneShot := len(rows)
+			afterOneShot := len(env.messages())
 			if _, _, err := backlogRunCLI(t, []string{"--store", env.dir, "sync", "--once", "--idle-exit", "1s", "--presence-mode", "quiet"}); err != nil {
 				t.Fatalf("sync --once: %v", err)
 			}
-			rows = env.messages()
+			rows := env.messages()
 			held := map[string]bool{}
 			for _, id := range env.peer.held() {
 				held[id] = true
@@ -1037,11 +1048,11 @@ func backlogExitTest(t *testing.T, sender func(*backlogEnv) func(string, time.Ti
 			t.Logf("RESULT rep=%d stored by the one-shot=%d (incl. its own send) stored after sync=%d still held=%d lost=%d %v", rep, afterOneShot, len(rows), len(held), len(missing), missing)
 			if len(missing) > 0 {
 				lost++
-				t.Logf("lost for good (neither stored nor still queued: the message being decrypted when the one-shot closed its connection): %v", missing)
+				t.Errorf("lost for good (neither stored nor still queued): %v", missing)
 			}
 		})
 	}
-	t.Logf("SUMMARY %d of %d runs lost a backlog message at exit (not covered by this change)", lost, reps)
+	t.Logf("SUMMARY %d of %d runs lost a backlog message", lost, reps)
 }
 
 // groupSender gives the stand-in a group whose sender key the device already
@@ -1097,5 +1108,27 @@ func (e *backlogEnv) groupSender(group types.JID) func(id string, at time.Time) 
 		return &backlogItem{id: msgID, class: "message", node: waBinary.Node{Tag: "message", Attrs: waBinary.Attrs{
 			"id": msgID, "from": group, "participant": e.contact, "type": "text", "t": at.Unix(),
 		}, Content: []waBinary.Node{{Tag: "enc", Attrs: waBinary.Attrs{"v": "2", "type": "skmsg"}, Content: encrypted.SignedSerialize()}}}}
+	}
+}
+
+// A one-shot send to a group creates or advances this device's own sender key.
+// No message follows that write, so the fence must not count it: counted, it
+// would make every group send wait 1 s at exit and print
+// oneshot_store_undispatched. Groups addressed by LID and by phone number.
+func TestOneShotGroupSendCountsNoWriteRealTransport(t *testing.T) {
+	for _, addressing := range []string{"lid", "pn"} {
+		t.Run(addressing, func(t *testing.T) {
+			env := newBacklogEnv(t)
+			env.peer.answerAtOnce = true
+			env.peer.group = &backlogGroup{id: "120363000000000002", addressing: addressing, member: env.contact, memberLID: backlogContactLID}
+			stdout, stderr, err := env.cli("one-shot send to a group", "--json", "send", "text", "--to", "120363000000000002@g.us", "--message", "to the group", "--post-send-wait", "0")
+			if err != nil {
+				t.Fatalf("send text to a group: %v", err)
+			}
+			backlogSentID(t, stdout)
+			if strings.Contains(stderr, "oneshot_store") || strings.Contains(stderr, "committed a decryption") {
+				t.Fatalf("a group send left a warning at exit (its own sender-key write was counted):\n%s", stderr)
+			}
+		})
 	}
 }
