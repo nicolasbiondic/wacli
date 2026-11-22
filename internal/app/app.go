@@ -172,6 +172,12 @@ type App struct {
 	oneShot             *oneShotStore
 	syncRunning         atomic.Int32
 	chatStatePersisters atomic.Int32
+	// Handlers registered through addEventHandler, and the client removals
+	// deferred to Close while a one-shot store exists (see handlers.go).
+	handlersMu       sync.Mutex
+	handlers         map[uint32]*appEventHandler
+	deferRemovals    bool
+	deferredRemovals []uint32
 }
 
 func New(opts Options) (*App, error) {
@@ -269,6 +275,9 @@ func (a *App) Close() {
 	if waClient != nil {
 		waClient.Close()
 	}
+	// The app's own handlers removed during the command go with the store's
+	// (see handlers.go).
+	a.finishHandlerRemovals(waClient, oneShot.handlersIdle())
 	oneShot.release(waClient)
 	if a.db != nil {
 		_ = a.db.Close()

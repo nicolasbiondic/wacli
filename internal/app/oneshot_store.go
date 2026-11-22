@@ -91,6 +91,9 @@ func (a *App) startOneShotStore(ctx context.Context) {
 	if deadline, ok := ctx.Deadline(); ok {
 		s.deadline = deadline
 	}
+	// From here to the end of Close, removing an app handler must not wait for
+	// the event this store is handling (see handlers.go).
+	a.deferHandlerRemovals()
 	// Download history chunks inside the handler, before whatsmeow sends the
 	// message receipt, as sync does; otherwise whatsmeow downloads them in the
 	// background and deletes the server copy whether or not they were stored.
@@ -263,23 +266,23 @@ func (s *oneShotStore) finish(a *App) {
 			queued = ", and app-state writes were still queued"
 		}
 		a.emitWarning("oneshot_store_incomplete",
-			fmt.Sprintf("warning: the connection closed while %d incoming message(s) or event(s) were still being stored (waited %s)%s; what was not stored is not in wacli.db and WhatsApp will not deliver it again", n, s.waitedFor.Round(time.Millisecond), queued),
-			map[string]any{"count": n, "waited_ms": s.waitedFor.Milliseconds(), "app_state_queued": s.appStateQueued})
+			fmt.Sprintf("warning: the connection closed while %d incoming message(s) or event(s) were still being stored (waited %s)%s; what was not stored is not in wacli.db and WhatsApp will not deliver it again, so retrying this command does not recover it. To prevent it, keep `wacli sync --follow` running: commands then hand their work to it instead of connecting by themselves", n, s.waitedFor.Round(time.Millisecond), queued),
+			map[string]any{"count": n, "waited_ms": s.waitedFor.Milliseconds(), "app_state_queued": s.appStateQueued, "next": "keep `wacli sync --follow` running"})
 	}
 	if s.undispatched && s.late.Load() == 0 {
 		a.emitWarning("oneshot_store_undispatched",
-			fmt.Sprintf("warning: whatsmeow had committed a decryption when the connection closed, and no message reached the store within %s; if it was a message, it is not in wacli.db and WhatsApp will not deliver it again", oneShotDecryptedWait),
-			nil)
+			fmt.Sprintf("warning: whatsmeow had committed a decryption when the connection closed, and no message reached the store within %s; if it was a message, it is not in wacli.db and WhatsApp will not deliver it again, so retrying this command does not recover it. To prevent it, keep `wacli sync --follow` running: commands then hand their work to it instead of connecting by themselves", oneShotDecryptedWait),
+			map[string]any{"next": "keep `wacli sync --follow` running"})
 	}
 	if n := s.late.Load(); n > 0 {
 		a.emitWarning("oneshot_store_dropped",
-			fmt.Sprintf("warning: %d incoming message(s) or event(s) reached this command after it closed its store; they are not in wacli.db and WhatsApp will not deliver them again", n),
-			map[string]any{"count": n})
+			fmt.Sprintf("warning: %d incoming message(s) or event(s) reached this command after it closed its store; they are not in wacli.db and WhatsApp will not deliver them again, so retrying this command does not recover them. To prevent it, keep `wacli sync --follow` running: commands then hand their work to it instead of connecting by themselves", n),
+			map[string]any{"count": n, "next": "keep `wacli sync --follow` running"})
 	}
 	if s.limits.persistenceFailed.Load() {
 		a.emitWarning("oneshot_store_failed",
-			"warning: WhatsApp delivered messages or events to this command that could not be stored in wacli.db; they were acknowledged and will not be delivered again. Check the store (disk space, permissions) before the next command or sync.",
-			nil)
+			"warning: WhatsApp delivered messages or events to this command that could not be stored in wacli.db; they were acknowledged and will not be delivered again, so retrying this command does not recover them. To prevent it, fix what keeps wacli.db from being written (disk space, permissions) before the next command or sync.",
+			map[string]any{"next": "fix what keeps wacli.db from being written (disk space, permissions)"})
 	}
 }
 
