@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -23,9 +24,14 @@ const appStateResyncKind = "app_state_resync"
 // explicitly enabled in both the calling CLI and the store owner's environment.
 func requireRegularWrites() error {
 	if os.Getenv("WACLI_REGULAR_WRITES") != "1" {
-		return fmt.Errorf("regular app-state writes and resync are disabled; enable WACLI_REGULAR_WRITES=1 explicitly in the CLI and sync owner only after approval")
+		return invalidWrite(app.ListErrRegularWritesDisabled, "regular app-state writes and resync are disabled; enable WACLI_REGULAR_WRITES=1 explicitly in the CLI and sync owner only after approval")
 	}
 	return nil
+}
+
+// invalidWrite is a refusal before anything was sent, with a stable code.
+func invalidWrite(code, format string, args ...any) error {
+	return app.NewListWriteError(code, app.WriteOutcomeNotSent, fmt.Errorf(format, args...))
 }
 
 const (
@@ -57,13 +63,15 @@ type appStateWriteResult struct {
 	Label      *store.List       `json:"label,omitempty"`
 	QuickReply *store.QuickReply `json:"quick_reply,omitempty"`
 	Chat       string            `json:"chat,omitempty"`
+	// UpdatedAt is the stored updated_at (Unix ms) of a label or chat label write.
+	UpdatedAt int64 `json:"updated_at,omitempty"`
 }
 
 type appStateWriteApp interface {
 	recipientResolverApp
-	CreateLabel(context.Context, app.LabelInput) (store.List, error)
-	EditLabel(context.Context, string, app.LabelInput) (store.List, error)
-	DeleteLabel(context.Context, string) (store.List, error)
+	CreateLabel(context.Context, app.LabelInput) (app.LabelWriteResult, error)
+	EditLabel(context.Context, string, app.LabelInput) (app.LabelWriteResult, error)
+	DeleteLabel(context.Context, string) (app.LabelWriteResult, error)
 	SetChatLabel(context.Context, types.JID, string, bool) (app.ChatLabelResult, error)
 	CreateQuickReply(context.Context, app.QuickReplyInput) (store.QuickReply, error)
 	EditQuickReply(context.Context, string, app.QuickReplyInput) (store.QuickReply, error)
@@ -77,13 +85,13 @@ func (r appStateWriteRequest) validate() error {
 	case labelCreateAction, labelEditAction, labelDeleteAction, chatLabelAddAction, chatLabelRemoveAction,
 		quickReplyCreateAction, quickReplyEditAction, quickReplyDeleteAction:
 	default:
-		return fmt.Errorf("unsupported app state write action %q", r.Action)
+		return invalidWrite(app.ListErrInvalidInput, "unsupported app state write action %q", r.Action)
 	}
 	if needsRef[r.Action] && strings.TrimSpace(r.Ref) == "" {
-		return fmt.Errorf("a label or quick reply ID is required")
+		return invalidWrite(app.ListErrInvalidInput, "a label or quick reply ID is required")
 	}
 	if (r.Action == chatLabelAddAction || r.Action == chatLabelRemoveAction) && strings.TrimSpace(r.Chat) == "" {
-		return fmt.Errorf("--chat is required")
+		return invalidWrite(app.ListErrInvalidInput, "--chat is required")
 	}
 	return nil
 }
@@ -94,11 +102,12 @@ func executeAppStateWrite(ctx context.Context, a appStateWriteApp, req appStateW
 		return appStateWriteResult{}, err
 	}
 	res := appStateWriteResult{Action: req.Action}
-	label := func(l store.List, err error) (appStateWriteResult, error) {
+	label := func(r app.LabelWriteResult, err error) (appStateWriteResult, error) {
 		if err != nil {
 			return appStateWriteResult{}, err
 		}
-		res.Label = &l
+		res.Label = &r.List
+		res.UpdatedAt = r.UpdatedAt
 		return res, nil
 	}
 	quickReply := func(q store.QuickReply, err error) (appStateWriteResult, error) {
@@ -120,11 +129,11 @@ func executeAppStateWrite(ctx context.Context, a appStateWriteApp, req appStateW
 	case chatLabelAddAction, chatLabelRemoveAction:
 		jid, err := resolveRecipient(a, req.Chat, recipientOptions{pick: req.Pick, asJSON: true})
 		if err != nil {
-			return appStateWriteResult{}, err
+			return appStateWriteResult{}, app.NewListWriteError(app.ListErrInvalidInput, app.WriteOutcomeNotSent, err)
 		}
 		result, err := a.SetChatLabel(ctx, jid, req.Ref, req.Action == chatLabelAddAction)
 		res.Chat = result.Chat
-		return label(result.Label, err)
+		return label(app.LabelWriteResult{List: result.Label, UpdatedAt: result.UpdatedAt}, err)
 	case quickReplyCreateAction:
 		return quickReply(a.CreateQuickReply(ctx, quickReplyInput))
 	case quickReplyEditAction:
@@ -139,7 +148,7 @@ func executeDelegatedAppStateWrite(ctx context.Context, a appStateWriteApp, req 
 		return sendDelegateResponse{}, err
 	}
 	if req.AppState == nil {
-		return sendDelegateResponse{}, fmt.Errorf("app state write request is missing its payload")
+		return sendDelegateResponse{}, invalidWrite(app.ListErrInvalidInput, "app state write request is missing its payload")
 	}
 	res, err := executeAppStateWrite(ctx, a, *req.AppState)
 	if err != nil {
@@ -149,7 +158,8 @@ func executeDelegatedAppStateWrite(ctx context.Context, a appStateWriteApp, req 
 }
 
 func explainAppStateWriteDelegateError(err error) error {
-	if err == nil || !strings.Contains(err.Error(), "unsupported send kind") || !strings.Contains(err.Error(), appStateWriteKind) {
+	var typed *app.ListWriteError
+	if err == nil || errors.As(err, &typed) || !strings.Contains(err.Error(), "unsupported send kind") || !strings.Contains(err.Error(), appStateWriteKind) {
 		return err
 	}
 	return fmt.Errorf("the running sync process does not support label or quick reply writes and changed nothing; restart `wacli sync` after upgrading, then run this again: %w", err)
@@ -174,31 +184,34 @@ func runAppStateWrite(flags *rootFlags, req appStateWriteRequest) error {
 	if err != nil {
 		resp, delegated, delegateErr := tryDelegateSend(ctx, flags, err, sendDelegateRequest{Kind: appStateWriteKind, AppState: &req})
 		if !delegated {
-			return err
+			return app.NewListWriteError(app.ListErrCoordinatorDown, app.WriteOutcomeNotSent, err)
 		}
 		if delegateErr != nil {
 			return explainAppStateWriteDelegateError(delegateErr)
 		}
 		if resp.AppState == nil {
-			return fmt.Errorf("the running sync process did not report the %s result; check before retrying", req.Action)
+			return app.NewListWriteError(app.ListErrDelegateError, app.WriteOutcomeUnknown, fmt.Errorf("the running sync process did not report the %s result; check before retrying", req.Action))
 		}
 		return writeAppStateWriteResult(flags, *resp.AppState)
 	}
 	defer closeApp(a, lk)
 
+	notReady := func(err error) error {
+		return app.NewListWriteError(app.ListErrCoordinatorDown, app.WriteOutcomeNotSent, err)
+	}
 	if err := a.EnsureAuthed(ctx); err != nil {
-		return err
+		return notReady(err)
 	}
 	removePersistenceHandler, err := a.AddChatStatePersistenceHandler(ctx)
 	if err != nil {
-		return err
+		return notReady(err)
 	}
 	defer func() {
 		a.WA().Disconnect()
 		removePersistenceHandler()
 	}()
 	if err := a.Connect(ctx, false, nil); err != nil {
-		return err
+		return notReady(err)
 	}
 	res, err := executeAppStateWrite(ctx, a, req)
 	if err != nil {
@@ -218,6 +231,9 @@ func writeAppStateWriteResult(flags *rootFlags, res appStateWriteResult) error {
 		}
 		if res.Chat != "" {
 			body["chat"] = res.Chat
+		}
+		if res.UpdatedAt != 0 {
+			body["updated_at"] = res.UpdatedAt
 		}
 		return out.WriteJSON(os.Stdout, body)
 	}
@@ -243,7 +259,7 @@ func newListsCreateCmd(flags *rootFlags) *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if strings.TrimSpace(name) == "" {
-				return fmt.Errorf("--name is required")
+				return invalidWrite(app.ListErrInvalidInput, "--name is required")
 			}
 			req := appStateWriteRequest{Action: labelCreateAction, ID: id, Name: &name}
 			if cmd.Flags().Changed("color") {
@@ -274,7 +290,7 @@ func newListsEditCmd(flags *rootFlags) *cobra.Command {
 				req.Color = &color
 			}
 			if req.Name == nil && req.Color == nil {
-				return fmt.Errorf("nothing to change; pass --name or --color")
+				return invalidWrite(app.ListErrInvalidInput, "nothing to change; pass --name or --color")
 			}
 			return runAppStateWrite(flags, req)
 		},
@@ -313,7 +329,7 @@ func newChatsLabelCmd(flags *rootFlags) *cobra.Command {
 			Args:  cobra.NoArgs,
 			RunE: func(cmd *cobra.Command, args []string) error {
 				if strings.TrimSpace(label) == "" {
-					return fmt.Errorf("--label is required")
+					return invalidWrite(app.ListErrInvalidInput, "--label is required")
 				}
 				return runAppStateWrite(flags, appStateWriteRequest{Action: action, Ref: label, Chat: opts.chat, Pick: opts.pick})
 			},
@@ -373,7 +389,7 @@ func newQuickRepliesCmd(flags *rootFlags) *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if shortcut == "" || message == "" {
-				return fmt.Errorf("--shortcut and --message are required")
+				return invalidWrite(app.ListErrInvalidInput, "--shortcut and --message are required")
 			}
 			req := appStateWriteRequest{Action: quickReplyCreateAction, Shortcut: &shortcut, Message: &message}
 			if cmd.Flags().Changed("keyword") {

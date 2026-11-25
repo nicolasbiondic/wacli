@@ -15,9 +15,12 @@ import (
 	"go.mau.fi/whatsmeow/types"
 )
 
+const fakeUpdatedAt = int64(1_700_000_000_123)
+
 type fakeAppStateWriteApp struct {
 	calls       chan string
 	patchedChat string
+	err         error
 }
 
 func (f *fakeAppStateWriteApp) DB() *store.DB { return nil }
@@ -33,19 +36,22 @@ func deref[T any](v *T) any {
 	return *v
 }
 
-func (f *fakeAppStateWriteApp) CreateLabel(_ context.Context, in app.LabelInput) (store.List, error) {
+func (f *fakeAppStateWriteApp) CreateLabel(_ context.Context, in app.LabelInput) (app.LabelWriteResult, error) {
 	f.record("create id=%q name=%v color=%v", in.ID, deref(in.Name), deref(in.Color))
-	return store.List{ID: "10", Name: *in.Name}, nil
+	if f.err != nil {
+		return app.LabelWriteResult{}, f.err
+	}
+	return app.LabelWriteResult{List: store.List{ID: "10", Name: *in.Name}, UpdatedAt: fakeUpdatedAt}, nil
 }
 
-func (f *fakeAppStateWriteApp) EditLabel(_ context.Context, ref string, in app.LabelInput) (store.List, error) {
+func (f *fakeAppStateWriteApp) EditLabel(_ context.Context, ref string, in app.LabelInput) (app.LabelWriteResult, error) {
 	f.record("edit %s name=%v color=%v", ref, deref(in.Name), deref(in.Color))
-	return store.List{ID: "10", Name: "x"}, nil
+	return app.LabelWriteResult{List: store.List{ID: "10", Name: "x"}, UpdatedAt: fakeUpdatedAt}, nil
 }
 
-func (f *fakeAppStateWriteApp) DeleteLabel(_ context.Context, ref string) (store.List, error) {
+func (f *fakeAppStateWriteApp) DeleteLabel(_ context.Context, ref string) (app.LabelWriteResult, error) {
 	f.record("delete %s", ref)
-	return store.List{ID: ref}, nil
+	return app.LabelWriteResult{List: store.List{ID: ref}, UpdatedAt: fakeUpdatedAt}, nil
 }
 
 func (f *fakeAppStateWriteApp) SetChatLabel(_ context.Context, chat types.JID, ref string, labeled bool) (app.ChatLabelResult, error) {
@@ -54,7 +60,7 @@ func (f *fakeAppStateWriteApp) SetChatLabel(_ context.Context, chat types.JID, r
 	if f.patchedChat != "" {
 		target = f.patchedChat
 	}
-	return app.ChatLabelResult{Label: store.List{ID: ref}, Chat: target}, nil
+	return app.ChatLabelResult{Label: store.List{ID: ref}, Chat: target, UpdatedAt: fakeUpdatedAt}, nil
 }
 
 func (f *fakeAppStateWriteApp) ResyncAppState(_ context.Context, collection string, force bool) (app.AppStateResyncResult, error) {

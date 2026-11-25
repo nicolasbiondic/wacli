@@ -160,6 +160,66 @@ normal startup sync do not require the opt-in.
   keywords, usage count and label IDs. Shortcuts are matched with or without the
   leading `/`.
 
+### Write results and errors for scripts
+
+With `--json`, list and chat-label writes return the usual
+`{"success":true,"data":{...}}` envelope. `data` keeps its fields and adds
+`updated_at`, the Unix-millisecond value stored in `lists.updated_at` (create,
+edit, delete) or `chat_lists.updated_at` (chat label add/remove). It is read back
+after the local update, so it is what the store holds even when a newer local row
+kept the patch's own timestamp. A sync owner built before this field does not
+send it, and it is then omitted.
+
+```json
+{"success":true,"data":{"ok":true,"action":"chat_label_add","label":{"id":"7","name":"Ventas","color":1,"predefined_id":null,"type":null,"order_index":null,"is_active":null,"is_immutable":null,"chat_memberships_supported":true},"chat":"123@s.whatsapp.net","updated_at":1700000000123},"error":null}
+```
+
+Failures keep the human `error` text, which can contain list names and JIDs, and
+add two stable fields. Scripts must branch on these, never on the text:
+
+```json
+{"success":false,"data":null,"error":"a label named \"Ventas\" already exists (ID 7); use `lists edit`","error_code":"list_duplicate_name","write_outcome":"not_sent"}
+```
+
+`write_outcome` is `"not_sent"` when nothing reached WhatsApp (safe to retry
+after fixing the cause) or `"unknown"` when the patch may have been applied
+(check `lists list` before retrying). Text output is unchanged. The same fields
+come back when the write was delegated to `sync --follow`.
+
+| `error_code` | `write_outcome` | Meaning |
+| --- | --- | --- |
+| `list_duplicate_name` | `not_sent` | A live list already has the name (create and rename). |
+| `list_not_found` | `not_sent` | No list with that ID or exact name in the local index. |
+| `list_deleted` | `not_sent` | The list was deleted on the phone. |
+| `list_ambiguous_name` | `not_sent` | Several lists share the name; use an ID. |
+| `list_id_in_use` | `not_sent` | `--id` belongs to a live or deleted list. |
+| `list_id_invalid` | `not_sent` | `--id` is not a canonical nonnegative numeric ID. |
+| `list_immutable` | `not_sent` | WhatsApp marks the definition immutable. |
+| `list_system_type` | `not_sent` | System list type (favorites, unread, ...). |
+| `chat_lid_only` | `not_sent` | The chat has no known phone number. |
+| `list_index_incomplete` | `not_sent` | Create without `--id` refused; see below. |
+| `regular_writes_disabled` | `not_sent` | `WACLI_REGULAR_WRITES=1` missing in the CLI or in the sync owner. |
+| `coordinator_unavailable` | `not_sent` | Store lock, connection, the app-state coordinator or the pre-write sync failed or timed out. |
+| `invalid_input` | `not_sent` | Empty name, color outside 0-19, missing flag, unresolvable chat. |
+| `owner_unsupported` | `not_sent` | The running `sync` is too old to accept the request; restart it. |
+| `write_rejected` | `not_sent` | Other refusal before sending, such as a local store read failure. |
+| `write_outcome_unknown` | `unknown` | The send failed or something failed after it (missing apply boundary, local persistence), or the owner's reply was lost. |
+| `delegate_error` | `unknown` | An older sync owner failed without a code; its outcome cannot be proven. |
+
+Quick-reply writes share the transport-level codes (`regular_writes_disabled`,
+`coordinator_unavailable`, `write_outcome_unknown`, `owner_unsupported`,
+`write_rejected`, `invalid_input`). `--read-only` refusals have no code.
+
+`lists create` without `--id` is allowed only when the full `regular` snapshot is
+recorded complete (`list_sync_state.full_sync_complete`) and, if `regular` is in
+`app_state_full_sync_broken`, the completion was recorded in a later second than
+that mark (`list_sync_state.full_sync_complete_at`, Unix ms; empty for completions
+recorded by older builds, which cannot prove it). Marking a full sync broken does
+not lower the completion bit. It is also refused when durable `regular` recovery
+debt remains after the pre-write sync, because events may not have reached the
+index; collections that skip full replays (broken or LID-migrated) keep such debt,
+so pass `--id` there. Every refusal is `list_index_incomplete`.
+
 The local label and quick reply indexes order values by action timestamp, while
 WhatsApp orders app state by patch. A phone clock ahead of this machine can make
 a newer local write and its echo lose to an older timestamped value; a replay

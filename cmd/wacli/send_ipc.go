@@ -97,6 +97,7 @@ type sendDelegateResponse struct {
 	OK             bool                 `json:"ok"`
 	Error          string               `json:"error,omitempty"`
 	ErrorCode      string               `json:"error_code,omitempty"`
+	WriteOutcome   string               `json:"write_outcome,omitempty"`
 	ProfilePicture *profilePictureInfo  `json:"profile_picture,omitempty"`
 	Sent           bool                 `json:"sent,omitempty"`
 	To             string               `json:"to,omitempty"`
@@ -159,7 +160,7 @@ func delegateSend(ctx context.Context, flags *rootFlags, req sendDelegateRequest
 	req.DeadlineUnixMS = deadline.UnixMilli()
 	_ = conn.SetDeadline(deadline)
 	if err := json.NewEncoder(conn).Encode(req); err != nil {
-		return sendDelegateResponse{}, err
+		return sendDelegateResponse{}, delegateTransportError(req, app.ListErrDelegateError, err)
 	}
 	var resp sendDelegateResponse
 	if err := json.NewDecoder(conn).Decode(&resp); err != nil {
@@ -173,14 +174,45 @@ func delegateSend(ctx context.Context, flags *rootFlags, req sendDelegateRequest
 			}
 			// The request reached the daemon, which may have started it just
 			// before the deadline. Say so, because a blind retry can send twice.
-			return sendDelegateResponse{}, fmt.Errorf("no reply from the running sync process before the timeout; the %s may still have gone through, so check before retrying: %w", req.Kind, err)
+			return sendDelegateResponse{}, delegateTransportError(req, app.ListErrWriteOutcomeUnknown, fmt.Errorf("no reply from the running sync process before the timeout; the %s may still have gone through, so check before retrying: %w", req.Kind, err))
 		}
-		return sendDelegateResponse{}, fmt.Errorf("lost reply from the running sync process after dispatch; the %s may still have gone through, so check before retrying: %w", req.Kind, err)
+		return sendDelegateResponse{}, delegateTransportError(req, app.ListErrWriteOutcomeUnknown, fmt.Errorf("lost reply from the running sync process after dispatch; the %s may still have gone through, so check before retrying: %w", req.Kind, err))
 	}
 	if !resp.OK {
-		return sendDelegateResponse{}, errors.New(resp.Error)
+		return sendDelegateResponse{}, delegateRefusal(req, resp)
 	}
 	return resp, nil
+}
+
+// delegateTransportError types a socket failure of a delegated app-state
+// write: the request may have been dispatched, so the outcome is unknown.
+// Other kinds keep their plain errors.
+func delegateTransportError(req sendDelegateRequest, code string, err error) error {
+	if req.Kind != appStateWriteKind {
+		return err
+	}
+	return app.NewListWriteError(code, app.WriteOutcomeUnknown, err)
+}
+
+// delegateRefusal turns a failed owner reply into an error. For app-state
+// writes it keeps the owner's code and outcome. A reply without a code comes
+// from an older owner: only its rejection of the kind proves nothing was sent.
+func delegateRefusal(req sendDelegateRequest, resp sendDelegateResponse) error {
+	err := errors.New(resp.Error)
+	if req.Kind != appStateWriteKind {
+		return err
+	}
+	if resp.ErrorCode != "" {
+		outcome := resp.WriteOutcome
+		if outcome != app.WriteOutcomeNotSent {
+			outcome = app.WriteOutcomeUnknown
+		}
+		return app.NewListWriteError(resp.ErrorCode, outcome, err)
+	}
+	if explained := explainAppStateWriteDelegateError(err); explained != err {
+		return app.NewListWriteError(app.ListErrOwnerUnsupported, app.WriteOutcomeNotSent, explained)
+	}
+	return app.NewListWriteError(app.ListErrDelegateError, app.WriteOutcomeUnknown, err)
 }
 
 func tryDelegateSend(ctx context.Context, flags *rootFlags, lockErr error, req sendDelegateRequest) (sendDelegateResponse, bool, error) {
@@ -325,7 +357,11 @@ func handleSendDelegateConn(ctx context.Context, conn net.Conn, execute sendDele
 	if req.Kind == chatStateKind || req.Kind == contactsSaveKind || req.Kind == appStateWriteKind || req.Kind == appStateResyncKind || req.Kind == groupParticipantsKind || req.Kind == groupInviteLinkKind || req.Kind == businessProfileSetKind {
 		// State operations must not hold the message-send queue (#454).
 		if requestCtx.Err() != nil {
-			_ = json.NewEncoder(conn).Encode(sendDelegateResponse{OK: false, Error: "request deadline passed before dispatch; it was not sent"})
+			refusal := sendDelegateResponse{OK: false, Error: "request deadline passed before dispatch; it was not sent"}
+			if req.Kind == appStateWriteKind {
+				refusal.ErrorCode, refusal.WriteOutcome = app.ListErrCoordinatorDown, app.WriteOutcomeNotSent
+			}
+			_ = json.NewEncoder(conn).Encode(refusal)
 			return
 		}
 		resp, err := execute(requestCtx, req)
@@ -393,10 +429,16 @@ func handleSendDelegateConn(ctx context.Context, conn net.Conn, execute sendDele
 
 func writeDelegateResult(conn net.Conn, requestCtx context.Context, req sendDelegateRequest, resp sendDelegateResponse, err error) {
 	if err != nil {
-		if requestCtx.Err() != nil || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		var coded *app.ListWriteError
+		isCoded := errors.As(err, &coded)
+		if !(isCoded && coded.Outcome == app.WriteOutcomeNotSent) &&
+			(requestCtx.Err() != nil || errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)) {
 			err = fmt.Errorf("delegated %s failed after dispatch and may still have gone through; check before retrying: %w", req.Kind, err)
 		}
 		resp = sendDelegateResponse{OK: false, Error: err.Error()}
+		if isCoded {
+			resp.ErrorCode, resp.WriteOutcome = coded.Code, coded.Outcome
+		}
 	}
 	_ = json.NewEncoder(conn).Encode(resp)
 }
