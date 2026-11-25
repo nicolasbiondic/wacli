@@ -90,4 +90,4 @@ tool github.com/sqlc-dev/sqlc/cmd/sqlc
 // vendas/024: snapshot boundaries/provenance, conflict snapshots and failed recovery closes.
 replace go.mau.fi/whatsmeow => github.com/nicolasbiondic/whatsmeow v0.0.0-20261027081841-579078a41ce7
 
-replace github.com/purpshell/meowcaller => github.com/nicolasbiondic/meowcaller v0.0.0-20261110062840-fcca441232d8
+replace github.com/purpshell/meowcaller => github.com/nicolasbiondic/meowcaller v0.0.0-20261125030217-d8f7c4370ec3

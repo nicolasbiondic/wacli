@@ -76,8 +76,8 @@ github.com/ncruces/go-sqlite3-wasm/v6 v6.3.35401 h1:oaZQ/7pA15HbXFZygnqJ8P/2fy10
 github.com/ncruces/go-sqlite3-wasm/v6 v6.3.35401/go.mod h1:KG11ycVocsrsZ6OoNm4j2T7SKyzb/6ELHo0M+bAX50A=
 github.com/ncruces/julianday v1.0.0 h1:fH0OKwa7NWvniGQtxdJRxAgkBMolni2BjDHaWTxqt7M=
 github.com/ncruces/julianday v1.0.0/go.mod h1:Dusn2KvZrrovOMJuOt0TNXL6tB7U2E8kvza5fFc9G7g=
-github.com/nicolasbiondic/meowcaller v0.0.0-20261110062840-fcca441232d8 h1:spzC2O7Ihd9RpXEIJ5gpcvqJ8ykSk8AoWI3kR5HsC3E=
-github.com/nicolasbiondic/meowcaller v0.0.0-20261110062840-fcca441232d8/go.mod h1:kSME01MaSkwul6tSmExmgBWUOmfkw3DNpfnozsn01eE=
+github.com/nicolasbiondic/meowcaller v0.0.0-20261125030217-d8f7c4370ec3 h1:Ruhvgl3jENYiQUzZh3ah/O9uRnEW+oZ3AdmvLYZKF9E=
+github.com/nicolasbiondic/meowcaller v0.0.0-20261125030217-d8f7c4370ec3/go.mod h1:kSME01MaSkwul6tSmExmgBWUOmfkw3DNpfnozsn01eE=
 github.com/nicolasbiondic/whatsmeow v0.0.0-20261027081841-579078a41ce7 h1:tjIdk4hWmWOb3o3hflg9qahBFMV/lsBCGlb6Fy/k9Lc=
 github.com/nicolasbiondic/whatsmeow v0.0.0-20261027081841-579078a41ce7/go.mod h1:p54VOTVQDX9n2/7ITAUkXD84fTqa+UTaE+7t0utC7sQ=
 github.com/petermattis/goid v0.0.0-20260918085751-abfca077860b h1:OzNsuVdSWGwXvWKTtChx9ve89k4cFJ6NxYM4Aw4/f+E=

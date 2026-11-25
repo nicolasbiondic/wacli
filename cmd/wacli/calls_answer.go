@@ -16,11 +16,12 @@ import (
 )
 
 // Voice calls (experimental). `calls serve` holds its own WhatsApp connection
-// for a store and answers calls through meowcaller; `calls answer`, `calls
-// hangup` and `calls active` talk to it over a control socket in the store
-// directory. Never point this at a production line: answering calls with an
-// unofficial client is a ban risk, so it is meant for a lab number in its own
-// store (see docs/calls-answer-lab.md).
+// for a store and answers calls through meowcaller; `wacli sync --follow
+// --calls manual|auto` does the same on the sync daemon's own session. `calls
+// answer`, `calls hangup`, `calls active` and `calls watch` talk to whichever
+// of the two owns the store, over a control socket in the store directory.
+// Answering calls with an unofficial client is a ban risk: lab numbers first
+// (see docs/calls-answer-lab.md and docs/calls-daemon.md).
 
 func newCallsServeCmd(flags *rootFlags) *cobra.Command {
 	var answerMode string
@@ -39,8 +40,9 @@ func newCallsServeCmd(flags *rootFlags) *cobra.Command {
 In manual mode (default) every ring is reported and someone must run
 ` + "`wacli calls answer --call-id … --audio-in … --audio-out …`" + `. In auto mode calls
 from --allow (or anyone) are answered after --answer-delay with the audio
-given here. This command keeps its own connection: do not run it next to
-` + "`wacli sync`" + ` on the same store.`,
+given here. This command keeps its own connection, so it cannot run next to
+` + "`wacli sync`" + ` on the same store: to answer on a store that a sync daemon
+already serves, start the daemon with ` + "`--calls manual|auto`" + ` instead.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := flags.requireWritable(); err != nil {
 				return err
@@ -134,7 +136,7 @@ func newCallsAnswerCmd(flags *rootFlags) *cobra.Command {
 	var audioOut string
 	cmd := &cobra.Command{
 		Use:   "answer",
-		Short: "Answer a ringing call in a running `wacli calls serve`",
+		Short: "Answer a ringing call (in `wacli calls serve` or `wacli sync --calls`)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := flags.requireWritable(); err != nil {
 				return err
@@ -156,7 +158,7 @@ func newCallsHangupCmd(flags *rootFlags) *cobra.Command {
 	var callID string
 	cmd := &cobra.Command{
 		Use:   "hangup",
-		Short: "Hang up (or reject) a call in a running `wacli calls serve`",
+		Short: "Hang up a call (a ringing one is rejected by `calls serve`, dropped by `sync --calls`)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := flags.requireWritable(); err != nil {
 				return err
@@ -172,9 +174,32 @@ func newCallsHangupCmd(flags *rootFlags) *cobra.Command {
 func newCallsActiveCmd(flags *rootFlags) *cobra.Command {
 	return &cobra.Command{
 		Use:   "active",
-		Short: "List ringing, active and recently ended calls in a running `wacli calls serve`",
+		Short: "List ringing, active and recently ended calls (`calls serve` or `sync --calls`)",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runCallsControl(flags, calls.ControlRequest{Op: "list"})
+		},
+	}
+}
+
+func newCallsWatchCmd(flags *rootFlags) *cobra.Command {
+	return &cobra.Command{
+		Use:   "watch",
+		Short: "Stream call events as NDJSON from `wacli calls serve` or `wacli sync --calls`",
+		Long: `Prints one JSON line per call event (call_incoming, call_answered,
+call_ended, call_ignored, call_busy, call_engine_panic, …) until interrupted.
+A watcher that falls behind loses lines; the next line it gets says how many
+in "dropped".`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			storeDir, err := resolveStoreDir(flags)
+			if err != nil {
+				return err
+			}
+			ctx, stop := signalContextWithEvents(out.NewEventWriter(os.Stderr, false))
+			defer stop()
+			return calls.Watch(ctx, calls.ControlSocketPath(storeDir), func(line []byte) error {
+				_, err := os.Stdout.Write(line)
+				return err
+			})
 		},
 	}
 }
@@ -226,7 +251,7 @@ func writeLiveCalls(dst io.Writer, list []calls.CallInfo, fullOutput bool) error
 
 func formatEventFields(fields map[string]any) string {
 	parts := make([]string, 0, len(fields))
-	for _, k := range []string{"call_id", "peer", "audio", "reason", "duration_s", "rtp_in", "rtp_out", "rtp_lost", "video"} {
+	for _, k := range []string{"call_id", "peer", "audio", "reason", "duration_s", "rtp_in", "rtp_out", "rtp_lost", "video", "where", "error"} {
 		if v, ok := fields[k]; ok {
 			parts = append(parts, fmt.Sprintf("%s=%v", k, v))
 		}
