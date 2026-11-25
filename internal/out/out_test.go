@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"syscall"
@@ -72,6 +73,31 @@ func TestWriteErrorJSONAndText(t *testing.T) {
 	_ = WriteError(&b, false, errors.New("boom\x1b[31m\nbad\x7f"))
 	if strings.TrimSpace(b.String()) != "boom bad" {
 		t.Fatalf("unexpected text error output: %q", b.String())
+	}
+}
+
+type codedTestError struct{ error }
+
+func (codedTestError) ErrorCode() string    { return "some_code" }
+func (codedTestError) WriteOutcome() string { return "not_sent" }
+
+func TestWriteErrorJSONAddsCodeAndOutcome(t *testing.T) {
+	var b bytes.Buffer
+	_ = WriteError(&b, true, fmt.Errorf("wrapped: %w", codedTestError{errors.New("boom")}))
+	var got map[string]any
+	if err := json.Unmarshal(b.Bytes(), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got["error"] != "wrapped: boom" || got["error_code"] != "some_code" || got["write_outcome"] != "not_sent" || got["success"] != false {
+		t.Fatalf("envelope = %v", got)
+	}
+	b.Reset()
+	_ = WriteError(&b, true, errors.New("plain"))
+	if strings.Contains(b.String(), "error_code") || strings.Contains(b.String(), "write_outcome") {
+		t.Fatalf("plain error gained fields: %s", b.String())
+	}
+	if f := ErrorFields(codedTestError{errors.New("boom")}); f["error_code"] != "some_code" || f["write_outcome"] != "not_sent" {
+		t.Fatalf("fields = %v", f)
 	}
 }
 
