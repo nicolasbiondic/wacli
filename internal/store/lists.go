@@ -32,10 +32,21 @@ func migrateLists(d *DB) error {
 	// Legacy builds set events_seen on the first mutation, not on completion.
 	// Never promote that bit when upgrading an existing index.
 	has, err := d.tableHasColumn("list_sync_state", "full_sync_complete")
+	if err != nil {
+		return err
+	}
+	if !has {
+		if _, err = d.sql.Exec(`ALTER TABLE list_sync_state ADD COLUMN full_sync_complete INTEGER NOT NULL DEFAULT 0`); err != nil {
+			return err
+		}
+	}
+	// Unix ms of the last recorded completion; NULL for completions recorded
+	// before the column existed.
+	has, err = d.tableHasColumn("list_sync_state", "full_sync_complete_at")
 	if err != nil || has {
 		return err
 	}
-	_, err = d.sql.Exec(`ALTER TABLE list_sync_state ADD COLUMN full_sync_complete INTEGER NOT NULL DEFAULT 0`)
+	_, err = d.sql.Exec(`ALTER TABLE list_sync_state ADD COLUMN full_sync_complete_at INTEGER`)
 	return err
 }
 
@@ -73,19 +84,19 @@ func recordListFullSync(tx *sql.Tx, full bool) error {
 	if !full {
 		return nil
 	}
-	_, err := tx.Exec(`UPDATE list_sync_state SET full_sync_events_seen=1,full_sync_complete=0 WHERE id=1`)
+	_, err := tx.Exec(`UPDATE list_sync_state SET full_sync_events_seen=1,full_sync_complete=0,full_sync_complete_at=NULL WHERE id=1`)
 	return err
 }
 
 // MarkRegularFullSyncComplete is only called at a successfully persisted,
 // ordered regular completion sentinel, including a verified empty snapshot.
 func (d *DB) MarkRegularFullSyncComplete() error {
-	_, err := d.sql.Exec(`UPDATE list_sync_state SET full_sync_events_seen=1,full_sync_complete=1 WHERE id=1`)
+	_, err := d.sql.Exec(`UPDATE list_sync_state SET full_sync_events_seen=1,full_sync_complete=1,full_sync_complete_at=? WHERE id=1`, nowUTC().UnixMilli())
 	return err
 }
 
 func (d *DB) InvalidateRegularFullSync() error {
-	_, err := d.sql.Exec(`UPDATE list_sync_state SET full_sync_complete=0 WHERE id=1`)
+	_, err := d.sql.Exec(`UPDATE list_sync_state SET full_sync_complete=0,full_sync_complete_at=NULL WHERE id=1`)
 	return err
 }
 
@@ -320,10 +331,17 @@ func (d *DB) ResolveListForWrite(value string) (List, error) {
 		}
 	}
 	if len(matches) == 0 {
-		return List{}, fmt.Errorf("list %q is not in the local index; sync first", value)
+		deleted, err := d.listTombstoneExists(value)
+		if err != nil {
+			return List{}, err
+		}
+		if deleted {
+			return List{}, newListLookupError(ErrListDeleted, "list %q was deleted on the phone", value)
+		}
+		return List{}, newListLookupError(ErrListNotFound, "list %q is not in the local index; sync first", value)
 	}
 	if len(matches) > 1 {
-		return List{}, fmt.Errorf("list name %q is ambiguous; use an ID", value)
+		return List{}, newListLookupError(ErrListAmbiguous, "list name %q is ambiguous; use an ID", value)
 	}
 	return matches[0], nil
 }
