@@ -36,24 +36,26 @@ func readBoundary(db interface {
 
 // ReadReceiptCandidates takes one snapshot of the unread count and eligible
 // messages, then returns the oldest bounded slice so repeated calls progress.
-func (d *DB) ReadReceiptCandidates(jid string, limit int) ([]MessageInfo, error) {
+// missing is how many unread messages are older than anything stored (an
+// unread count from history sync whose messages were never downloaded).
+func (d *DB) ReadReceiptCandidates(jid string, limit int) (msgs []MessageInfo, missing int, err error) {
 	return d.readReceiptCandidates(jid, "", limit)
 }
 
 // ReadReceiptCandidatesThrough intersects the current unread suffix with the
 // handled prefix. Both are selected in one snapshot; newer same-second rows are
 // excluded using the anchor's row position, and the existing batch cap remains.
-func (d *DB) ReadReceiptCandidatesThrough(jid, id string, limit int) ([]MessageInfo, error) {
+func (d *DB) ReadReceiptCandidatesThrough(jid, id string, limit int) (msgs []MessageInfo, missing int, err error) {
 	if strings.TrimSpace(id) == "" {
-		return nil, fmt.Errorf("--through-message-id requires an exact nonempty message ID")
+		return nil, 0, fmt.Errorf("--through-message-id requires an exact nonempty message ID")
 	}
 	return d.readReceiptCandidates(jid, id, limit)
 }
 
-func (d *DB) readReceiptCandidates(jid, throughID string, limit int) ([]MessageInfo, error) {
+func (d *DB) readReceiptCandidates(jid, throughID string, limit int) ([]MessageInfo, int, error) {
 	tx, err := d.sql.BeginTx(storeCtx(), &sql.TxOptions{ReadOnly: true})
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer tx.Rollback()
 	boundary := ""
@@ -61,7 +63,7 @@ func (d *DB) readReceiptCandidates(jid, throughID string, limit int) ([]MessageI
 	if throughID != "" {
 		m, rowID, err := readBoundary(tx, jid, throughID)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		boundary = " WHERE ts < ? OR (ts = ? AND rowid <= ?)"
 		boundaryArgs = []any{unix(m.Timestamp), unix(m.Timestamp), rowID}
@@ -69,20 +71,22 @@ func (d *DB) readReceiptCandidates(jid, throughID string, limit int) ([]MessageI
 	var count int
 	var marked bool
 	if err := tx.QueryRow("SELECT unread_count, unread FROM chats WHERE jid = ?", jid).Scan(&count, &marked); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	if count == 0 && !marked {
-		return nil, tx.Commit()
+		return nil, 0, tx.Commit()
 	}
 	var available int
 	if err := tx.QueryRow("SELECT COUNT(*) FROM messages WHERE "+receiptEligible, jid).Scan(&available); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	// With no eligible rows, the caller can clear local metadata without
-	// acknowledging any message. Keep the guard for a nonempty partial history:
-	// its receipt boundary would otherwise clear the unknown unread remainder.
-	if count > available && available > 0 {
-		return nil, fmt.Errorf("chat has %d unread messages but only %d eligible messages stored; sync its history before sending receipts", count, available)
+	// An unread count above the stored rows means every stored eligible row is
+	// unread and the remainder predates the store (history sync reported the
+	// count without the messages). Acknowledge what is stored; the caller's
+	// boundary then lowers the count and reports the remainder.
+	missing := 0
+	if count > available {
+		missing = count - available
 	}
 	want := count
 	if want == 0 {
@@ -92,7 +96,7 @@ func (d *DB) readReceiptCandidates(jid, throughID string, limit int) ([]MessageI
 	args = append(args, limit)
 	rows, err := tx.Query("SELECT msg_id, COALESCE(sender_jid,''), ts FROM (SELECT msg_id, sender_jid, ts, rowid FROM messages WHERE "+receiptEligible+" ORDER BY ts DESC, rowid DESC LIMIT ?)"+boundary+" ORDER BY ts ASC, rowid ASC LIMIT ?", args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 	var messages []MessageInfo
@@ -100,18 +104,18 @@ func (d *DB) readReceiptCandidates(jid, throughID string, limit int) ([]MessageI
 		m := MessageInfo{ChatJID: jid}
 		var ts int64
 		if err := rows.Scan(&m.MsgID, &m.SenderJID, &ts); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		m.Timestamp = fromUnix(ts)
 		messages = append(messages, m)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	if err := rows.Close(); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return messages, tx.Commit()
+	return messages, missing, tx.Commit()
 }
 
 // ClearChatUnreadMarker clears only local unread metadata when there is nothing

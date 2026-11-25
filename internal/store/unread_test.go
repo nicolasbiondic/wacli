@@ -89,7 +89,7 @@ func TestClearEmptyUnreadPreservesAnArrivalAfterReceiptSelection(t *testing.T) {
 	if err := db.SetChatUnread(chat, true); err != nil {
 		t.Fatal(err)
 	}
-	msgs, err := db.ReadReceiptCandidates(chat, 100)
+	msgs, _, err := db.ReadReceiptCandidates(chat, 100)
 	if err != nil || len(msgs) != 0 {
 		t.Fatalf("empty selection = %v, %v", msgs, err)
 	}
@@ -111,5 +111,30 @@ func TestClearEmptyUnreadPreservesAnArrivalAfterReceiptSelection(t *testing.T) {
 		if err != nil || !c.Unread || c.UnreadCount != count {
 			t.Fatalf("arrival lost (count %d): %+v, %v", count, c, err)
 		}
+	}
+}
+
+func TestReadReceiptCandidatesAcceptsPartialHistory(t *testing.T) {
+	db := openTestDB(t)
+	chat := "123@s.whatsapp.net"
+	at := time.Unix(1700000000, 0)
+	if err := db.UpsertChat(chat, "dm", "Chat", at); err != nil {
+		t.Fatal(err)
+	}
+	for i, id := range []string{"a", "b"} {
+		if err := db.UpsertMessage(UpsertMessageParams{ChatJID: chat, MsgID: id, SenderJID: chat, Timestamp: at.Add(time.Duration(i) * time.Second), Text: id}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := db.SetChatUnreadCount(chat, 5); err != nil {
+		t.Fatal(err)
+	}
+	msgs, missing, err := db.ReadReceiptCandidates(chat, 100)
+	if err != nil || missing != 3 || len(msgs) != 2 || msgs[0].MsgID != "a" || msgs[1].MsgID != "b" {
+		t.Fatalf("candidates = %+v, missing %d, %v", msgs, missing, err)
+	}
+	msgs, missing, err = db.ReadReceiptCandidatesThrough(chat, "a", 100)
+	if err != nil || missing != 3 || len(msgs) != 1 || msgs[0].MsgID != "a" {
+		t.Fatalf("bounded candidates = %+v, missing %d, %v", msgs, missing, err)
 	}
 }

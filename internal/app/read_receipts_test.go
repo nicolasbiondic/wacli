@@ -1,6 +1,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openclaw/wacli/internal/out"
 	"github.com/openclaw/wacli/internal/store"
 	"github.com/openclaw/wacli/internal/wa"
 	"go.mau.fi/whatsmeow/types"
@@ -386,27 +388,6 @@ func TestReceiptModeKeepsMixedBatchOutcomesAndPartialFailure(t *testing.T) {
 	}
 }
 
-func TestReceiptModeFailsBeforeDispatchWhenHistoryIsIncomplete(t *testing.T) {
-	a := newTestApp(t)
-	f := newFakeWA()
-	a.wa = f
-	chat := types.NewJID("456", types.DefaultUserServer)
-	seedReceiptChat(t, a, chat, "dm", []store.UpsertMessageParams{{MsgID: "known", SenderJID: chat.String()}}, 2)
-	if _, _, err := a.MarkChatReadWithReceipts(context.Background(), chat); err == nil {
-		t.Fatal("incomplete unread history accepted")
-	}
-	if len(readReceiptCallsOf(f)) != 0 {
-		t.Fatal("receipt sent before history validation")
-	}
-	c, err := a.db.GetChat(chat.String())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if c.UnreadCount != 2 {
-		t.Fatal("unknown unread messages cleared")
-	}
-}
-
 func TestReceiptModeClearsEmptyMarkerWithoutNetwork(t *testing.T) {
 	a := newTestApp(t)
 	f := newFakeWA()
@@ -463,5 +444,93 @@ func TestReceiptModeClearsUnavailableUnreadLocallyWithoutAcknowledgingMessages(t
 				t.Fatal("unavailable messages were acknowledged over the network")
 			}
 		})
+	}
+}
+
+// History sync can report more unread messages than it downloads (for example
+// after the store is replaced). The stored ones are all unread, so they are
+// acknowledged, the count drops to what remains, and the gap is reported.
+func TestMarkChatReadWithReceiptsAcknowledgesPartialHistory(t *testing.T) {
+	for _, through := range []string{"", "in-2"} {
+		t.Run("through="+through, func(t *testing.T) {
+			a := newTestApp(t)
+			var events bytes.Buffer
+			a.opts.Events = out.NewEventWriter(&events, true)
+			f := newFakeWA()
+			a.wa = f
+			chat := types.JID{User: "456", Server: types.DefaultUserServer}
+			seedReceiptChat(t, a, chat, "dm", []store.UpsertMessageParams{
+				{MsgID: "in-1", SenderJID: chat.String()},
+				{MsgID: "out-1", FromMe: true},
+				{MsgID: "in-2", SenderJID: chat.String()},
+				{MsgID: "in-3", SenderJID: chat.String()},
+			}, 8)
+
+			var n int
+			var err error
+			if through == "" {
+				n, _, err = a.MarkChatReadWithReceipts(context.Background(), chat)
+			} else {
+				n, _, err = a.MarkChatReadWithReceiptsThrough(context.Background(), chat, through)
+			}
+			if err != nil {
+				t.Fatalf("partial history rejected: %v", err)
+			}
+			want := []types.MessageID{"in-1", "in-2", "in-3"}
+			remaining := 0
+			if through != "" {
+				want, remaining = want[:2], 1
+			}
+			calls := readReceiptCallsOf(f)
+			if n != len(want) || len(calls) != 1 || !slices.Equal(calls[0].ids, want) {
+				t.Fatalf("receipts = %d %+v, want %v", n, calls, want)
+			}
+			c, err := a.db.GetChat(chat.String())
+			if err != nil || c.UnreadCount != remaining || c.Unread != (remaining > 0) {
+				t.Fatalf("chat = %+v %v, want %d unread", c, err, remaining)
+			}
+			evt := findEventByName(t, events.String(), "warning")
+			data, _ := evt["data"].(map[string]any)
+			if data["code"] != "read_receipts_history_incomplete" || data["unread_not_stored"] != float64(5) || data["chat_jid"] != chat.String() {
+				t.Fatalf("warning = %v", data)
+			}
+		})
+	}
+}
+
+func TestMarkChatReadWithReceiptsReportsUnreadWithNoStoredMessages(t *testing.T) {
+	a := newTestApp(t)
+	var events bytes.Buffer
+	a.opts.Events = out.NewEventWriter(&events, true)
+	f := newFakeWA()
+	a.wa = f
+	chat := types.JID{User: "456", Server: types.DefaultUserServer}
+	seedReceiptChat(t, a, chat, "dm", []store.UpsertMessageParams{{MsgID: "out-1", FromMe: true}}, 4)
+	n, _, err := a.MarkChatReadWithReceipts(context.Background(), chat)
+	if err != nil || n != 0 || len(readReceiptCallsOf(f)) != 0 {
+		t.Fatalf("receipts = %d %v", n, err)
+	}
+	c, err := a.db.GetChat(chat.String())
+	if err != nil || c.UnreadCount != 0 || c.Unread {
+		t.Fatalf("chat = %+v %v", c, err)
+	}
+	data, _ := findEventByName(t, events.String(), "warning")["data"].(map[string]any)
+	if data["unread_not_stored"] != float64(4) || data["receipts"] != float64(0) {
+		t.Fatalf("warning = %v", data)
+	}
+}
+
+func TestMarkChatReadWithReceiptsCompleteHistoryHasNoWarning(t *testing.T) {
+	a := newTestApp(t)
+	var events bytes.Buffer
+	a.opts.Events = out.NewEventWriter(&events, true)
+	a.wa = newFakeWA()
+	chat := types.JID{User: "456", Server: types.DefaultUserServer}
+	seedReceiptChat(t, a, chat, "dm", []store.UpsertMessageParams{{MsgID: "in-1", SenderJID: chat.String()}}, 1)
+	if _, _, err := a.MarkChatReadWithReceipts(context.Background(), chat); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(events.String(), "read_receipts_history_incomplete") {
+		t.Fatalf("unexpected warning: %s", events.String())
 	}
 }

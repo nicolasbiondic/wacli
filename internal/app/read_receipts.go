@@ -35,11 +35,12 @@ func (a *App) MarkChatReadWithReceiptsThrough(ctx context.Context, jid types.JID
 func (a *App) markChatReadWithReceipts(ctx context.Context, jid types.JID, throughID string) (int, types.ReceiptType, error) {
 	chatJID := canonicalJIDString(a.canonicalStoreJID(ctx, jid))
 	var msgs []store.MessageInfo
+	var missing int
 	var err error
 	if throughID == "" {
-		msgs, err = a.db.ReadReceiptCandidates(chatJID, maxReadReceiptMessages)
+		msgs, missing, err = a.db.ReadReceiptCandidates(chatJID, maxReadReceiptMessages)
 	} else {
-		msgs, err = a.db.ReadReceiptCandidatesThrough(chatJID, throughID, maxReadReceiptMessages)
+		msgs, missing, err = a.db.ReadReceiptCandidatesThrough(chatJID, throughID, maxReadReceiptMessages)
 	}
 	if err != nil {
 		return 0, "", fmt.Errorf("select unread messages for %s: %w", chatJID, err)
@@ -50,7 +51,11 @@ func (a *App) markChatReadWithReceipts(ctx context.Context, jid types.JID, throu
 			// beyond the handled anchor. Nothing was acknowledged in that case.
 			return 0, "", nil
 		}
-		return 0, "", a.db.ClearChatUnreadMarker(chatJID)
+		if err := a.db.ClearChatUnreadMarker(chatJID); err != nil {
+			return 0, "", err
+		}
+		a.warnUnreadNotStored(chatJID, missing, 0)
+		return 0, "", nil
 	}
 	isGroup := jid.Server == types.GroupServer
 	batches, err := readReceiptBatches(msgs, isGroup)
@@ -93,7 +98,21 @@ func (a *App) markChatReadWithReceipts(ctx context.Context, jid types.JID, throu
 	if err := clearUnread(chatJID, msgs[len(msgs)-1].Timestamp, ids); err != nil {
 		return sent, receipt, fmt.Errorf("receipts sent, but updating local unread state failed: %w", err)
 	}
+	a.warnUnreadNotStored(chatJID, missing, sent)
 	return sent, receipt, nil
+}
+
+// warnUnreadNotStored reports unread messages that could not be acknowledged
+// because they predate the store; the local count no longer includes them.
+func (a *App) warnUnreadNotStored(chatJID string, missing, sent int) {
+	if missing <= 0 {
+		return
+	}
+	a.emitWarning(
+		"read_receipts_history_incomplete",
+		fmt.Sprintf("warning: chat %s had %d unread messages older than its stored history; sent %d receipts for stored messages and dropped the rest from the local unread count", chatJID, missing, sent),
+		map[string]any{"chat_jid": chatJID, "unread_not_stored": missing, "receipts": sent},
+	)
 }
 
 func readReceiptBatches(msgs []store.MessageInfo, isGroup bool) ([]readReceiptBatch, error) {
