@@ -46,59 +46,68 @@ type QuickReplyInput struct {
 func (a *App) writeRegularAppState(ctx context.Context, prepare func(at time.Time) (appstate.PatchInfo, func() error, error)) error {
 	release, err := a.beginChatStateWrite(ctx, appstate.WAPatchRegular)
 	if err != nil {
-		return err
+		return NewListWriteError(ListErrCoordinatorDown, WriteOutcomeNotSent, err)
 	}
 	defer release()
 	at := nowUTC().Truncate(time.Millisecond)
 	patch, persist, err := prepare(at)
 	if err != nil {
-		return err
+		return ensureListWriteError(err)
 	}
 	patch.Timestamp = at
 	pending, err := a.beginLocalAppStateWrite(appstate.WAPatchRegular)
 	if err != nil {
-		return err
+		return NewListWriteError(ListErrWriteRejected, WriteOutcomeNotSent, err)
 	}
+	// From here the patch may have reached WhatsApp: every failure is typed as
+	// an unknown outcome.
 	postSendEvents, err := a.wa.SendAppStatePatch(ctx, patch, func() { pending.reserve(a) })
 	if err != nil {
-		return errors.Join(err, a.failLocalAppStateWrite(ctx, &pending, postSendEvents))
+		return unknownOutcome(errors.Join(err, a.failLocalAppStateWrite(ctx, &pending, postSendEvents)))
 	}
 	if !pending.reserved {
-		return fmt.Errorf("WhatsApp app state send completed without an apply boundary")
+		return unknownOutcome(fmt.Errorf("WhatsApp app state send completed without an apply boundary"))
 	}
-	return a.completeLocalAppStateWrite(ctx, &pending, postSendEvents, persist)
+	return unknownOutcome(a.completeLocalAppStateWrite(ctx, &pending, postSendEvents, persist))
 }
 
 func validateLabelInput(in LabelInput) error {
 	if in.Name != nil && strings.TrimSpace(*in.Name) == "" {
-		return fmt.Errorf("label name must not be empty")
+		return notSent(ListErrInvalidInput, "label name must not be empty")
 	}
 	if in.Color != nil && (*in.Color < 0 || *in.Color > maxLabelColor) {
-		return fmt.Errorf("label color must be between 0 and %d", maxLabelColor)
+		return notSent(ListErrInvalidInput, "label color must be between 0 and %d", maxLabelColor)
 	}
 	return nil
 }
 
+// LabelWriteResult is a written definition plus the exact lists.updated_at
+// (Unix milliseconds) that is stored for it.
+type LabelWriteResult struct {
+	store.List
+	UpdatedAt int64
+}
+
 // CreateLabel adds a label. Without an explicit ID it takes the next numeric
 // ID, which is only safe once a full sync has shown every existing label.
-func (a *App) CreateLabel(ctx context.Context, in LabelInput) (store.List, error) {
+func (a *App) CreateLabel(ctx context.Context, in LabelInput) (LabelWriteResult, error) {
 	if in.Name == nil {
-		return store.List{}, fmt.Errorf("label name is required")
+		return LabelWriteResult{}, notSent(ListErrInvalidInput, "label name is required")
 	}
 	if err := validateLabelInput(in); err != nil {
-		return store.List{}, err
+		return LabelWriteResult{}, err
 	}
 	id := strings.TrimSpace(in.ID)
 	if in.ID != id {
-		return store.List{}, fmt.Errorf("label ID must not have surrounding spaces")
+		return LabelWriteResult{}, notSent(ListErrIDInvalid, "label ID must not have surrounding spaces")
 	}
 	if id != "" {
 		n, err := strconv.ParseInt(id, 10, 64)
 		if err != nil || n < 0 || strconv.FormatInt(n, 10) != id {
-			return store.List{}, fmt.Errorf("label ID must be a canonical nonnegative numeric ID")
+			return LabelWriteResult{}, notSent(ListErrIDInvalid, "label ID must be a canonical nonnegative numeric ID")
 		}
 	}
-	var created store.List
+	var created LabelWriteResult
 	err := a.writeRegularAppState(ctx, func(at time.Time) (appstate.PatchInfo, func() error, error) {
 		var index store.ListsResult
 		if err := a.db.ReadView(func(view *store.DB) error {
@@ -109,16 +118,28 @@ func (a *App) CreateLabel(ctx context.Context, in LabelInput) (store.List, error
 			}
 			for _, l := range index.Lists {
 				if l.Name == *in.Name {
-					return fmt.Errorf("a label named %q already exists (ID %s); use `lists edit`", l.Name, l.ID)
+					return notSent(ListErrDuplicateName, "a label named %q already exists (ID %s); use `lists edit`", l.Name, l.ID)
 				}
 			}
 			if id == "" {
-				complete, err := view.RegularFullSyncComplete()
+				index, err := view.RegularIndexCompleteness()
 				if err != nil {
 					return err
 				}
-				if !complete {
-					return fmt.Errorf("the local label index has not seen a full sync, so the next label ID could overwrite a label it never saw; pass --id with an unused ID")
+				if !index.Complete {
+					return notSent(ListErrIndexIncomplete, "the local label index has not seen a full sync, so the next label ID could overwrite a label it never saw; pass --id with an unused ID")
+				}
+				if !index.UsableForNewIDs() {
+					return notSent(ListErrIndexIncomplete, "the last full sync of the label collection did not verify and no complete snapshot was recorded since, so the next label ID could overwrite a label the local index never saw; pass --id with an unused ID")
+				}
+				// Debt left after the pre-write sync means events may not have
+				// reached the index yet.
+				pending, err := view.AppStateRecoveryPending(string(appstate.WAPatchRegular))
+				if err != nil {
+					return err
+				}
+				if pending {
+					return notSent(ListErrIndexIncomplete, "WhatsApp app state recovery for the label collection is still pending after the pre-write sync, so the local label index may be missing labels; pass --id with an unused ID")
 				}
 				maxID, err := view.MaxNumericListID()
 				if err != nil {
@@ -128,7 +149,7 @@ func (a *App) CreateLabel(ctx context.Context, in LabelInput) (store.List, error
 			} else if existing, found, err := view.ListByID(id); err != nil {
 				return err
 			} else if found {
-				return fmt.Errorf("label ID %s is already used by %q; use `lists edit`", id, existing.Name)
+				return notSent(ListErrIDInUse, "label ID %s is already used by %q; use `lists edit`", id, existing.Name)
 			}
 			return nil
 		}); err != nil {
@@ -147,42 +168,56 @@ func (a *App) CreateLabel(ctx context.Context, in LabelInput) (store.List, error
 			action.Type = waSyncAction.LabelEditAction_CUSTOM.Enum()
 			action.IsActive = proto.Bool(true)
 		}
-		created = labelFromAction(id, action)
-		return patch, func() error { return a.db.UpsertList(labelUpdate(id, action, at)) }, nil
+		created.List = labelFromAction(id, action)
+		return patch, func() error { return a.persistLabel(id, action, at, &created.UpdatedAt) }, nil
 	})
 	return created, err
 }
 
+// persistLabel stores the definition and reads back the stored timestamp, which
+// stays newer than the patch when a later local row wins.
+func (a *App) persistLabel(id string, action *waSyncAction.LabelEditAction, at time.Time, updatedAt *int64) error {
+	if err := a.db.UpsertList(labelUpdate(id, action, at)); err != nil {
+		return err
+	}
+	stored, err := a.db.ListUpdatedAt(id)
+	if err != nil {
+		return err
+	}
+	*updatedAt = stored
+	return nil
+}
+
 // EditLabel renames or recolors a label. WhatsApp replaces the whole value,
 // so every stored field is resent, not only the changed ones.
-func (a *App) EditLabel(ctx context.Context, ref string, in LabelInput) (store.List, error) {
+func (a *App) EditLabel(ctx context.Context, ref string, in LabelInput) (LabelWriteResult, error) {
 	if in.Name == nil && in.Color == nil {
-		return store.List{}, fmt.Errorf("nothing to change; pass a new name or color")
+		return LabelWriteResult{}, notSent(ListErrInvalidInput, "nothing to change; pass a new name or color")
 	}
 	if err := validateLabelInput(in); err != nil {
-		return store.List{}, err
+		return LabelWriteResult{}, err
 	}
 	return a.rewriteLabel(ctx, ref, in, false)
 }
 
 // DeleteLabel sends a label definition tombstone. Phone-side association
 // cleanup has not been verified.
-func (a *App) DeleteLabel(ctx context.Context, ref string) (store.List, error) {
+func (a *App) DeleteLabel(ctx context.Context, ref string) (LabelWriteResult, error) {
 	return a.rewriteLabel(ctx, ref, LabelInput{}, true)
 }
 
-func (a *App) rewriteLabel(ctx context.Context, ref string, in LabelInput, deleted bool) (store.List, error) {
-	var result store.List
+func (a *App) rewriteLabel(ctx context.Context, ref string, in LabelInput, deleted bool) (LabelWriteResult, error) {
+	var result LabelWriteResult
 	err := a.writeRegularAppState(ctx, func(at time.Time) (appstate.PatchInfo, func() error, error) {
 		current, err := a.db.ResolveListForWrite(ref)
 		if err != nil {
 			return appstate.PatchInfo{}, nil, err
 		}
 		if current.IsImmutable != nil && *current.IsImmutable {
-			return appstate.PatchInfo{}, nil, fmt.Errorf("list %q is immutable on WhatsApp", current.Name)
+			return appstate.PatchInfo{}, nil, notSent(ListErrImmutable, "list %q is immutable on WhatsApp", current.Name)
 		}
 		if !current.ChatMembershipsSupported {
-			return appstate.PatchInfo{}, nil, fmt.Errorf("list %q has system type %d; only labels and custom lists can be changed", current.Name, *current.Type)
+			return appstate.PatchInfo{}, nil, notSent(ListErrSystemType, "list %q has system type %d; only labels and custom lists can be changed", current.Name, *current.Type)
 		}
 		name, color := current.Name, int32(0)
 		if current.Color != nil {
@@ -196,7 +231,7 @@ func (a *App) rewriteLabel(ctx context.Context, ref string, in LabelInput, delet
 			}
 			for _, other := range index.Lists {
 				if other.ID != current.ID && other.Name == name {
-					return appstate.PatchInfo{}, nil, fmt.Errorf("a label named %q already exists (ID %s)", name, other.ID)
+					return appstate.PatchInfo{}, nil, notSent(ListErrDuplicateName, "a label named %q already exists (ID %s)", name, other.ID)
 				}
 			}
 		}
@@ -213,8 +248,8 @@ func (a *App) rewriteLabel(ctx context.Context, ref string, in LabelInput, delet
 		if current.Type != nil {
 			action.Type = waSyncAction.LabelEditAction_ListType(*current.Type).Enum()
 		}
-		result = labelFromAction(current.ID, action)
-		return patch, func() error { return a.db.UpsertList(labelUpdate(current.ID, action, at)) }, nil
+		result.List = labelFromAction(current.ID, action)
+		return patch, func() error { return a.persistLabel(current.ID, action, at, &result.UpdatedAt) }, nil
 	})
 	return result, err
 }
@@ -223,6 +258,8 @@ func (a *App) rewriteLabel(ctx context.Context, ref string, in LabelInput, delet
 type ChatLabelResult struct {
 	Label store.List
 	Chat  string
+	// UpdatedAt is the stored chat_lists.updated_at in Unix milliseconds.
+	UpdatedAt int64
 }
 
 // SetChatLabel adds a chat to, or removes it from, a label.
@@ -234,11 +271,11 @@ func (a *App) SetChatLabel(ctx context.Context, chat types.JID, ref string, labe
 			return appstate.PatchInfo{}, nil, err
 		}
 		if !label.ChatMembershipsSupported {
-			return appstate.PatchInfo{}, nil, fmt.Errorf("list %q has system type %d and no explicit chat memberships", label.Name, *label.Type)
+			return appstate.PatchInfo{}, nil, notSent(ListErrSystemType, "list %q has system type %d and no explicit chat memberships", label.Name, *label.Type)
 		}
 		target := a.canonicalStoreJID(ctx, chat)
 		if target.Server == types.HiddenUserServer {
-			return appstate.PatchInfo{}, nil, fmt.Errorf("chat %s has no known phone number; labeling LID-only chats is not supported", target)
+			return appstate.PatchInfo{}, nil, notSent(ListErrChatLIDOnly, "chat %s has no known phone number; labeling LID-only chats is not supported", target)
 		}
 		jid := canonicalJIDString(target)
 		result = ChatLabelResult{Label: label, Chat: jid}
@@ -249,7 +286,15 @@ func (a *App) SetChatLabel(ctx context.Context, chat types.JID, ref string, labe
 					return err
 				}
 			}
-			return a.db.SetChatList(jid, label.ID, labeled, at, false)
+			if err := a.db.SetChatList(jid, label.ID, labeled, at, false); err != nil {
+				return err
+			}
+			stored, err := a.db.ChatListUpdatedAt(jid, label.ID)
+			if err != nil {
+				return err
+			}
+			result.UpdatedAt = stored
+			return nil
 		}, nil
 	})
 	return result, err
