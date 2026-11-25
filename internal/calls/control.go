@@ -1,10 +1,12 @@
 package calls
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -12,9 +14,11 @@ import (
 	"time"
 )
 
-// The control socket lets `wacli calls answer|hangup|active` talk to the
-// process that holds the WhatsApp connection (`wacli calls serve`). One JSON
-// request per connection, one JSON reply.
+// The control socket lets `wacli calls answer|hangup|active|watch` talk to the
+// process that holds the WhatsApp connection: `wacli calls serve` on a session
+// of its own, or `wacli sync --follow --calls …` on the daemon's session. One
+// JSON request per connection and one JSON reply; `watch` keeps the connection
+// open and streams NDJSON events after its reply.
 
 // ControlSocketName is the socket file inside the store directory.
 const ControlSocketName = "calls.sock"
@@ -82,6 +86,13 @@ type ControlServer struct {
 	ln   net.Listener
 	path string
 	ctl  Controller
+	hub  *EventHub
+}
+
+// WithEvents lets the server stream hub events to `watch` requests.
+func (s *ControlServer) WithEvents(hub *EventHub) *ControlServer {
+	s.hub = hub
+	return s
 }
 
 // ListenControl binds the socket, replacing a stale file from a previous run.
@@ -93,7 +104,7 @@ func ListenControl(path string, ctl Controller) (*ControlServer, error) {
 		// Only remove it if nobody is listening.
 		if c, derr := net.DialTimeout("unix", path, 300*time.Millisecond); derr == nil {
 			c.Close()
-			return nil, fmt.Errorf("another `wacli calls serve` is already listening on %s", path)
+			return nil, fmt.Errorf("another wacli process already serves calls on %s", path)
 		}
 		_ = os.Remove(path)
 	}
@@ -125,13 +136,64 @@ func (s *ControlServer) Serve(ctx context.Context) error {
 
 func (s *ControlServer) handle(conn net.Conn) {
 	defer conn.Close()
+	defer func() {
+		// A bad request or a controller bug must not take the process down.
+		if v := recover(); v != nil {
+			_ = json.NewEncoder(conn).Encode(ControlResponse{Error: fmt.Sprintf("internal error: %v", v)})
+		}
+	}()
 	_ = conn.SetDeadline(time.Now().Add(10 * time.Second))
 	var req ControlRequest
-	if err := json.NewDecoder(conn).Decode(&req); err != nil {
+	dec := json.NewDecoder(io.LimitReader(conn, maxControlRequest))
+	if err := dec.Decode(&req); err != nil {
 		_ = json.NewEncoder(conn).Encode(ControlResponse{Error: "bad request: " + err.Error()})
 		return
 	}
+	if strings.EqualFold(strings.TrimSpace(req.Op), "watch") {
+		s.watch(conn)
+		return
+	}
 	_ = json.NewEncoder(conn).Encode(HandleControl(s.ctl, req))
+}
+
+const maxControlRequest = 64 << 10
+
+// watch acknowledges the request, then streams events until the client goes
+// away or the hub closes.
+func (s *ControlServer) watch(conn net.Conn) {
+	if s.hub == nil {
+		_ = json.NewEncoder(conn).Encode(ControlResponse{Error: "this process does not stream call events"})
+		return
+	}
+	events, cancel, err := s.hub.Subscribe()
+	if err != nil {
+		_ = json.NewEncoder(conn).Encode(ControlResponse{Error: err.Error()})
+		return
+	}
+	defer cancel()
+	if err := json.NewEncoder(conn).Encode(ControlResponse{OK: true}); err != nil {
+		return
+	}
+	_ = conn.SetDeadline(time.Time{})
+	gone := make(chan struct{})
+	go func() {
+		defer close(gone)
+		_, _ = io.Copy(io.Discard, conn)
+	}()
+	for {
+		select {
+		case line, ok := <-events:
+			if !ok {
+				return
+			}
+			_ = conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+			if _, err := conn.Write(line); err != nil {
+				return
+			}
+		case <-gone:
+			return
+		}
+	}
 }
 
 // Close stops listening and removes the socket file.
@@ -149,7 +211,7 @@ func SendControl(ctx context.Context, path string, req ControlRequest) (ControlR
 	d := net.Dialer{}
 	conn, err := d.DialContext(ctx, "unix", path)
 	if err != nil {
-		return ControlResponse{}, fmt.Errorf("connect to `wacli calls serve` at %s: %w", path, err)
+		return ControlResponse{}, fmt.Errorf("connect to the calls control socket %s (is `wacli calls serve` or `wacli sync --follow --calls …` running?): %w", path, err)
 	}
 	defer conn.Close()
 	if dl, ok := ctx.Deadline(); ok {
@@ -168,4 +230,46 @@ func SendControl(ctx context.Context, path string, req ControlRequest) (ControlR
 		return resp, errors.New(resp.Error)
 	}
 	return resp, nil
+}
+
+// Watch streams call events from a running process to fn, one NDJSON line at
+// a time, until ctx is done or the server closes the stream.
+func Watch(ctx context.Context, path string, fn func(line []byte) error) error {
+	d := net.Dialer{}
+	conn, err := d.DialContext(ctx, "unix", path)
+	if err != nil {
+		return fmt.Errorf("connect to the calls control socket %s: %w", path, err)
+	}
+	defer conn.Close()
+	stop := context.AfterFunc(ctx, func() { conn.Close() })
+	defer stop()
+	if err := json.NewEncoder(conn).Encode(ControlRequest{Op: "watch"}); err != nil {
+		return err
+	}
+	r := bufio.NewReader(conn)
+	first, err := r.ReadBytes('\n')
+	if err != nil {
+		return fmt.Errorf("read reply: %w", err)
+	}
+	var resp ControlResponse
+	if err := json.Unmarshal(first, &resp); err != nil {
+		return fmt.Errorf("read reply: %w", err)
+	}
+	if !resp.OK {
+		return errors.New(resp.Error)
+	}
+	for {
+		line, err := r.ReadBytes('\n')
+		if len(line) > 0 {
+			if ferr := fn(line); ferr != nil {
+				return ferr
+			}
+		}
+		if err != nil {
+			if ctx.Err() != nil || errors.Is(err, io.EOF) || errors.Is(err, net.ErrClosed) {
+				return nil
+			}
+			return err
+		}
+	}
 }

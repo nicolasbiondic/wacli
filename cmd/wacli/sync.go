@@ -28,6 +28,7 @@ func newSyncCmd(flags *rootFlags) *cobra.Command {
 	var webhookEventsFlag string
 	var sendSpacingFlag string
 	var storage syncStorageLimitFlags
+	var callsFlags syncCallsFlags
 
 	cmd := &cobra.Command{
 		Use:   "sync",
@@ -65,6 +66,10 @@ func newSyncCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			callsCfg, err := callsFlags.config(cmd, once || !follow)
+			if err != nil {
+				return err
+			}
 			ctx, stop := signalContextWithEvents(out.NewEventWriter(os.Stderr, flags.events))
 			defer stop()
 
@@ -76,6 +81,14 @@ func newSyncCmd(flags *rootFlags) *cobra.Command {
 
 			if err := a.EnsureAuthed(ctx); err != nil {
 				return err
+			}
+			if callsCfg.Enabled() {
+				// The engine hooks the session before Sync connects it.
+				daemon, err := startSyncCalls(ctx, a, flags, callsCfg)
+				if err != nil {
+					return err
+				}
+				defer daemon.Close()
 			}
 
 			mode := appPkg.SyncModeFollow
@@ -155,6 +168,7 @@ func newSyncCmd(flags *rootFlags) *cobra.Command {
 	cmd.Flags().StringVar(&webhookSecret, "webhook-secret", "", "HMAC-SHA256 secret for X-Wacli-Signature header")
 	cmd.Flags().BoolVar(&webhookAllowPrivate, "webhook-allow-private", false, "allow webhook URLs that resolve to localhost or private networks")
 	cmd.Flags().StringVar(&webhookEventsFlag, "webhook-events", string(appPkg.SyncWebhookEventMessage), "comma-separated event types to POST: message, receipt, chat_presence")
+	callsFlags.register(cmd)
 	cmd.Flags().Int64Var(&storage.maxMessages, "max-messages", 0, "maximum total messages to keep in the local DB before sync stops (0 = unlimited, or WACLI_SYNC_MAX_MESSAGES)")
 	cmd.Flags().StringVar(&storage.maxDBSize, "max-db-size", "", "maximum wacli.db disk usage before sync stops, e.g. 500MB or 2GB (default: WACLI_SYNC_MAX_DB_SIZE or unlimited)")
 	return cmd

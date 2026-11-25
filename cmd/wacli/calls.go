@@ -23,6 +23,7 @@ func newCallsCmd(flags *rootFlags) *cobra.Command {
 	cmd.AddCommand(newCallsAnswerCmd(flags))
 	cmd.AddCommand(newCallsHangupCmd(flags))
 	cmd.AddCommand(newCallsActiveCmd(flags))
+	cmd.AddCommand(newCallsWatchCmd(flags))
 	return cmd
 }
 
